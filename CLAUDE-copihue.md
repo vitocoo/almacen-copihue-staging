@@ -133,6 +133,19 @@ SANGRE (Internet / wifi del local)
     "Se cayeron todas mis apps a la vez" casi nunca es un bug de código
     nuevo en una sola app — apuntar primero a lo compartido (1-2-3).
 
+20. **COPIA VIVA PARA DESCARTAR CÓDIGO (staging):** mantener una copia
+    completa del sistema (planilla duplicada + su propio Apps Script + su
+    propio deploy en Vercel) donde **no se hacen cambios de prueba** — vive
+    congelada, solo se usa para diagnóstico.
+    - Si algo falla en producción y la copia viva **también** falla de
+      la misma forma → no es el código (nadie tocó nada ahí), es
+      infraestructura: wifi, Google, o algo externo. Cortar la búsqueda
+      de bugs ahí mismo.
+    - Si la copia viva anda bien y solo falla producción → ahí sí es el
+      código o un cambio reciente, seguir buscando en producción.
+    - Este chequeo va ANTES de gastar horas revisando código (hubiese
+      evitado buena parte del diagnóstico del 13/09/2026).
+
 ## ARQUITECTURA
 Copihue es de un solo local — **no** es multicliente. No hay prefijos,
 no hay PIN por cliente, no hay tokens de sesión por usuario externo. El
@@ -210,6 +223,30 @@ contra esta tabla o preguntarme.
 5. Yo pruebo.
 6. Si falla → volver atrás, no parchear encima.
 7. Una cosa por vez, sin excepciones.
+
+## ENTREGA EN DOS VERSIONES — STAGING PRIMERO (desde 13/09/2026)
+Para cualquier cambio de código que se vaya a probar antes de ir a
+producción:
+
+1. **Versión staging**: mismo cambio, pero con **todas** las constantes
+   de URL del backend (`API_URL`, `GAS_URL_FLYER`, y cualquier otra que
+   exista — buscar TODAS las que matcheen `_URL` o `script.google.com`,
+   no asumir que hay una sola) apuntando a la copia viva. Se le agrega
+   además un letrero visible "🚧 MANTENIMIENTO / STAGING" en el frente,
+   para que sea imposible confundirla con producción a simple vista.
+2. Esa versión se sube al repo de staging (`almacen-copihue-staging`,
+   cuenta `victoralvarezojeda`) y se prueba ahí.
+3. Una vez confirmado que el cambio funciona bien: se entrega la
+   **versión final** — mismo código, URLs apuntando a producción, sin el
+   letrero de mantenimiento — recién ahí lista para el repo real
+   (`almacen-copihue`, cuenta `javierojedabariloche`).
+
+**Lección del 13/09/2026:** `seba21.html` tenía DOS constantes de URL
+distintas apuntando al mismo backend (`API_URL` para todo lo general,
+`GAS_URL_FLYER` para la función de Jueves Cervecero) — si solo se
+cambia una, esa función queda hablándole a producción por accidente
+mientras el resto prueba contra staging. Siempre buscar todas antes de
+dar por armada una versión de staging.
 
 ## CHANCE LOG — OBLIGATORIO
 Registro descriptivo de cada sesión de desarrollo con IA, en su propio
