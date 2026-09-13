@@ -161,12 +161,74 @@ PENDIENTE (para la próxima sesión):
    producto vendido, para detectar automáticamente cuándo una venta no
    descontó stock.
 
+───────────────────────────────────────────────────
+
+## SESIÓN 5 — CLAUDE + Victor (armado del entorno de staging / "copia viva")
+
+QUÉ: se armó de punta a punta un entorno de staging completo — planilla
+duplicada, Apps Script propio, repo de GitHub y deploy en Vercel
+separados de producción — más una nueva regla de flujo de trabajo:
+entregar primero una versión de staging, y recién después de confirmada,
+la versión final para producción.
+
+POR QUÉ: Regla de Oro 20 (Copia viva para descartar código). El apagón
+de wifi de la Sesión 3 hubiese sido mucho más rápido de diagnosticar con
+esto ya armado — si la copia viva también fallaba, se sabía al instante
+que no era código.
+
+CÓMO:
+- **Planilla**: Archivo → Hacer una copia de la real → "Copia de Almacén
+  Copihue - Base de Datos_Staging". Confirmado: el Apps Script vino
+  copiado automáticamente con todo (`code.gs` v11.0 + satélites,
+  incluido `multicompra.gs`).
+- **Apps Script de la copia**: Implementar → Nueva implementación →
+  Aplicación web → Acceso "Cualquiera" → nueva URL de exec, verificada
+  funcionando (devuelve JSON en el navegador real).
+- **Cuentas separadas a propósito**: `javierojedabariloche@gmail.com` =
+  producción (repo `almacen-copihue` + lo que ya estaba). Todo el combo
+  de staging (planilla, Apps Script, y el repo nuevo
+  `almacen-copihue-staging`) queda bajo `victoralvarezojeda@gmail.com`
+  — decisión de Victor: el avatar logueado en GitHub es una señal visual
+  más difícil de pasar por alto estando cansado que leer el nombre de un
+  repo.
+- **Repo + Vercel**: `vitocoo/almacen-copihue-staging` en GitHub, deploy
+  en Vercel bajo la misma cuenta → `almacen-copihue-staging.vercel.app`.
+- **HTML de staging**: copia de `seba21.html` subida como `index.html`
+  (para URL limpia, sin sufijo) con las URLs del backend cambiadas a la
+  copia viva. Se encontraron y cambiaron **dos** constantes distintas:
+  `API_URL` (general) y `GAS_URL_FLYER` (Jueves Cervecero) — las dos
+  apuntaban al mismo GAS real.
+- **Nueva regla de flujo**: de acá en más, cualquier cambio de código se
+  entrega primero en versión staging (URLs a la copia viva + letrero
+  "🚧 MANTENIMIENTO/STAGING" visible en el frente), se prueba ahí, y
+  recién confirmado se entrega la versión final (URLs a producción, sin
+  letrero) para el repo real.
+
+DÓNDE: nueva infraestructura completa, no toca nada de producción.
+`CLAUDE.md` actualizado con la Regla 20 y la sección "ENTREGA EN DOS
+VERSIONES — STAGING PRIMERO".
+
+PROBLEMA QUE EVITA O RESUELVE: de acá en más, cualquier duda de "¿es el
+código o es otra cosa?" se resuelve en segundos probando la copia viva.
+También permite probar cambios sensibles (como el del botón "Cancelar
+todo", que toca ventas/stock reales) sin ningún riesgo sobre producción.
+
+SI SE ROMPE: la copia viva es descartable — si algo sale mal ahí, se
+repite el paso 1 (Hacer una copia de la real) y se arranca de nuevo, sin
+ningún impacto sobre el sistema real.
+
+PENDIENTE: Victor va a subir el `seba21.html` real actual para empezar
+a trabajar sobre él con este nuevo flujo (primero staging, después
+producción). Recordar SIEMPRE buscar todas las constantes de URL, no
+asumir que hay una sola (ver lección de `GAS_URL_FLYER` arriba).
+
 ---
 
 ## PROBLEMAS ABIERTOS AL CIERRE DEL DÍA (13/09/2026)
 
 1. **Botón "Cancelar todo" no funciona** — diagnóstico listo (ver Sesión
-   4), implementación pendiente.
+   4), implementación pendiente. Ahora se puede probar primero en
+   staging (Sesión 5) antes de ir a producción.
 2. **Intervalo de reintento de ventas pendientes** — cambiar 60s → 10min,
    sacar corte de las 22hs. Pendiente de implementar.
 3. **EventLog con stock antes/después** — diseño conversado (registrar
@@ -174,8 +236,8 @@ PENDIENTE (para la próxima sesión):
    todavía. Quedó pausado por el apagón de wifi.
 4. **Multicompra en producción** — `multicompra.gs` probado
    (`getMulticompraTodas()` corrió sin error desde el editor) pero
-   *todavía no se hizo* Implementar → Nueva versión. Sigue en el editor,
-   no en producción, al cierre de la sesión.
+   *todavía no se hizo* Implementar → Nueva versión en el proyecto real.
+   Sigue en el editor, no en producción, al cierre de la sesión.
 5. **Numeración de Reglas de Oro desincronizada entre documentos**
    (proyecto VAO, no Copihue): `PROMPT_MAESTRO.md` y `CLAUDE.md` de VAO
    tienen numeraciones distintas para reglas parcialmente superpuestas —
@@ -188,14 +250,15 @@ PENDIENTE (para la próxima sesión):
 
 ## PRÓXIMO PASO (al retomar)
 
-**PASO 1 — Implementar multicompra.gs en producción**
-Ya está probado. Solo falta: Implementar → Administrar implementaciones
-→ Nueva versión.
+**PASO 1 — Trabajar el botón "Cancelar todo" + ajustes de reintento, en staging primero**
+Victor sube el `seba21.html` real. Se entrega versión staging (URLs a la
+copia viva + letrero de mantenimiento) con los 4 puntos de la Sesión 4.
+Se prueba en `almacen-copihue-staging.vercel.app`. Confirmado, recién
+ahí versión final para producción.
 
-**PASO 2 — Arreglar el botón "Cancelar todo" + ajustes de reintento**
-Ver los 4 puntos concretos de la Sesión 4. Es la función más sensible
-del sistema (maneja ventas/stock reales) — hacerlo con cuidado quirúrgico,
-un cambio por vez, con diff contra el original.
+**PASO 2 — Implementar multicompra.gs en producción**
+Ya está probado en el editor real. Falta: Implementar → Administrar
+implementaciones → Nueva versión (en el proyecto real, no en staging).
 
 Al terminar cualquiera de los dos: agregar la entrada correspondiente acá.
 
