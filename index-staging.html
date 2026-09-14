@@ -2858,6 +2858,12 @@ const APP_VERSION = 'copihue-index-v191';
 // Fuente de verdad: category === 'PROMOS' o 'COMBOS' (col categoría planilla)
 // price  = col B = precio original (tachado)
 // normal = col L = precio promo/combo (el que se paga)
+// ⚠️ BLINDADO (13/09/2026): el % de descuento de PROMO/COMBO NO se muestra
+// al cliente en ningún lado (ni tarjetas, ni carrito, ni WhatsApp, ni
+// deeplink) — el redondeo del % no coincide siempre con la cuenta exacta
+// que hace el cliente con los dos precios, y genera reclamos. Mostrar
+// solo ANTES/AHORA en $ (montos exactos, sin redondeo). Si en algún
+// momento se agrega de nuevo, chequear primero con Victor.
 function esPromoActiva(p) {
     return p.category === 'PROMOS'
         && p.stockNumber > 0
@@ -4013,7 +4019,6 @@ function renderizarProductosNormales() {
         <div class="price-badge-promo">
             <span class="antes">ANTES $${product.price}</span>
             <span class="ahora">AHORA<br>$${product.normal}</span>
-            <span class="ahorro">-${Math.round(((product.price - product.normal) / product.price) * 100)}%</span>
         </div>
     ` : '';
     
@@ -5564,8 +5569,8 @@ function renderCartItems() {
                 precioAntes = product.price * item.quantity;
                 precioTotalItem = product.normal * item.quantity;
                 ahorroItem = precioAntes - precioTotalItem;
-                const porcentaje = Math.round(((product.price - product.normal) / product.price) * 100);
-                formula = `<div style="color:#ff9800;font-size:0.7rem;">👉 -${porcentaje}% ${_esComboReal ? 'combo' : 'promo'}</div>`;
+                // Sin %: solo el monto de ahorro en $ (ver blindaje arriba de esPromoActiva)
+                formula = `<div style="color:#ff9800;font-size:0.7rem;">👉 ${_esComboReal ? 'Combo' : 'Promo'} aplicado</div>`;
             }
         }
         
@@ -5767,8 +5772,7 @@ function sendOrderViaWhatsApp() {
             precioItem     = product.normal * item.quantity;
             precioParaTotal = product.price  * item.quantity;
             const ahorro    = precioParaTotal - precioItem;
-            const porcentaje = Math.round(((product.price - product.normal) / product.price) * 100);
-            ofertaInfo = `\n🎯 Ahorrás $${ahorro.toLocaleString('es-AR')} (-${porcentaje}%)`;
+            ofertaInfo = `\n🎯 Ahorrás $${ahorro.toLocaleString('es-AR')}`;
         }
         // MULTICOMPRA
         else if (item.oferta && item.oferta.tipo === 'multicompra') {
@@ -6274,7 +6278,6 @@ function generarTarjetaBusqueda(product) {
         <div class="price-badge-promo">
             <span class="antes">ANTES $${product.price}</span>
             <span class="ahora">AHORA<br>$${product.normal}</span>
-            <span class="ahorro">-${Math.round(((product.price - product.normal) / product.price) * 100)}%</span>
         </div>` : '';
 
     return `
@@ -6457,9 +6460,8 @@ function compartirProducto(productId, event) {
     // 4. PROMO ACTIVA — columna J = fuente de verdad (price=original, normal=promo)
     else if (_esPromoOComboActivo(product)) {
         precioNormalMostrar = product.price;
-        const ahorro = product.price - product.normal;
-        const porcentaje = Math.round((ahorro / product.price) * 100);
-        infoOferta = ` (-${porcentaje}% OFF)`;
+        // Sin %: ver blindaje junto a esPromoActiva/esComboActivo más arriba
+        infoOferta = ' (OFERTA)';
         precioFinal = product.normal;
     }
     
@@ -6490,15 +6492,13 @@ function compartirProducto(productId, event) {
             }
         }
         else if (_esPromoOComboActivo(product)) {
-            // Formato oferta: Antes/Ahora (PROMOS o COMBOS)
+            // Formato oferta: Antes/Ahora (PROMOS o COMBOS) — sin %, ver blindaje
             const ahorro = product.price - product.normal;
-            const porcentaje = Math.round((ahorro / product.price) * 100);
             const _esComboReal = product.category === 'COMBOS';
             texto = `${product.name}\n\n` +
                    `${_esComboReal ? '🎯 COMBO ESPECIAL' : '🎯 ¡Aprovechá ahora!'}\n` +
                    `💰 ANTES: $${product.price}\n` +
                    `🔥 AHORA: $${product.normal}\n` +
-                   `✅ ${porcentaje}% DE DESCUENTO\n` +
                    `💵 Ahorrás: $${ahorro}\n\n` +
                    `📍 ${(window._EMPRESA && window._EMPRESA.nombre) ? window._EMPRESA.nombre : 'Almacén Copihue'}\n` +
                    `🌐 ${urlProducto}`;
@@ -6564,7 +6564,14 @@ function compartirProducto(productId, event) {
     // === COMPARTIR NATIVO (MÓVIL) ===
     if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
         fetch(product.image)
-            .then(response => response.blob())
+            .then(response => {
+                // v: fetch() NO rechaza en 404 — si la foto no existe, sin este
+                // chequeo se armaba un archivo "imagen" con la página de error,
+                // y WhatsApp recibía un adjunto corrupto (perdía texto y foto).
+                // Con esto, sin foto real cae directo a compartir solo texto.
+                if (!response.ok) throw new Error('Imagen no disponible');
+                return response.blob();
+            })
             .then(blob => {
                 const file = new File([blob], `${product.name}.jpg`, { type: 'image/jpeg' });
                 
@@ -6707,12 +6714,11 @@ function abrirModalDeepLink(product) {
             <div class="deeplink-oferta-badge">⭐ -10% ESPECIAL — Ahorrás $${product.price - precioOferta}</div>
         `;
     } else if (_esPromoOComboActivo(product)) {
-        const porcentaje = Math.round(((product.price - product.normal) / product.price) * 100);
         const _esComboReal = product.category === 'COMBOS';
         precioHTML = `
             <div class="deeplink-price-normal">ANTES $${product.price}</div>
             <div class="deeplink-price-actual">AHORA $${product.normal}</div>
-            <div class="deeplink-oferta-badge">${_esComboReal ? '📦 COMBO' : '🎯 PROMO'} -${porcentaje}% — Ahorrás $${product.price - product.normal}</div>
+            <div class="deeplink-oferta-badge">${_esComboReal ? '📦 COMBO' : '🎯 PROMO'} — Ahorrás $${product.price - product.normal}</div>
         `;
     } else {
         precioHTML = `<div class="deeplink-price-actual">$${product.price}</div>`;
