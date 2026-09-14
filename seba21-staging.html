@@ -1854,7 +1854,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v478</title>
+    <title>🛒 POS · Copihue v479</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -5304,7 +5304,9 @@ function _renderVentaCompleta(ligero) {
     // (precio normal + badge chico "📦 cuenta para pack", ahorro grupal
     // solo en el resumen al pie). _construirVistaCarrito/_filaPackHTML/etc.
     // quedan sin usar (no se borran, por si hace falta volver a mirarlas).
-    contenedor.innerHTML = ventaActual.map(item => _filaVentaHTML(item, esDesktopPanel)).join('');
+    contenedor.innerHTML = _agruparLineasParaRender(ventaActual).map(g =>
+        g.tipo === 'grupoCombinado' ? _tarjetaGrupoCombinadoHTML(g.items, g.resumen) : _filaVentaHTML(g.item, esDesktopPanel)
+    ).join('');
 
     // Mostrar imagen solo en desktop
     if (esDesktopPanel) {
@@ -5342,6 +5344,62 @@ function _colorPromoMulticompra(item) {
 // reutilizada tanto por el render completo como por el patch quirúrgico
 // _patchFilaVenta() de abajo. No cambia ningún HTML/clase existente —
 // mismo template exacto, ahora con data-item-id para poder ubicar la fila.
+// v14/09/2026 — MULTICOMPRA COMBINABLE (variantes distintas): en vez de
+// repartir el ahorro proporcionalmente entre cada línea (confuso — una
+// línea de 1 unidad mostraba descuento sin completar nunca un par), se
+// arma UNA tarjeta que junta todas las líneas del grupo. Solo aplica
+// cuando el grupo mezcla productos DISTINTOS (sonIguales:false) — un
+// solo producto con multicompra grupal (mismo id, varios packs) sigue
+// el camino normal de _filaVentaHTML/_filaModalHTML, que ya calculaba
+// bien (ver spec-multicompra.md para la definición completa).
+function _agruparLineasParaRender(lista) {
+    const yaAgrupado = new Set();
+    const grupos = _resumenGruposMulticompra(lista);
+    const resultado = [];
+    (lista || []).forEach(item => {
+        if (yaAgrupado.has(item.id)) return;
+        const mc = _poolMulticompra.get(item.id);
+        if (item.ofertaTipo === 'multicompra-grupal' && mc && mc.grupo) {
+            const resumen = grupos.find(g => g.grupo === mc.grupo);
+            if (resumen && !resumen.sonIguales) {
+                const itemsDelGrupo = lista.filter(i => {
+                    const m = _poolMulticompra.get(i.id);
+                    return m && m.grupo === mc.grupo;
+                });
+                itemsDelGrupo.forEach(i => yaAgrupado.add(i.id));
+                resultado.push({ tipo: 'grupoCombinado', items: itemsDelGrupo, resumen });
+                return;
+            }
+        }
+        yaAgrupado.add(item.id);
+        resultado.push({ tipo: 'individual', item });
+    });
+    return resultado;
+}
+
+// Tarjeta única para un grupo combinado (ver spec-multicompra.md):
+// badge "🔀 Combinable NxM", un renglón por variante con su precio normal
+// de referencia, y el total normal tachado + ahorro real del grupo abajo.
+function _tarjetaGrupoCombinadoHTML(items, resumen) {
+    const filas = items.map(i => {
+        const prod = (typeof productos !== 'undefined') ? productos.find(p => p.id === i.id) : null;
+        const pnormal = prod ? prod.price : (i.price || 0);
+        const cant = i.esPeso ? `${i.gramos}gr` : `x${i.qty}`;
+        return `<div style="display:flex;justify-content:space-between;font-size:0.76rem;padding:2px 0;color:#444;">
+            <span>${i.name.substring(0,26)} ${cant}</span>
+            <span>$${pnormal.toLocaleString('es-AR')} c/u</span>
+        </div>`;
+    }).join('');
+    return `<div style="background:${resumen.colorBg};border:1.5px solid ${resumen.colorBorde};border-radius:10px;padding:10px 12px;margin-bottom:6px;">
+        <div style="font-weight:800;color:${resumen.colorTexto};font-size:0.78rem;margin-bottom:5px;">🔀 Combinable ${resumen.AT}x $${resumen.AU.toLocaleString('es-AR')}</div>
+        ${filas}
+        <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid ${resumen.colorBorde};margin-top:6px;padding-top:6px;">
+            <span style="text-decoration:line-through;color:#999;font-size:0.78rem;">$${resumen.totalNormal.toLocaleString('es-AR')}</span>
+            <span style="font-weight:800;color:#2e7d32;font-size:0.8rem;">−$${resumen.ahorro.toLocaleString('es-AR')}</span>
+        </div>
+    </div>`;
+}
+
 function _filaVentaHTML(item, esDesktopPanel) {
     const imgSrc = `imagenes-productos/${simplificarNombre(item.name)}.jpg`;
 
@@ -5613,7 +5671,9 @@ function _buildDetalleModalHTML() {
     const total = _totalCarritoConDescuentosGrupales();
     // v10.21 — REVERTIDO a v390/v439: mapea ventaActual 1 a 1, sin agrupar
     // en tarjetas de pack (ver nota en _filaVentaHTML).
-    const items = ventaActual.map((item, idx) => _filaModalHTML(item, idx, esDesktop)).join('');
+    const items = _agruparLineasParaRender(ventaActual).map(g =>
+        g.tipo === 'grupoCombinado' ? _tarjetaGrupoCombinadoHTML(g.items, g.resumen) : _filaModalHTML(g.item, ventaActual.indexOf(g.item), esDesktop)
+    ).join('');
     const resumenModal = _resumenGrupalHTML();
     return items + resumenModal + `<div class="confirm-total-row"><span>TOTAL</span><span>$${total.toLocaleString('es-AR')}</span></div>`;
 }
