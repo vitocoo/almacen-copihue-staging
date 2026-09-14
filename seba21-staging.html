@@ -1854,7 +1854,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v477</title>
+    <title>🛒 POS · Copihue v478</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2788,6 +2788,10 @@
     <link rel="prefetch" href="copihue-reportes.html">
 </head>
 <body>
+    <div style="position:fixed;top:0;left:0;right:0;z-index:99999;background:repeating-linear-gradient(45deg,#000,#000 10px,#ffcc00 10px,#ffcc00 20px);color:#000;text-align:center;font-weight:900;font-size:0.85rem;padding:6px 8px;">
+        🚧 STAGING / MANTENIMIENTO — NO ES EL SITIO REAL 🚧
+    </div>
+    <div style="height:32px;"></div>
 
 <!-- HEADER -->
 <div class="header" id="headerPrincipal" style="flex-direction:column;gap:6px;padding:8px 16px;">
@@ -5418,8 +5422,8 @@ function _filaVentaHTML(item, esDesktopPanel) {
     const ahorroGrupalLinea = item.ofertaTipo === 'multicompra-grupal' ? _ahorroLineaGrupal(item) : 0;
     const precioColHTML = tieneOferta
         ? `<div style="flex-shrink:0;text-align:right;min-width:64px;">
-            <span class="item-precio-antes" style="text-decoration:none;">$${item.precioOriginal.toLocaleString('es-AR')}</span>
-            ${item.esPeso ? '' : `<span style="display:block;text-align:right;font-size:0.72rem;font-weight:800;color:#2e7d32;line-height:1.2;">−$${ahorroTotal.toLocaleString('es-AR')}</span>`}
+            <span class="item-precio-antes" style="text-decoration:line-through;color:#999;">$${item.precioOriginal.toLocaleString('es-AR')}</span>
+            <span style="display:block;text-align:right;font-size:0.72rem;font-weight:800;color:#2e7d32;line-height:1.2;">−$${ahorroTotal.toLocaleString('es-AR')}</span>
           </div>`
         : `<div style="flex-shrink:0;text-align:right;min-width:64px;">
             <span class="item-precio-editable ${item.precioModificado ? 'modificado' : ''}"
@@ -11476,7 +11480,7 @@ document.getElementById('modalWifiQR').addEventListener('click', function(e) {
     </div>
 </div>
 
-<script>
+<script>               
 const GAS_URL_FLYER = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 let _flyerCanvasAdmin = null;
 let _flyerProductos = [];
