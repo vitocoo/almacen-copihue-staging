@@ -146,6 +146,34 @@ SANGRE (Internet / wifi del local)
     - Este chequeo va ANTES de gastar horas revisando código (hubiese
       evitado buena parte del diagnóstico del 13/09/2026).
 
+21. **VERIFICAR LA URL DEL GAS ANTES DE CONFIAR EN UN ARCHIVO — grave:**
+    nunca asumir que la URL del backend (`API_URL`, `GAS_URL_FLYER`, o
+    cualquier otra constante) que trae un archivo es la correcta, así
+    parezca "el archivo real" (subido por Victor, bajado de GitHub, el
+    que sea). Antes de construir cualquier cosa sobre un archivo:
+    1. Abrir la URL de exec directo en el navegador y confirmar que
+       devuelve datos reales y actuales — no alcanza con "responde algo".
+    2. Si el archivo tiene más de una constante de URL (es común, ver
+       Regla 14 sobre la doble constante de seba21), verificar **todas**,
+       nunca asumir que hay una sola con solo encontrar la primera.
+    3. Después de CUALQUIER corrección manual de una URL repetida en
+       varios lugares (la haga Victor a mano en GitHub, o la IA) — volver
+       a buscar (grep/Ctrl+F) el string viejo en **todo** el archivo para
+       confirmar cero rastros. Entre 6-7 apariciones es fácil que se
+       escape una.
+    - **Incidente real (13-14/09/2026):** se trabajó una sesión entera
+      sobre `seba21.html` e `index.html` con una URL de GAS
+      desactualizada/incorrecta ya presente en los archivos desde el
+      principio, sin que nadie lo detectara — hasta que Victor la
+      encontró comparando contra sus propias notas guardadas. De no
+      detectarse, todo el trabajo de la sesión hubiese quedado apuntando
+      a un backend equivocado sin que ninguna prueba en pantalla lo
+      hubiera revelado (los errores se vieron como "lentitud" o "wifi",
+      no como "URL incorrecta").
+    - Moraleja: la URL del GAS es tan "cimiento" como el código y la
+      planilla — no basta con que el archivo "se vea bien", hay que
+      probar la conexión real antes de dar por buena una sesión de trabajo.
+
 ## ARQUITECTURA
 Copihue es de un solo local — **no** es multicliente. No hay prefijos,
 no hay PIN por cliente, no hay tokens de sesión por usuario externo. El
@@ -234,12 +262,15 @@ producción:
    no asumir que hay una sola) apuntando a la copia viva. Se le agrega
    además un letrero visible "🚧 MANTENIMIENTO / STAGING" en el frente,
    para que sea imposible confundirla con producción a simple vista.
+   **También lleva su backup `_vNNN_backup.html`, igual que cualquier
+   entrega — staging NO es una excepción a la Regla de Oro 2.**
 2. Esa versión se sube al repo de staging (`almacen-copihue-staging`,
    cuenta `victoralvarezojeda`) y se prueba ahí.
 3. Una vez confirmado que el cambio funciona bien: se entrega la
    **versión final** — mismo código, URLs apuntando a producción, sin el
    letrero de mantenimiento — recién ahí lista para el repo real
-   (`almacen-copihue`, cuenta `javierojedabariloche`).
+   (`almacen-copihue`, cuenta `javierojedabariloche`). También con su
+   propio backup.
 
 **Lección del 13/09/2026:** `seba21.html` tenía DOS constantes de URL
 distintas apuntando al mismo backend (`API_URL` para todo lo general,
@@ -247,6 +278,14 @@ distintas apuntando al mismo backend (`API_URL` para todo lo general,
 cambia una, esa función queda hablándole a producción por accidente
 mientras el resto prueba contra staging. Siempre buscar todas antes de
 dar por armada una versión de staging.
+
+**Lección del 14/09/2026:** durante una tanda de varias iteraciones
+seguidas en staging (v478→v479→v480), se dejó de entregar el backup en
+cada una — la mente de "esto todavía no es lo definitivo" hizo que la
+Regla de Oro 2 (dos archivos siempre) se sintiera opcional. No lo es:
+toda entrega de código, sea staging o producción, sea la primera
+iteración del día o la quinta seguida, lleva su backup — sin excepción
+por "ritmo" o "todavía estamos probando".
 
 ## CHANCE LOG — OBLIGATORIO
 Registro descriptivo de cada sesión de desarrollo con IA, en su propio

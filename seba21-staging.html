@@ -1854,7 +1854,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v479</title>
+    <title>🛒 POS · Copihue v480</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -5304,9 +5304,11 @@ function _renderVentaCompleta(ligero) {
     // (precio normal + badge chico "📦 cuenta para pack", ahorro grupal
     // solo en el resumen al pie). _construirVistaCarrito/_filaPackHTML/etc.
     // quedan sin usar (no se borran, por si hace falta volver a mirarlas).
-    contenedor.innerHTML = _agruparLineasParaRender(ventaActual).map(g =>
-        g.tipo === 'grupoCombinado' ? _tarjetaGrupoCombinadoHTML(g.items, g.resumen) : _filaVentaHTML(g.item, esDesktopPanel)
-    ).join('');
+    contenedor.innerHTML = _agruparLineasParaRender(ventaActual).map(g => {
+        if (g.tipo === 'grupoCombinado') return _tarjetaGrupoCombinadoHTML(g.items, g.resumen);
+        if (g.tipo === 'grupoFaltante') return _tarjetaGrupoFaltanteHTML(g.items, g.mc, g.faltan);
+        return _filaVentaHTML(g.item, esDesktopPanel);
+    }).join('');
 
     // Mostrar imagen solo en desktop
     if (esDesktopPanel) {
@@ -5352,6 +5354,21 @@ function _colorPromoMulticompra(item) {
 // solo producto con multicompra grupal (mismo id, varios packs) sigue
 // el camino normal de _filaVentaHTML/_filaModalHTML, que ya calculaba
 // bien (ver spec-multicompra.md para la definición completa).
+// v14/09/2026 — Cuánto falta para activar una multicompra COMBINABLE (varios
+// sabores), calculado en vivo contra el total actual del grupo en el
+// carrito — no se guarda en el item porque cambia cada vez que se agrega
+// o saca una unidad de CUALQUIER sabor del mismo grupo.
+function _faltanParaActivarGrupal(item) {
+    const mc = _poolMulticompra.get(item.id);
+    if (!mc || !mc.grupo) return null;
+    const qtyTotal = (ventaActual || []).reduce((s, i) => {
+        const m = _poolMulticompra.get(i.id);
+        return (m && m.grupo === mc.grupo) ? s + i.qty : s;
+    }, 0);
+    if (qtyTotal >= mc.cantidad) return null;
+    return mc.cantidad - qtyTotal;
+}
+
 function _agruparLineasParaRender(lista) {
     const yaAgrupado = new Set();
     const grupos = _resumenGruposMulticompra(lista);
@@ -5361,14 +5378,25 @@ function _agruparLineasParaRender(lista) {
         const mc = _poolMulticompra.get(item.id);
         if (item.ofertaTipo === 'multicompra-grupal' && mc && mc.grupo) {
             const resumen = grupos.find(g => g.grupo === mc.grupo);
+            const itemsDelGrupo = lista.filter(i => {
+                const m = _poolMulticompra.get(i.id);
+                return m && m.grupo === mc.grupo;
+            });
             if (resumen && !resumen.sonIguales) {
-                const itemsDelGrupo = lista.filter(i => {
-                    const m = _poolMulticompra.get(i.id);
-                    return m && m.grupo === mc.grupo;
-                });
                 itemsDelGrupo.forEach(i => yaAgrupado.add(i.id));
                 resultado.push({ tipo: 'grupoCombinado', items: itemsDelGrupo, resumen });
                 return;
+            }
+            // v14/09/2026 — todavía no llega al mínimo del grupo, pero hay
+            // más de un sabor distinto en el carrito: una sola tarjeta de
+            // "faltan X" en vez de líneas sueltas repitiendo el mismo aviso.
+            if (!resumen && itemsDelGrupo.length > 1) {
+                const qtyTotalGrupo = itemsDelGrupo.reduce((s, i) => s + i.qty, 0);
+                if (mc.cantidad > qtyTotalGrupo) {
+                    itemsDelGrupo.forEach(i => yaAgrupado.add(i.id));
+                    resultado.push({ tipo: 'grupoFaltante', items: itemsDelGrupo, mc, faltan: mc.cantidad - qtyTotalGrupo });
+                    return;
+                }
             }
         }
         yaAgrupado.add(item.id);
@@ -5397,6 +5425,17 @@ function _tarjetaGrupoCombinadoHTML(items, resumen) {
             <span style="text-decoration:line-through;color:#999;font-size:0.78rem;">$${resumen.totalNormal.toLocaleString('es-AR')}</span>
             <span style="font-weight:800;color:#2e7d32;font-size:0.8rem;">−$${resumen.ahorro.toLocaleString('es-AR')}</span>
         </div>
+    </div>`;
+}
+
+function _tarjetaGrupoFaltanteHTML(items, mc, faltan) {
+    const filas = items.map(i => `<div style="display:flex;justify-content:space-between;font-size:0.76rem;padding:2px 0;color:#444;">
+        <span>${i.name.substring(0,26)} x${i.qty}</span>
+    </div>`).join('');
+    return `<div style="background:#fff8e1;border:1.5px dashed #f9a825;border-radius:10px;padding:10px 12px;margin-bottom:6px;">
+        <div style="font-weight:800;color:#e65100;font-size:0.78rem;margin-bottom:5px;">🔀 Combinable ${mc.cantidad}x $${mc.precio.toLocaleString('es-AR')}</div>
+        ${filas}
+        <div style="color:#e65100;font-size:0.76rem;font-weight:700;margin-top:4px;">👉 Agregá ${faltan} más (de cualquiera de estos sabores) para activar</div>
     </div>`;
 }
 
@@ -5454,6 +5493,14 @@ function _filaVentaHTML(item, esDesktopPanel) {
         } else if (tipo === 'multicompra-grupal') {
             colOferta = '#7C3AED';
             formulaHTML = `<div class="item-oferta-formula" style="color:${colOferta};opacity:.85;white-space:normal;">${item.ofertaEtiqueta || '📦 cuenta para pack'}</div>`;
+            // v14/09/2026 — este caso solo se llega a renderizar acá cuando
+            // es UN solo sabor todavía en el carrito (si hay 2+ sabores sin
+            // llegar al mínimo, ya se muestra como tarjeta agrupada aparte,
+            // ver _agruparLineasParaRender/_tarjetaGrupoFaltanteHTML).
+            const faltanSolo = _faltanParaActivarGrupal(item);
+            if (faltanSolo) {
+                formulaHTML += `<div style="color:#e65100;font-size:0.68rem;font-weight:700;">👉 Agregá ${faltanSolo} más para activar</div>`;
+            }
         } else if (tipo === 'ultimas') {
             colOferta = '#b71c1c';
             formulaHTML = `<div class="item-oferta-formula" style="color:${colOferta}">${item.ofertaEtiqueta || '🏷️ ÚLTIMAS UNIDADES'}</div>`;
@@ -5671,9 +5718,11 @@ function _buildDetalleModalHTML() {
     const total = _totalCarritoConDescuentosGrupales();
     // v10.21 — REVERTIDO a v390/v439: mapea ventaActual 1 a 1, sin agrupar
     // en tarjetas de pack (ver nota en _filaVentaHTML).
-    const items = _agruparLineasParaRender(ventaActual).map(g =>
-        g.tipo === 'grupoCombinado' ? _tarjetaGrupoCombinadoHTML(g.items, g.resumen) : _filaModalHTML(g.item, ventaActual.indexOf(g.item), esDesktop)
-    ).join('');
+    const items = _agruparLineasParaRender(ventaActual).map(g => {
+        if (g.tipo === 'grupoCombinado') return _tarjetaGrupoCombinadoHTML(g.items, g.resumen);
+        if (g.tipo === 'grupoFaltante') return _tarjetaGrupoFaltanteHTML(g.items, g.mc, g.faltan);
+        return _filaModalHTML(g.item, ventaActual.indexOf(g.item), esDesktop);
+    }).join('');
     const resumenModal = _resumenGrupalHTML();
     return items + resumenModal + `<div class="confirm-total-row"><span>TOTAL</span><span>$${total.toLocaleString('es-AR')}</span></div>`;
 }
@@ -5799,6 +5848,12 @@ function _filaModalHTML(item, idx, esDesktop) {
     const badgeHTML = item.ofertaEtiqueta
         ? `<span style="background:${col};color:#fff;font-size:.55rem;font-weight:800;padding:1px 5px;border-radius:6px;white-space:nowrap;margin-left:3px;">${item.ofertaEtiqueta}</span>`
         : '';
+    // v14/09/2026 — mismo aviso "faltan X" que en el panel, para el caso de
+    // un solo sabor todavía en el carrito (ver nota en _filaVentaHTML).
+    const faltanModalGrupal = item.ofertaTipo === 'multicompra-grupal' ? _faltanParaActivarGrupal(item) : null;
+    const faltanModalHTML = faltanModalGrupal
+        ? `<div style="color:#e65100;font-size:0.65rem;font-weight:700;">👉 Agregá ${faltanModalGrupal} más para activar</div>`
+        : '';
 
     // v10.17/18 — precio normal sin tachar arriba, ahorro plano abajo —
     // se mantiene para individual/promo/combo/etc (mejora aparte, no
@@ -5832,6 +5887,7 @@ function _filaModalHTML(item, idx, esDesktop) {
              style="width:34px;height:34px;border-radius:6px;object-fit:cover;background:#e8f5e9;flex-shrink:0;">` : ''}
         <div style="flex:1;min-width:0;">
             <div style="font-size:0.82rem;line-height:1.3;word-break:break-word;">${item.name.substring(0,34)}${badgeHTML}</div>
+            ${faltanModalHTML}
         </div>
         <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;" onclick="event.stopPropagation()">
             ${item.esPeso ? `
