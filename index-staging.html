@@ -6771,11 +6771,13 @@ function agregarDesdeDeepLink() {
 function handleImageError(img, productName) {
     const colors = ['#e8f5e9', '#f1f8e9', '#f9fbe7', '#fffde7', '#fff3e0'];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
-    
-    img.src = '';
-    img.onerror = null;
-    
+
     const container = img.parentElement;
+    img.onerror = null;
+    img.remove(); // v: se saca SOLO la imagen rota — antes container.innerHTML=''
+                  // borraba también el botón de compartir y el badge de oferta,
+                  // que viven como hermanos de <img> dentro de este mismo contenedor.
+
     container.style.background = `linear-gradient(135deg, ${randomColor}, #c8e6c9)`;
     container.style.display = 'flex';
     container.style.justifyContent = 'center';
@@ -6788,7 +6790,6 @@ function handleImageError(img, productName) {
     icon.style.fontSize = '3rem';
     icon.style.opacity = '0.5';
     
-    container.innerHTML = '';
     container.appendChild(icon);
     
     // MODO ADMIN: Mostrar nombre de archivo JPG
