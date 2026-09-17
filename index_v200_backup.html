@@ -3338,13 +3338,6 @@ async function cargarConfigSistema() {
 
         window._DIVISAS = { usd: { valor: _usdValor, activo: _usdActivo }, clp: { valor: _clpValor, activo: _clpActivo } };
         console.log('💱 Divisas leídas de la planilla:', window._DIVISAS);
-        // 16/09/2026 — diagnóstico puntual: usd/clp llegan en 0/false pese a
-        // estar cargados en la planilla — buscar bajo qué clave EXACTA
-        // quedaron guardadas realmente en el objeto cfg, para descartar
-        // problema de sección/nombre de columna vs. dato faltante de verdad.
-        console.log('🔎 DIAG divisas — cfg[usd_valor]:', cfg['usd_valor'], '| cfg[general|usd_valor]:', cfg['general|usd_valor']);
-        console.log('🔎 DIAG divisas — cfg[clp_valor]:', cfg['clp_valor'], '| cfg[general|clp_valor]:', cfg['general|clp_valor']);
-        console.log('🔎 DIAG divisas — claves de cfg que contienen "usd" o "clp":', Object.keys(cfg).filter(k => k.toLowerCase().includes('usd') || k.toLowerCase().includes('clp')));
 
         // 16/09/2026 — bloque persistente en la página principal (no solo en
         // la pantalla de carga, que desaparece apenas el cliente toca
