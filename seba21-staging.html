@@ -1854,7 +1854,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v495</title>
+    <title>🛒 POS · Copihue v496</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14514,6 +14514,7 @@ function abrirSalidaInterna() {
     document.getElementById('salidaProductoSelWrap').style.display = 'none';
     _salidaProducto = null;
     _salidaMotivo   = null;
+    _idOperacionSalidaActual = null; // sesión nueva del modal — id nuevo para la próxima salida
     _salidaHistorialCargado = false;
     salidaMostrarTodos(); // mostrar todos los productos con stock al abrir
     setTimeout(() => document.getElementById('salidaBuscador').focus(), 100);
@@ -14637,6 +14638,12 @@ function salidaSelMotivo(btn, motivo) {
     btn.style.background = '#546e7a'; btn.style.borderColor = '#546e7a'; btn.style.color = 'white';
 }
 
+// v19/09/2026 — BLINDAJE anti-duplicado, mismo criterio que confirmarVenta/
+// ingreso.html: se genera UNA vez por intento; si falla o no confirma y se
+// vuelve a tocar "Confirmar salida", se reenvía el MISMO id, y el backend
+// responde "ya existía" en vez de descontar stock de nuevo.
+let _idOperacionSalidaActual = null;
+
 async function confirmarSalidaInterna() {
     if (!_salidaProducto) { mostrarToast('⚠️ Seleccioná un producto', 'rojo'); return; }
     if (!_salidaMotivo)   { mostrarToast('⚠️ Seleccioná un motivo', 'rojo'); return; }
@@ -14647,6 +14654,10 @@ async function confirmarSalidaInterna() {
     if (cantidad > _salidaProducto.stock) {
         mostrarToast(`⚠️ Stock insuficiente (hay ${_salidaProducto.stock})`, 'rojo');
         return;
+    }
+
+    if (!_idOperacionSalidaActual) {
+        _idOperacionSalidaActual = 'sal_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
     }
 
     const btn = document.querySelector('#modalSalidaInterna button[onclick="confirmarSalidaInterna()"]');
@@ -14661,7 +14672,8 @@ async function confirmarSalidaInterna() {
             obs,
             costo:     _salidaProducto.precioCosto || 0,
             precio:    _salidaProducto.price,
-            vendedor:  vendedorActual || ''
+            vendedor:  vendedorActual || '',
+            idOperacion: _idOperacionSalidaActual
         };
         const url = API_URL + '?action=salidaInterna&data=' + encodeURIComponent(JSON.stringify(datos));
         const resp = await _apiFetchUrl('salidaInterna', url);
@@ -14673,7 +14685,8 @@ async function confirmarSalidaInterna() {
             _guardarSalidaLocal({ ts: ahora.getTime(), nombre: _salidaProducto.name, cantidad, motivo: _salidaMotivo, obs, hora });
             // Actualizar stock local
             _salidaProducto.stock = Math.max(0, _salidaProducto.stock - cantidad);
-            mostrarToast(`✅ Salida registrada — ${_salidaProducto.name} x${cantidad} (${_salidaMotivo})`, 'verde');
+            mostrarToast(resp.yaExistia ? '✅ Esta salida ya se había registrado antes' : `✅ Salida registrada — ${_salidaProducto.name} x${cantidad} (${_salidaMotivo})`, 'verde');
+            _idOperacionSalidaActual = null; // confirmado — la próxima salida es una nueva
             _cargarYRenderSalidaHistorial();
             cerrarSalidaInterna();
             renderResultados(_sortProductos(productos, new Set(ventaActual.map(i => i.esPeso ? i.idOriginal : i.id))));
