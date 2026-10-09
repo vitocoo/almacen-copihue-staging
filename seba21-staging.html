@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v504</title>
+    <title>🛒 POS · Copihue v505</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14028,7 +14028,7 @@ abrirNuevoProducto = function() {
     <!-- Teléfono: se autocompleta al elegir cliente, editable si hace falta -->
     <div style="margin-bottom:12px;">
       <label style="font-size:0.8rem;font-weight:700;color:#555;display:block;margin-bottom:4px;">Teléfono <span id="fiadoTelLabel" style="font-weight:400;color:#aaa;">(se carga al elegir cliente)</span></label>
-      <input id="fiadoTelefono" type="tel" placeholder="Ej: 2994123456" inputmode="numeric" oninput="fiadoBuscarDeuda()"
+      <input id="fiadoTelefono" type="tel" placeholder="Ej: 2994123456" inputmode="numeric" oninput="_fiadoTelAlEscribir()"
              style="width:100%;padding:10px 12px;border:2px solid #ddd;border-radius:10px;font-size:1rem;box-sizing:border-box;background:white;color:#333;">
     </div>
     <div style="margin-bottom:12px;">
@@ -14039,18 +14039,14 @@ abrirNuevoProducto = function() {
       <label style="font-size:0.8rem;font-weight:700;color:#555;display:block;margin-bottom:4px;">Observación (opcional)</label>
       <textarea id="fiadoObs" placeholder="Ej: paga el viernes" style="width:100%;padding:10px 12px;border:2px solid #ddd;border-radius:10px;font-size:0.9rem;box-sizing:border-box;resize:none;height:60px;"></textarea>
     </div>
-    <!-- Advertencia sin teléfono — aparece solo si falta el número -->
+    <!-- v505: advertencia de teléfono (vacío / incompleto). Texto y botones los pone _fiadoMostrarAlertaTel() -->
     <div id="fiadoAlertaSinTel" style="display:none;background:#fff8e1;border:1.5px solid #ffe082;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:0.85rem;color:#e65100;line-height:1.5;">
-      📵 <strong>Sin teléfono</strong> — no se guardará en Clientes ni se enviará el comprobante por WA.<br>
+      <div id="fiadoAlertaSinTelMsg" style="font-weight:600;">📵 Este cliente no tiene teléfono. ¿Querés agregarlo?</div>
       <div style="display:flex;gap:8px;margin-top:8px;">
-        <button onclick="document.getElementById('fiadoAlertaSinTel').style.display='none';document.getElementById('fiadoTelefono').focus();"
-                style="flex:1;padding:8px;border:2px solid #e65100;border-radius:8px;background:white;color:#e65100;font-weight:700;font-size:0.82rem;cursor:pointer;">
-          📱 Agregar número
-        </button>
-        <button ontouchstart="void(0)" onclick="_confirmarFiadoSinTel()"
-                style="flex:1;padding:8px;border:none;border-radius:8px;background:#e65100;color:white;font-weight:700;font-size:0.82rem;cursor:pointer;">
-          Continuar igual →
-        </button>
+        <button id="fiadoBtnAgregarTel" onclick="_fiadoAgregarTel()"
+                style="flex:1;padding:8px;border:2px solid #e65100;border-radius:8px;background:white;color:#e65100;font-weight:700;font-size:0.82rem;cursor:pointer;">Agregar teléfono</button>
+        <button id="fiadoBtnSinTel" ontouchstart="void(0)" onclick="_confirmarFiadoSinTel()"
+                style="flex:1;padding:8px;border:none;border-radius:8px;background:#e65100;color:white;font-weight:700;font-size:0.82rem;cursor:pointer;">Registrar sin teléfono</button>
       </div>
     </div>
     <div style="display:flex;gap:10px;">
@@ -15619,6 +15615,7 @@ function fiadoSeleccionarCliente(nombre, telefono) {
         document.getElementById('fiadoTelLabel').textContent = '(ingresá el número)';
         document.getElementById('fiadoTelefono').focus();
     }
+    _fiadoActualizarAlertaTel(); // v505: si la advertencia estaba abierta, se re-evalúa con el teléfono actual
 }
 
 // Busca deuda del cliente por teléfono (debounced)
@@ -15681,6 +15678,64 @@ async function _consultarDeudaFiado(telefono) {
     }
 }
 
+// ── v505: teléfono del FIADO — estado vacío / incompleto / completo ─────────────
+// Completo = 6 o más DÍGITOS (se ignoran espacios, guiones y otros caracteres), el mismo
+// criterio que ya usan _consultarDeudaFiado y _enviarFiadoWhatsApp. No hay prefijos ni largo máximo.
+function _fiadoTelEstado() {
+    const inp = document.getElementById('fiadoTelefono');
+    const raw = inp ? String(inp.value || '').trim() : '';
+    const digitos = raw.replace(/\D/g, '').length;
+    let estado = 'completo';
+    if (!raw) estado = 'vacio';
+    else if (digitos < 6) estado = 'incompleto';
+    return { estado, raw, digitos };
+}
+function _fiadoOcultarAlertaTel() {
+    window._fiadoSinTelConfirmando = false;
+    const a = document.getElementById('fiadoAlertaSinTel');
+    if (a) a.style.display = 'none';
+}
+function _fiadoMostrarAlertaTel(t, confirmando, desplazar) {
+    window._fiadoSinTelConfirmando = !!confirmando;
+    const a = document.getElementById('fiadoAlertaSinTel');
+    const msg = document.getElementById('fiadoAlertaSinTelMsg');
+    const bAdd = document.getElementById('fiadoBtnAgregarTel');
+    const bSin = document.getElementById('fiadoBtnSinTel');
+    if (!a || !msg || !bAdd || !bSin) return;
+    if (confirmando) {
+        msg.textContent = '⚠️ El número «' + t.raw + '» no se guardará. El fiado se registrará sin teléfono.';
+        bAdd.textContent = 'Corregir teléfono';
+        bSin.textContent = 'Confirmar sin teléfono';
+    } else if (t.estado === 'incompleto') {
+        msg.textContent = '📵 El teléfono parece incompleto. Podés corregirlo o registrar el fiado sin teléfono.';
+        bAdd.textContent = 'Corregir teléfono';
+        bSin.textContent = 'Registrar sin teléfono';
+    } else {
+        msg.textContent = '📵 Este cliente no tiene teléfono. ¿Querés agregarlo?';
+        bAdd.textContent = 'Agregar teléfono';
+        bSin.textContent = 'Registrar sin teléfono';
+    }
+    a.style.display = 'block';
+    if (desplazar) { try { a.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {} }
+}
+function _fiadoAgregarTel() {
+    _fiadoOcultarAlertaTel();
+    const inp = document.getElementById('fiadoTelefono');
+    if (inp) { inp.focus(); try { inp.select(); } catch (e) {} }
+}
+// Si la advertencia está abierta: se cierra cuando el teléfono ya es completo; si no, se actualiza el texto.
+function _fiadoActualizarAlertaTel() {
+    const a = document.getElementById('fiadoAlertaSinTel');
+    if (!a || a.style.display === 'none') return;
+    const t = _fiadoTelEstado();
+    if (t.estado === 'completo') _fiadoOcultarAlertaTel();
+    else _fiadoMostrarAlertaTel(t, false, false);
+}
+function _fiadoTelAlEscribir() {
+    try { fiadoBuscarDeuda(); } catch (e) {}
+    _fiadoActualizarAlertaTel();
+}
+
 async function confirmarFiado() {
     const cliente = document.getElementById('fiadoCliente').value.trim();
     const telefono = document.getElementById('fiadoTelefono').value.trim();
@@ -15694,10 +15749,11 @@ async function confirmarFiado() {
     if (!cliente) { mostrarToast('⚠️ Ingresá el nombre del cliente', 'rojo'); document.getElementById('fiadoCliente').focus(); return; }
     if (!vencimiento) { mostrarToast('⚠️ Ingresá la fecha de vencimiento', 'rojo'); return; }
 
-    // Sin teléfono → advertir antes de continuar (el número va a hoja Clientes y al WA)
-    if (!telefono) {
-        document.getElementById('fiadoAlertaSinTel').style.display = 'block';
-        document.getElementById('fiadoAlertaSinTel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // v505: teléfono vacío o incompleto (menos de 6 dígitos) → advertir antes de continuar.
+    // El valor se lee del campo en este mismo instante; nunca se descarta en silencio.
+    const _tel = _fiadoTelEstado();
+    if (_tel.estado !== 'completo') {
+        _fiadoMostrarAlertaTel(_tel, false, true);
         return;
     }
 
@@ -15747,7 +15803,16 @@ async function confirmarFiado() {
 
 // Confirmar fiado sin teléfono (el usuario eligió continuar igual desde la advertencia)
 async function _confirmarFiadoSinTel() {
-    document.getElementById('fiadoAlertaSinTel').style.display = 'none';
+    // v505: releer SIEMPRE el campo. Un teléfono completo recién escrito nunca se descarta:
+    // se sigue por confirmarFiado(), que es el único camino que arma los datos con teléfono.
+    const _t = _fiadoTelEstado();
+    if (_t.estado === 'completo') { _fiadoOcultarAlertaTel(); return confirmarFiado(); }
+    // Incompleto: avisar que no se guardará y pedir confirmación explícita (segundo toque).
+    if (_t.estado === 'incompleto' && !window._fiadoSinTelConfirmando) {
+        _fiadoMostrarAlertaTel(_t, true, false);
+        return;
+    }
+    _fiadoOcultarAlertaTel();
     const cliente = document.getElementById('fiadoCliente').value.trim();
     const vencimiento = document.getElementById('fiadoVencimiento').value;
     const obs = document.getElementById('fiadoObs').value.trim();
