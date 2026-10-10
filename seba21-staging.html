@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v507</title>
+    <title>🛒 POS · Copihue v508</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2167,6 +2167,8 @@
             cursor: pointer;
             font-weight: 600;
         }
+        /* v508: efecto al presionar los botones 🗑 (vaciar venta) */
+        .btn-vaciar-fx:active, .btn-limpiar:active { transform: scale(0.91); filter: brightness(0.8) saturate(1.3); }
 
 
 
@@ -2838,7 +2840,7 @@
                     style="background:rgba(21,101,192,0.55);border:1.5px solid rgba(144,202,249,0.8);border-radius:12px;padding:6px 4px;color:white;font-size:0.8rem;cursor:pointer;line-height:1;">🛜</button>
             <button id="btnPagosPendientes" onclick="_pgpAbrir()" title="Pagos pendientes (solo consulta)"
                     style="background:#ffb300;border:1px solid #ff8f00;border-radius:12px;padding:6px 10px;color:#3e2723;font-size:0.8rem;font-weight:700;cursor:pointer;line-height:1;white-space:nowrap;">Pagos pendientes (?)</button>
-            <button onclick="limpiarVenta()" title="Limpiar venta"
+            <button class="btn-vaciar-fx" onclick="limpiarVenta()" title="Limpiar venta"
                     style="background:rgba(183,28,28,0.35);border:1.5px solid rgba(183,28,28,0.7);border-radius:12px;padding:6px 10px;color:#ffcdd2;font-size:1rem;cursor:pointer;line-height:1;">🗑</button>
             <button class="btn-resumen" onclick="cambiarVendedor()" id="vendedorBadge"
                     style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.4);">👤 Víctor</button>
@@ -3003,7 +3005,7 @@
     <div id="fabColapsable" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
         <!-- Vaciar carrito -->
         <div id="fabLimpiar">
-            <button onclick="limpiarVenta()"
+            <button class="btn-vaciar-fx" onclick="limpiarVenta()"
                     title="Vaciar carrito"
                     style="width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;
                            background:linear-gradient(135deg,#b71c1c,#c62828);
@@ -5315,6 +5317,7 @@ function limpiarVenta() {
         if (flecha) flecha.textContent = '›';
         localStorage.removeItem('copihue_pago_mixto_pendiente'); // v453
     }
+    mostrarToast('🗑 Venta vaciada'); // v508: aviso corto (solo llega acá si había productos)
 }
 
 // ========== RENDER VENTA ==========
