@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v505</title>
+    <title>🛒 POS · Copihue v506</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -8393,7 +8393,7 @@ function abrirResumen() {
                     <div class="resumen-venta-detalle">
                         ${v.items.map(i => `${i.qty}× ${i.name.substring(0, 30)}`).join(' · ')}
                     </div>
-                    ${!v.stockRebajado ? '<div style="font-size:0.7rem;color:#f57c00;margin-top:3px;">⚠️ Stock pendiente de rebaja manual</div>' : ''}
+                    ${!v.stockRebajado ? '<div style="font-size:0.7rem;color:#f57c00;margin-top:3px;">⚠️ Stock por verificar. No descontar nuevamente sin comprobar la planilla.</div>' : ''}
                 </div>
             `).join('');
     }
