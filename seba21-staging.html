@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v506</title>
+    <title>🛒 POS · Copihue v507</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2834,6 +2834,8 @@
             <button id="btnToggleHeader" onclick="toggleHeader()" style="display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 12px;color:white;font-size:1rem;font-weight:700;cursor:pointer;">⚙️</button>
         </div>
         <div style="display:flex;gap:4px;align-items:center;">
+            <button id="btnWifiHeader" onclick="abrirWifiQR()" title="Compartir WiFi al cliente"
+                    style="background:rgba(21,101,192,0.55);border:1.5px solid rgba(144,202,249,0.8);border-radius:12px;padding:6px 4px;color:white;font-size:0.8rem;cursor:pointer;line-height:1;">🛜</button>
             <button id="btnPagosPendientes" onclick="_pgpAbrir()" title="Pagos pendientes (solo consulta)"
                     style="background:#ffb300;border:1px solid #ff8f00;border-radius:12px;padding:6px 10px;color:#3e2723;font-size:0.8rem;font-weight:700;cursor:pointer;line-height:1;white-space:nowrap;">Pagos pendientes (?)</button>
             <button onclick="limpiarVenta()" title="Limpiar venta"
@@ -8393,7 +8395,7 @@ function abrirResumen() {
                     <div class="resumen-venta-detalle">
                         ${v.items.map(i => `${i.qty}× ${i.name.substring(0, 30)}`).join(' · ')}
                     </div>
-                    ${!v.stockRebajado ? '<div style="font-size:0.7rem;color:#f57c00;margin-top:3px;">⚠️ Stock por verificar. No descontar nuevamente sin comprobar la planilla.</div>' : ''}
+                    ${!v.stockRebajado ? '<div style="font-size:0.7rem;color:#f57c00;margin-top:3px;">⚠️ Stock pendiente de rebaja manual</div>' : ''}
                 </div>
             `).join('');
     }
