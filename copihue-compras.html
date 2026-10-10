@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#7f1d1d">
+<title>Compras · Almacén Copihue</title>
+<script src="copihue-tema.js?v=1" data-modo="encabezado" data-salida="seba21.html" data-pagina="Compras"></script>
+<style>
+:root{
+  /* Colores del tema compartido: copihue-tema.js los pisaría con un tema guardado (hoy no hay Apariencia en Copihue) */
+  --header-bg-1:#7f1d1d; --header-bg-2:#991b1b;
+  --sobre-header:#ffffff; --sobre-header-tenue:rgba(255,255,255,.8); --sobre-header-suave:rgba(255,255,255,.2);
+  --marca:var(--tema-fuerte,#7f1d1d); --marca2:var(--tema-fuerte-2,#991b1b);
+  /* Colores con significado: no cambian con el tema */
+  --rojo:#c62828; --rl:#ffebee; --naranja:#e65100; --nl:#fff3e0; --verde:#2e7d32; --vl:#e8f5e9;
+  --gris:#546e7a; --bg:#f4f4f2; --borde:#e0e0e0; --texto:#1f2421;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{overscroll-behavior-y:contain}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--texto);min-height:100dvh;padding-bottom:40px}
+.hdr{background:linear-gradient(135deg,var(--header-bg-1),var(--header-bg-2));padding:11px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,.25);position:sticky;top:0;z-index:100}
+.hdr-icon{font-size:1.5rem}
+.hdr-t{color:var(--sobre-header);font-size:1.08rem;font-weight:900;line-height:1.15}
+.hdr-n{color:var(--sobre-header-tenue);font-size:.66rem;font-weight:600;margin-top:1px}
+.hdr-s{color:var(--sobre-header-tenue);font-size:.62rem;letter-spacing:.5px;margin-top:2px}
+.hdr-btn{background:var(--sobre-header-suave);border:none;color:var(--sobre-header);border-radius:20px;padding:6px 13px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
+.hdr-btn.ico{border-radius:50%;width:36px;height:36px;padding:0;font-size:1rem}
+#guardando{display:none;font-size:.7rem;color:var(--sobre-header);font-weight:700;white-space:nowrap}
+#guardando.on{display:inline}
+.wrap{max-width:760px;margin:0 auto;padding:12px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.stat{background:#fff;border:1px solid var(--borde);border-radius:12px;padding:9px 4px;text-align:center}
+.stat .n{font-size:1.3rem;font-weight:900;line-height:1}
+.stat .l{font-size:.58rem;color:var(--gris);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+.ctrl{background:#fff;border:1px solid var(--borde);border-radius:14px;padding:10px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px}
+.ctrl input[type=search],.ctrl select{width:100%;padding:10px 12px;border:1.5px solid var(--borde);border-radius:10px;font-size:.9rem;font-family:inherit;background:#fff;color:var(--texto);outline:none}
+.ctrl input[type=search]:focus,.ctrl select:focus{border-color:var(--marca2)}
+.fila2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:7px 12px;border:1.5px solid var(--borde);border-radius:20px;background:#fff;font-size:.76rem;font-weight:700;cursor:pointer;color:var(--gris);font-family:inherit}
+.chip.on{background:var(--marca);border-color:var(--marca);color:#fff}
+.card{background:#fff;border:1.5px solid var(--borde);border-radius:14px;padding:12px;margin-bottom:9px}
+.card.off{opacity:.55}
+.card.ago{border-left:5px solid var(--rojo)}
+.card.bajo{border-left:5px solid var(--naranja)}
+.c-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.c-nom{font-size:.95rem;font-weight:800;line-height:1.25}
+.c-prov{font-size:.72rem;color:var(--gris);margin-top:2px}
+.pedir{text-align:right;flex-shrink:0}
+.pedir .q{display:inline-block;background:var(--marca);color:#fff;font-weight:900;font-size:.95rem;padding:3px 11px;border-radius:9px;min-width:44px;text-align:center}
+.pedir .q.sd{background:#eee;color:#888}
+.pedir .m{font-size:.6rem;color:var(--gris);margin-top:3px;max-width:120px}
+.datos{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.dato{font-size:.72rem;font-weight:700;padding:3px 8px;border-radius:8px;background:#f1f1ef;color:#444;white-space:nowrap}
+.dato.ago{background:var(--rl);color:var(--rojo)}
+.dato.bajo{background:var(--nl);color:var(--naranja)}
+.dato.vende{background:var(--vl);color:var(--verde)}
+.pri{font-size:.6rem;font-weight:900;padding:2px 7px;border-radius:8px;letter-spacing:.3px;white-space:nowrap}
+.pri.CRITICO{background:var(--rojo);color:#fff}
+.pri.ALTO{background:var(--naranja);color:#fff}
+.pri.MEDIO{background:#fff3cd;color:#8a6d00}
+.pri.BAJO{background:#eee;color:#666}
+.precios{margin-top:10px;border-top:1px dashed var(--borde);padding-top:8px}
+.precios .tit{font-size:.62rem;font-weight:900;color:var(--gris);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px}
+.pr{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.78rem;padding:4px 8px;border-radius:8px}
+.pr.mejor{background:var(--vl)}
+.pr .pn{font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pr .pc{font-weight:900;white-space:nowrap}
+.pr .pf{font-size:.66rem;color:var(--gris);white-space:nowrap}
+.aviso-precio{font-size:.7rem;color:var(--naranja);font-weight:700;margin-top:5px}
+.pie{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;border-top:1px solid #f0f0f0;padding-top:9px}
+.pie .txt{font-size:.74rem;font-weight:700;color:var(--gris)}
+.sw{position:relative;width:50px;height:28px;border-radius:100px;background:#cfcfcf;cursor:pointer;border:none;padding:0;flex-shrink:0}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left .15s}
+.sw.on{background:var(--verde)}
+.sw.on::after{left:25px}
+.estado{text-align:center;color:var(--gris);padding:50px 16px;font-size:.9rem;line-height:1.5}
+.estado b{display:block;color:var(--texto);font-size:1rem;margin-bottom:6px}
+.btn{background:var(--marca);color:#fff;border:none;border-radius:10px;padding:10px 18px;font-weight:800;font-size:.85rem;cursor:pointer;font-family:inherit;margin-top:12px}
+.nota{font-size:.7rem;color:var(--gris);text-align:center;margin:4px 0 12px;line-height:1.4}
+#toastWrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:500;padding:20px}
+.toast{background:#2b2b2b;color:#fff;font-size:.88rem;font-weight:700;padding:12px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);max-width:340px;text-align:center}
+.toast.ok{background:var(--verde)}
+.toast.err{background:var(--rojo)}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-icon">🛒</div>
+  <div style="flex:1;min-width:0">
+    <div class="hdr-t">Compras</div>
+    <div class="hdr-n">Almacén Copihue · <span id="verBadge"></span><span id="tagPruebas"></span></div>
+    <div class="hdr-s" id="hdrSub">Cargando…</div>
+  </div>
+  <span id="guardando">💾 guardando…</span>
+  <button class="hdr-btn ico" id="btnRecargar" title="Actualizar">🔄</button>
+  <button class="hdr-btn" onclick="if(window.NaturalezaTema&&NaturalezaTema.salir){NaturalezaTema.salir();}else if(confirm('¿Salir?')){location.href='seba21.html';}return false;">← Volver</button>
+</div>
+
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+
+  <div class="ctrl">
+    <input type="search" id="buscar" placeholder="🔍 Buscar producto…" autocomplete="off">
+    <div class="fila2">
+      <select id="selProv"><option value="">Todos los proveedores</option></select>
+      <select id="selOrden">
+        <option value="prioridad">Orden: prioridad</option>
+        <option value="v7">Más vendido (7 días)</option>
+        <option value="dias">Más días sin reponer</option>
+        <option value="prov">Proveedor A-Z</option>
+      </select>
+    </div>
+    <div class="chips">
+      <button class="chip on" id="chipAgo" data-f="ago">⬤ Agotados</button>
+      <button class="chip on" id="chipBajo" data-f="bajo">◐ Bajo stock</button>
+      <button class="chip" id="chipSug" data-f="sug">📈 Con stock, conviene pedir</button>
+      <button class="chip" id="chipOff" data-f="off">👁 Ver desactivados</button>
+    </div>
+  </div>
+
+  <div class="nota" id="notaMotor"></div>
+  <div id="lista"><div class="estado"><b>Cargando…</b>Consultando el inventario y las ventas.</div></div>
+</div>
+
+<div id="toastWrap"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+//  copihue-compras.html — COMPRAS UNIFICADA · etapa 1
+//  🟩 ARCHIVO PARA STAGING (almacen-copihue-staging). Reemplaza al copihue-compras.html viejo.
+//  ⚠️ PARA PASAR A PRODUCCIÓN: cambiar SOLO la línea de API_URL por la de producción.
+//  Junta lo mejor de: Reportes ("Compra sugerida"), compras, pedidos y
+//  reposición. Qué muestra por producto: stock, vendido 7/30 días, días sin
+//  reponer, cuánto pedir, precios por proveedor, y un interruptor para
+//  activarlo o desactivarlo de la lista (columna PAUSADO del inventario).
+//  Solo ESCRIBE en la planilla el interruptor (acción setPausadoNombre).
+// ═══════════════════════════════════════════════════════════════════════
+const APP_VERSION = 1; // única fuente de verdad de la versión
+document.title = 'Compras · Almacén Copihue v' + APP_VERSION;
+document.getElementById('verBadge').textContent = 'v' + APP_VERSION;
+
+// 🟩 STAGING — misma dirección que usa seba21-staging.html
+const API_URL = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
+// Si la página apunta a staging lo dice en el encabezado, para no confundirla con la real
+if (API_URL.indexOf('AKfycbzQccLKYVVhd') !== -1) {
+  document.getElementById('tagPruebas').textContent = ' · 🟩 PRUEBAS';
+  document.title = '🟩 ' + document.title;
+}
+
+// ── Estado ────────────────────────────────────────────────────────────
+var raw = null;            // datos de getReportes (los usa el motor de cálculo)
+let _sinStock = [];        // getSinStockPriorizado: agotados y bajo mínimo, con prioridad
+let _listaCompra = [];     // getListaCompra: trae el historial de precios por proveedor
+let _csi = null;           // resultado del motor (cuánto pedir)
+let _items = [];           // lista final unificada
+let _filtros = { ago: true, bajo: true, sug: false, off: false };
+let _guardando = 0;
+
+const $ = id => document.getElementById(id);
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmt(n){ return (n || n === 0) ? '$' + Math.round(n).toLocaleString('es-AR') : '—'; }
+function clave(n){ return String(n || '').trim().toUpperCase(); }
+function num(n){ const v = Math.round((parseFloat(n) || 0) * 10) / 10; return String(v).replace('.', ','); }
+
+function toast(msg, tipo){
+  const w = $('toastWrap'); const t = document.createElement('div');
+  t.className = 'toast ' + (tipo || ''); t.textContent = msg; w.appendChild(t);
+  setTimeout(() => t.remove(), 2600);
+}
+function marcarGuardando(d){ _guardando = Math.max(0, _guardando + d); $('guardando').classList.toggle('on', _guardando > 0); }
+
+async function api(action, extra, timeoutMs){
+  const url = API_URL + '?action=' + action + (extra || '') + '&t=' + Date.now();
+  const r = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(timeoutMs || 25000) });
+  return r.json();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  MOTOR DE CÁLCULO — copiado tal cual de Reportes (calcularMotorCSI).
+//  ⚠️ PENDIENTE (etapa 4): tiene datos del almacén escritos a mano
+//  (rubros diarios/semanales y el proveedor "LA MAGDALENA" cada 15 días).
+//  Son las reglas reales del almacén. Hay que pasarlas a la planilla.
+// ═══════════════════════════════════════════════════════════════════════
+// Categorías con reposición DIARIA (pedido para mañana — PAN, panificados)
+var _CSI_DIARIOS   = ['PANADERIA','PANIFICADOS'];
+// Categorías con reposición SEMANAL (PANADERIA/PANIFICADOS ya están en DIARIOS — no duplicar)
+var _CSI_SEMANALES = ['LACTEOS','FRESCOS','CARNICERIA','VERDULERIA','FIAMBRERIA','CARNICOS'];
+// Categorías con regla especial (electrónica/computación)
+var _CSI_ESPECIALES = ['COMPUTACION','ELECTRONICA','TECNOLOGIA','ELECTRO'];
+
+// Detecta categoría desde campo existente o por heurística sobre nombre de producto
+function _csiCat(nombre, catField) {
+  if (catField) return catField.toUpperCase().trim();
+  var n = (nombre||'').toUpperCase();
+  if (/\bLECHE\b|YOGUR|QUESO|MANTECA|\bCREMA\b|RICOTA/.test(n)) return 'LACTEOS';
+  if (/\bPAN\b|\bPANES\b|PANIF|FACTUR|MEDIALUNAS?|BIZCOCHO/.test(n)) return 'PANIFICADOS';
+  if (/TOMATE|LECHUGA|ZAPALLO|\bCEBOLLA\b|\bPAPA\b|\bFRUTA\b|VERDU|MANZANA|NARANJA/.test(n)) return 'FRESCOS';
+  if (/NOTEBOOK|TABLET|\bMOUSE\b|TECLADO|AURICU|CABLE USB|PENDRIVE|COMPUT|ROUTER|IMPRES/.test(n)) return 'ELECTRONICA';
+  return 'ALMACEN';
+}
+
+// Devuelve el tipo de período según categoría
+function _csiPer(cat) {
+  if (_CSI_ESPECIALES.some(function(c){return cat.indexOf(c)>=0;})) return 'especial';
+  if (_CSI_DIARIOS.some(function(c){return cat.indexOf(c)>=0;}))    return 'diario';   // antes de semanal
+  if (_CSI_SEMANALES.some(function(c){return cat.indexOf(c)>=0;}))  return 'semanal';
+  return 'mensual';
+}
+
+// ── Horizonte de cobertura por proveedor (días) ──────────────────────────────
+// Cuántos días de stock comprar en cada visita al proveedor.
+// LA MAGDALENA cada 15 días; resto cada 7.
+var _CSI_HORIZONTE_PROV = {
+  'LA MAGDALENA': 15,
+  'DEFAULT': 7       // todos los demás
+};
+
+// Colchón de seguridad sobre la venta proyectada (30%)
+var _CSI_COLCHON = 1.3;
+
+function _csiHorizonte(nombre) {
+  // Busca el proveedor del producto en proveedorInfo (viene de GAS)
+  var prov = (raw.proveedorInfo && raw.proveedorInfo[nombre.toUpperCase()]) || '';
+  // Buscar coincidencia parcial en la tabla (LA MAGDALENA puede venir como "LA MAGDALENA S.A." etc)
+  var dias = _CSI_HORIZONTE_PROV['DEFAULT'];
+  Object.keys(_CSI_HORIZONTE_PROV).forEach(function(k) {
+    if (k !== 'DEFAULT' && prov.indexOf(k) !== -1) dias = _CSI_HORIZONTE_PROV[k];
+  });
+  return dias;
+}
+
+// Motor principal: recorre items en un solo paso y aplica todas las reglas
+function calcularMotorCSI() {
+  if (!raw) return {filas:[], nMuertos:0, nVencOmit:0};
+
+  // Fechas de corte como strings YYYY-MM-DD (comparables lexicográficamente)
+  var hoy = new Date();
+  function corte(dias) {
+    var d = new Date(hoy); d.setDate(d.getDate()-dias);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  var c7=corte(7), c30=corte(30), c60=corte(60), c90=corte(90);
+
+  // Un solo recorrido de raw.items → agrega ventas por producto para los 4 períodos
+  var vm = {}; // nombre → {v7, v30, v60, v90}
+  raw.items.forEach(function(it) {
+    var f = it.fechaStr||'';
+    if (f < c90 || !it.nombre) return;
+    var nomLimpio = it.nombre.replace(/\s*\[PRECIO ESP[^\]]*\]/gi,'').trim();
+    if (!nomLimpio) return;
+    if (!vm[nomLimpio]) vm[nomLimpio] = {v7:0,v30:0,v60:0,v90:0};
+    var q = it.qty||0;
+    vm[nomLimpio].v90 += q;
+    if (f >= c60) vm[nomLimpio].v60 += q;
+    if (f >= c30) vm[nomLimpio].v30 += q;
+    if (f >= c7)  vm[nomLimpio].v7  += q;
+  });
+
+  // Stock real desde raw.stockInfo (cubre TODO el inventario, incluye productos sin vencimiento).
+  // raw.vencProximos se usa SOLO para diasVenc — no como fuente de stock.
+  var stockMap={}, diasVencMap={}, catMap={};
+  // 1. Poblar stockMap desde raw.stockInfo — fuente confiable de stock real para todos los productos
+  if (raw.stockInfo) {
+    Object.keys(raw.stockInfo).forEach(function(nom) {
+      stockMap[nom] = raw.stockInfo[nom]; // clave ya viene en MAYÚSCULAS desde el backend
+    });
+  }
+  // 2. Completar diasVencMap desde raw.vencProximos — NO sobreescribe stockMap
+  (raw.vencProximos||[]).forEach(function(v) {
+    if (!v.nombre) return;
+    var nom = v.nombre.toUpperCase(); // normalizar por si el backend devuelve mixedCase
+    if (diasVencMap[nom] === undefined || v.dias < diasVencMap[nom]) {
+      diasVencMap[nom] = v.dias;
+    }
+    if (v.categoria) catMap[nom] = v.categoria;
+  });
+
+  var nMuertos=0, nVencOmit=0, filas=[];
+
+  Object.keys(vm).forEach(function(nombre) {
+    var v = vm[nombre];
+
+    // Regla 1: sin ventas en 90d (imposible por el filtro de c90, pero por seguridad)
+    if (v.v90 === 0) { nMuertos++; return; }
+
+    // Regla 2: producto por vencer en ≤10 días → no sugerir compra
+    var diasVenc = diasVencMap[nombre];
+    if (diasVenc !== undefined && diasVenc <= 10) { nVencOmit++; return; }
+
+    var stockConocido = stockMap[nombre] !== undefined;
+    var stock = stockConocido ? stockMap[nombre] : null;
+    var cat = _csiCat(nombre, catMap[nombre]);
+    var periodoBase = _csiPer(cat);
+    var promDia = v.v90 / 90;
+
+    // ── Regla urgente transversal ──────────────────────────────────────────
+    // Si vende ≥1/día en promedio Y stock ≤1 confirmado → reposición urgente
+    // independientemente de la categoría (almacén, bebidas, snacks, etc.)
+    // Solo si periodoBase NO es ya 'diario' para no duplicar
+    if (stockConocido && stock <= 1 && promDia >= 1 && periodoBase !== 'diario') {
+      periodoBase = 'diario'; // sube a urgente
+    }
+    // ──────────────────────────────────────────────────────────────────────
+
+    var compraSugerida=null, ventaProyectada=0, motivo='', periodo=periodoBase;
+
+    if (!stockConocido) {
+      // Sin stock confiable: incluir en tabla como referencia pero sin CompraSugerida calculada
+      motivo = 'sin dato de stock';
+      // compraSugerida queda null → se muestra S/D en la tabla
+    }
+    // Regla 0: Diario — panadería / panificados → pedido para mañana
+    // VentaProyectada = MAX(promDia, v7/7, 1) — garantiza al menos 1 unidad sugerida
+    // Con stock=0 nunca puede terminar en 0
+    else if (periodoBase === 'diario') {
+      ventaProyectada = Math.max(promDia, v.v7 / 7, 1);
+      var brutoDiario  = ventaProyectada - stock;
+      compraSugerida   = stock === 0
+        ? Math.max(Math.ceil(brutoDiario), 1)
+        : Math.ceil(brutoDiario);
+      // Distinguir si es panificados nativo o urgencia transversal
+      var esPanCat = _CSI_DIARIOS.some(function(c){return cat.indexOf(c)>=0;});
+      motivo = esPanCat ? 'reposicion diaria' : 'alta rotacion · stock critico';
+      periodo = 'diario';
+    }
+    // Regla 3: Electrónica / Computación — lógica especial por demanda 60d
+    // Requiere stock=0 confirmado; si no hay dato, no se puede afirmar que está sin stock
+    else if (periodoBase === 'especial') {
+      if (stock === 0 && v.v60 === 1)      { compraSugerida=1; ventaProyectada=1; motivo='electronica demanda reciente'; }
+      else if (stock === 0 && v.v60 >= 2)  { compraSugerida=2; ventaProyectada=2; motivo='electronica demanda reciente'; }
+      else return; // stock>0 o condición no cumplida → no reportar
+      periodo = 'especial';
+    }
+    // Regla 5: Categorías sensibles — reposición según horizonte del proveedor
+    else if (periodoBase === 'semanal') {
+      var hSem = _csiHorizonte(nombre);
+      ventaProyectada = Math.max(v.v7 / 7, promDia) * hSem * _CSI_COLCHON;
+      compraSugerida  = Math.ceil(ventaProyectada - stock);
+      motivo = 'reposicion ' + hSem + 'd (proveedor)';
+    }
+    // Regla 4 (lento reactivado) + Regla 6 (mensual) — resto del almacén
+    else {
+      if (v.v30 === 0) return; // sin venta en 30d → no reportar
+      if (v.v30 === 1 && stock === 0) {
+        // Lento pero reactivado: una sola venta en 30d, sin stock confirmado
+        compraSugerida=1; ventaProyectada=1;
+        motivo='lento reactivado'; periodo='reactivacion';
+      } else if (v.v30 > 1) {
+        var hMen = _csiHorizonte(nombre);
+        // Usar promDia * horizonte * colchón — más preciso que v30 raw
+        // promDia viene de v90/90 (trimestre) → más estable que v30 solo
+        ventaProyectada = Math.max(promDia, v.v30 / 30) * hMen * _CSI_COLCHON;
+        compraSugerida  = Math.ceil(ventaProyectada - stock);
+        motivo = 'reposicion ' + hMen + 'd (proveedor)';
+      } else {
+        return; // v30=1 pero stock>0 → no es urgente
+      }
+    }
+
+    // Descartar si la sugerencia calculada es ≤0 (ceil ya aplicado en cada rama).
+    // Para diario con stock=0 el piso de 1 está garantizado arriba — nunca llega aquí con 0.
+    if (compraSugerida !== null && compraSugerida < 1) return;
+
+    var esPausado = raw.stockInfo && raw.stockInfo['__pausado__' + nombre.toUpperCase()] === true;
+    filas.push({
+      nombre: nombre,
+      cat: cat,
+      pausado: esPausado,
+      stock: stock !== null ? stock : -1, // -1 = sin datos de stock
+      v7:  Math.round(v.v7 *10)/10,
+      v30: Math.round(v.v30*10)/10,
+      v60: Math.round(v.v60*10)/10,
+      v90: Math.round(v.v90*10)/10,
+      promDia: Math.round(promDia*100)/100,
+      diasVenc: diasVenc !== undefined ? diasVenc : null,
+      periodo: periodo,
+      ventaProyectada: Math.round(ventaProyectada*10)/10,
+      compraSugerida: compraSugerida !== null ? Math.ceil(compraSugerida) : null,
+      motivo: motivo
+    });
+  });
+
+  // Orden grupos: diario > reactivacion > semanal > mensual > especial > sin dato al final
+  // Dentro de cada grupo: mayor rotación primero (promDia desc), luego menor stock (más urgente)
+  var ORD = {diario:0, reactivacion:1, semanal:2, mensual:3, especial:4};
+  filas.sort(function(a,b) {
+    // Pausados siempre al final
+    if (a.pausado !== b.pausado) return a.pausado ? 1 : -1;
+    var aSD = a.compraSugerida === null, bSD = b.compraSugerida === null;
+    if (aSD !== bSD) return aSD ? 1 : -1;
+    var oa = ORD[a.periodo] !== undefined ? ORD[a.periodo] : 4;
+    var ob = ORD[b.periodo] !== undefined ? ORD[b.periodo] : 4;
+    if (oa !== ob) return oa - ob;
+    // Mismo período: alta rotación primero
+    if (Math.abs(b.promDia - a.promDia) > 0.01) return b.promDia - a.promDia;
+    // Mismo promDia: menor stock primero (más urgente)
+    var sa = a.stock === -1 ? 9999 : a.stock;
+    var sb = b.stock === -1 ? 9999 : b.stock;
+    return sa - sb;
+  });
+
+  var nSinStock = filas.filter(function(p){return p.compraSugerida===null;}).length;
+  return {filas:filas, nMuertos:nMuertos, nVencOmit:nVencOmit, nSinStock:nSinStock};
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  UNIR LAS TRES FUENTES en una sola lista por producto
+// ═══════════════════════════════════════════════════════════════════════
+function construirLista(sinStock, listaCompra, csi, rawData){
+  const mapa = {};
+  // 1) Base: agotados y bajo mínimo, con prioridad (ventas + días sin reponer)
+  (sinStock || []).forEach(it => {
+    mapa[clave(it.nombre)] = {
+      nombre: it.nombre, proveedor: it.proveedor || '', categoria: it.categoria || '',
+      stock: it.stock, stockMin: it.stockMinimo, agotado: !!it.agotado, bajo: !it.agotado,
+      v7: it.ventas7 || 0, v30: it.ventas30 || 0, dias: it.diasSinIngreso,
+      pausado: !!it.pausado, score: it.score || 0, prioridad: it.prioridad || 'BAJO',
+      costo: it.costo || 0, precioVenta: it.precioVenta || 0,
+      pedir: null, motivo: '', hist: [], sugerido: false
+    };
+  });
+  // 2) Motor: cuánto pedir. Suma además productos CON stock que conviene pedir.
+  ((csi && csi.filas) || []).forEach(f => {
+    const k = clave(f.nombre);
+    let it = mapa[k];
+    if (!it) {
+      if (f.compraSugerida === null || f.compraSugerida < 1) return;
+      const prov = (rawData && rawData.proveedorInfo && rawData.proveedorInfo[k]) || '';
+      it = mapa[k] = {
+        nombre: f.nombre, proveedor: prov, categoria: f.cat || '',
+        stock: f.stock === -1 ? null : f.stock, stockMin: null,
+        agotado: f.stock === 0, bajo: false,
+        v7: f.v7 || 0, v30: f.v30 || 0, dias: null,
+        pausado: !!f.pausado, score: 40 + (f.v7 || 0) * 15 + (f.v30 || 0) * 2,
+        prioridad: (f.v7 || 0) > 0 ? 'ALTO' : 'MEDIO',
+        costo: 0, precioVenta: 0, pedir: null, motivo: '', hist: [], sugerido: true
+      };
+    }
+    if (f.compraSugerida !== null && f.compraSugerida >= 1) { it.pedir = f.compraSugerida; it.motivo = f.motivo || ''; }
+  });
+  // 3) Lista de compra del servidor: historial de precios por proveedor (y cantidad si el motor no dio)
+  (listaCompra || []).forEach(lc => {
+    const it = mapa[clave(lc.nombre)];
+    if (!it) return;
+    if (Array.isArray(lc.historialPrecios)) it.hist = lc.historialPrecios.filter(h => h && h.proveedor && h.costo > 0);
+    if (it.pedir === null && lc.cantidad > 0) { it.pedir = lc.cantidad; it.motivo = 'sugerencia del inventario'; }
+    if (!it.costo && lc.costo) it.costo = lc.costo;
+    if (!it.proveedor && lc.proveedor) it.proveedor = lc.proveedor;
+  });
+  return Object.keys(mapa).map(k => mapa[k]);
+}
+
+function filtrarYOrdenar(items, f, q, prov, orden){
+  q = clave(q);
+  let out = items.filter(it => {
+    if (it.pausado && !f.off) return false;
+    const tipoOk = (it.agotado && f.ago) || (it.bajo && f.bajo) || (it.sugerido && !it.agotado && f.sug) || (it.sugerido && it.agotado && f.ago);
+    if (!tipoOk) return false;
+    if (prov && clave(it.proveedor) !== prov) return false;
+    if (q && clave(it.nombre).indexOf(q) === -1) return false;
+    return true;
+  });
+  const dias = it => (it.dias === null || it.dias === undefined) ? 9999 : it.dias;
+  if (orden === 'v7') out.sort((a,b) => (b.v7 - a.v7) || (b.score - a.score));
+  else if (orden === 'dias') out.sort((a,b) => (dias(b) - dias(a)) || (b.score - a.score));
+  else if (orden === 'prov') out.sort((a,b) => clave(a.proveedor).localeCompare(clave(b.proveedor)) || (b.score - a.score));
+  else {
+    // Prioridad: primero lo AGOTADO, después lo que está bajo el mínimo y al final
+    // lo que tiene stock pero conviene pedir. Dentro de cada grupo, lo más vendido
+    // y lo que hace más tiempo no se repone (score). Desactivados siempre al final.
+    const grupo = it => it.agotado ? 0 : (it.bajo ? 1 : 2);
+    out.sort((a,b) => (a.pausado - b.pausado) || (grupo(a) - grupo(b)) || (b.score - a.score));
+  }
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PANTALLA
+// ═══════════════════════════════════════════════════════════════════════
+function preciosHTML(it){
+  if (!it.hist.length) {
+    return it.costo ? `<div class="precios"><div class="tit">💰 Último costo registrado</div><div class="pr"><span class="pn">${esc(it.proveedor || 'Sin proveedor')}</span><span class="pc">${fmt(it.costo)}</span></div></div>` : '';
+  }
+  const min = Math.min.apply(null, it.hist.map(h => h.costo));
+  const filas = it.hist.map(h => `<div class="pr${h.costo === min && it.hist.length > 1 ? ' mejor' : ''}">
+      <span class="pn">${esc(h.proveedor)}${h.costo === min && it.hist.length > 1 ? ' ✓' : ''}</span>
+      <span class="pf">${esc(h.fecha || '')}</span><span class="pc">${fmt(h.costo)}</span></div>`).join('');
+  let aviso = '';
+  const mejor = it.hist.find(h => h.costo === min);
+  if (it.hist.length > 1 && mejor && it.proveedor && clave(mejor.proveedor) !== clave(it.proveedor)) {
+    aviso = `<div class="aviso-precio">⚠️ El más barato fue ${esc(mejor.proveedor)}, no ${esc(it.proveedor)}</div>`;
+  }
+  return `<div class="precios"><div class="tit">💰 Precios por proveedor</div>${filas}${aviso}</div>`;
+}
+
+function cardHTML(it, idx){
+  const cls = 'card' + (it.pausado ? ' off' : '') + (it.agotado ? ' ago' : it.bajo ? ' bajo' : '');
+  const stockTxt = it.agotado ? '<span class="dato ago">⬤ AGOTADO</span>'
+    : (it.stock === null ? '<span class="dato">Stock: s/d</span>'
+    : `<span class="dato${it.bajo ? ' bajo' : ''}">Stock: ${num(it.stock)}${it.stockMin ? ' · mín ' + num(it.stockMin) : ''}</span>`);
+  const diasTxt = (it.dias === null || it.dias === undefined) ? '' : `<span class="dato">${it.dias === 0 ? 'Repuesto hoy' : it.dias + ' d sin reponer'}</span>`;
+  const pedir = it.pedir !== null
+    ? `<div class="q">× ${it.pedir}</div><div class="m">${esc(it.motivo)}</div>`
+    : `<div class="q sd">—</div><div class="m">sin sugerencia</div>`;
+  return `<div class="${cls}">
+    <div class="c-top">
+      <div style="min-width:0">
+        <div class="c-nom">${esc(it.nombre)} <span class="pri ${esc(it.prioridad)}">${esc(it.prioridad)}</span></div>
+        <div class="c-prov">🏪 ${it.proveedor ? esc(it.proveedor) : 'Sin proveedor'}${it.categoria ? ' · ' + esc(it.categoria) : ''}</div>
+      </div>
+      <div class="pedir">${pedir}</div>
+    </div>
+    <div class="datos">
+      ${stockTxt}
+      <span class="dato${it.v7 > 0 ? ' vende' : ''}">7 días: ${num(it.v7)}</span>
+      <span class="dato${it.v30 > 0 ? ' vende' : ''}">30 días: ${num(it.v30)}</span>
+      ${diasTxt}
+    </div>
+    ${preciosHTML(it)}
+    <div class="pie">
+      <span class="txt">${it.pausado ? '⏸ Desactivado — no aparece en la lista' : '✅ Activo en la lista de compras'}</span>
+      <button class="sw${it.pausado ? '' : ' on'}" data-i="${idx}" title="Activar / desactivar"></button>
+    </div>
+  </div>`;
+}
+
+let _visibles = [];
+function render(){
+  const act = _items.filter(it => !it.pausado);
+  $('stats').innerHTML =
+    `<div class="stat"><div class="n" style="color:var(--rojo)">${act.filter(i => i.agotado).length}</div><div class="l">Agotados</div></div>
+     <div class="stat"><div class="n" style="color:var(--naranja)">${act.filter(i => i.bajo).length}</div><div class="l">Bajo stock</div></div>
+     <div class="stat"><div class="n">${act.filter(i => i.prioridad === 'CRITICO').length}</div><div class="l">Críticos</div></div>
+     <div class="stat"><div class="n" style="color:#888">${_items.filter(i => i.pausado).length}</div><div class="l">Desactiv.</div></div>`;
+  ['ago','bajo','sug','off'].forEach(k => { const c = document.querySelector('.chip[data-f="' + k + '"]'); if (c) c.classList.toggle('on', !!_filtros[k]); });
+  _visibles = filtrarYOrdenar(_items, _filtros, $('buscar').value, $('selProv').value, $('selOrden').value);
+  $('hdrSub').textContent = _visibles.length + ' en pantalla · ' + act.length + ' activos';
+  if (!_items.length) {
+    $('lista').innerHTML = '<div class="estado"><b>🎉 No hay nada para reponer</b>Ningún producto está agotado ni por debajo de su mínimo.</div>';
+    return;
+  }
+  if (!_visibles.length) {
+    $('lista').innerHTML = '<div class="estado"><b>Nada con estos filtros</b>Probá activar "Bajo stock" o "Ver desactivados", o borrar la búsqueda.</div>';
+    return;
+  }
+  $('lista').innerHTML = _visibles.map(cardHTML).join('');
+}
+
+function poblarProveedores(){
+  const sel = $('selProv'); const actual = sel.value;
+  const provs = [...new Set(_items.map(i => clave(i.proveedor)).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Todos los proveedores</option>' + provs.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  if (provs.indexOf(actual) !== -1) sel.value = actual;
+}
+
+function reconstruir(){
+  _items = construirLista(_sinStock, _listaCompra, _csi, raw);
+  poblarProveedores();
+  render();
+}
+
+// ── Interruptor activar / desactivar ──────────────────────────────────
+async function togglePausado(it){
+  const nuevo = !it.pausado;
+  it.pausado = nuevo; render();              // se ve al instante
+  marcarGuardando(+1);
+  try {
+    const resp = await api('setPausadoNombre', '&data=' + encodeURIComponent(JSON.stringify({ nombre: it.nombre, pausado: nuevo ? 'SI' : '' })));
+    if (!resp || !resp.success) { it.pausado = !nuevo; render(); toast('❌ No se pudo guardar: ' + ((resp && resp.mensaje) || 'error'), 'err'); }
+    else {
+      const s = _sinStock.find(x => clave(x.nombre) === clave(it.nombre)); if (s) s.pausado = nuevo;
+      toast(nuevo ? '⏸ Desactivado de la lista' : '✅ Activado en la lista', nuevo ? '' : 'ok');
+    }
+  } catch (e) { it.pausado = !nuevo; render(); toast('🔌 Sin conexión — no se guardó', 'err'); }
+  finally { marcarGuardando(-1); }
+}
+
+// ── Carga ─────────────────────────────────────────────────────────────
+let _cargando = false;
+async function cargar(){
+  if (_cargando) return; _cargando = true;
+  $('hdrSub').textContent = 'Actualizando…';
+  $('notaMotor').textContent = '';
+  try {
+    // 1) Lo rápido primero: la lista con prioridad ya se puede usar
+    const a = await api('getSinStockPriorizado', '&incluirPausados=1');
+    if (!a || !a.ok) throw new Error((a && a.error) || 'El servidor no devolvió la lista');
+    _sinStock = a.items || [];
+    reconstruir();
+  } catch (e) {
+    $('lista').innerHTML = `<div class="estado"><b>No se pudo cargar</b>${esc(e.message || 'Error de conexión')}<br><button class="btn" onclick="cargar()">🔄 Reintentar</button></div>`;
+    $('hdrSub').textContent = 'Sin conexión';
+    _cargando = false; return;
+  }
+  // 2) En segundo plano: precios por proveedor y el cálculo de cuánto pedir
+  $('notaMotor').textContent = '⏳ Calculando cuánto pedir y comparando precios…';
+  const pendientes = [
+    api('getListaCompra').then(b => { if (b && b.ok && b.items) { _listaCompra = b.items; reconstruir(); } }).catch(() => {}),
+    api('getReportes', '', 40000).then(r => {
+      if (r && r.items) { raw = r; try { _csi = calcularMotorCSI(); } catch (eM) { console.warn('Motor de cálculo:', eM); _csi = null; } reconstruir(); }
+    }).catch(() => {})
+  ];
+  await Promise.all(pendientes);
+  $('notaMotor').textContent = _csi
+    ? ''
+    : 'ℹ️ No se pudo calcular la cantidad con las ventas de 90 días; se muestra la sugerencia del inventario donde existe.';
+  _cargando = false;
+}
+
+// ── Eventos ───────────────────────────────────────────────────────────
+$('buscar').addEventListener('input', render);
+$('selProv').addEventListener('change', render);
+$('selOrden').addEventListener('change', render);
+$('btnRecargar').addEventListener('click', cargar);
+document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { const k = c.getAttribute('data-f'); _filtros[k] = !_filtros[k]; render(); }));
+$('lista').addEventListener('click', ev => {
+  const b = ev.target.closest('.sw'); if (!b) return;
+  const it = _visibles[parseInt(b.getAttribute('data-i'), 10)]; if (it) togglePausado(it);
+});
+
+cargar();
+</script>
+</body>
+</html>
