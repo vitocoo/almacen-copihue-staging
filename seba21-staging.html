@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v510</title>
+    <title>🛒 POS · Copihue v507</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2167,8 +2167,6 @@
             cursor: pointer;
             font-weight: 600;
         }
-        /* v508: efecto al presionar los botones 🗑 (vaciar venta) */
-        .btn-vaciar-fx:active, .btn-limpiar:active { transform: scale(0.91); filter: brightness(0.8) saturate(1.3); }
 
 
 
@@ -2840,7 +2838,7 @@
                     style="background:rgba(21,101,192,0.55);border:1.5px solid rgba(144,202,249,0.8);border-radius:12px;padding:6px 4px;color:white;font-size:0.8rem;cursor:pointer;line-height:1;">🛜</button>
             <button id="btnPagosPendientes" onclick="_pgpAbrir()" title="Pagos pendientes (solo consulta)"
                     style="background:#ffb300;border:1px solid #ff8f00;border-radius:12px;padding:6px 10px;color:#3e2723;font-size:0.8rem;font-weight:700;cursor:pointer;line-height:1;white-space:nowrap;">Pagos pendientes (?)</button>
-            <button class="btn-vaciar-fx" onclick="limpiarVenta()" title="Limpiar venta"
+            <button onclick="limpiarVenta()" title="Limpiar venta"
                     style="background:rgba(183,28,28,0.35);border:1.5px solid rgba(183,28,28,0.7);border-radius:12px;padding:6px 10px;color:#ffcdd2;font-size:1rem;cursor:pointer;line-height:1;">🗑</button>
             <button class="btn-resumen" onclick="cambiarVendedor()" id="vendedorBadge"
                     style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.4);">👤 Víctor</button>
@@ -2902,7 +2900,7 @@
                     style="background:rgba(220,38,38,0.3);border-color:rgba(220,38,38,0.6);flex:1;text-align:center;display:flex;align-items:center;justify-content:center;">
                 💸
             </button>
-            <button class="btn-resumen" onclick="abrirPrestamos()" title="Mis deudas" id="btnPrestamos"
+            <button class="btn-resumen" onclick="abrirPrestamos()" title="Préstamos" id="btnPrestamos"
                     style="background:rgba(103,58,183,0.3);border-color:rgba(103,58,183,0.6);flex:1;text-align:center;display:flex;align-items:center;justify-content:center;position:relative;">
                 🤝<span id="badgePrestamos" style="display:none;position:absolute;top:-4px;right:-4px;background:#673ab7;color:white;border-radius:50%;min-width:16px;height:16px;font-size:0.6rem;font-weight:900;align-items:center;justify-content:center;line-height:1;padding:0 2px;"></span>
             </button>
@@ -3005,7 +3003,7 @@
     <div id="fabColapsable" style="display:flex;flex-direction:column;align-items:center;gap:10px;">
         <!-- Vaciar carrito -->
         <div id="fabLimpiar">
-            <button class="btn-vaciar-fx" onclick="limpiarVenta()"
+            <button onclick="limpiarVenta()"
                     title="Vaciar carrito"
                     style="width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;
                            background:linear-gradient(135deg,#b71c1c,#c62828);
@@ -5317,7 +5315,6 @@ function limpiarVenta() {
         if (flecha) flecha.textContent = '›';
         localStorage.removeItem('copihue_pago_mixto_pendiente'); // v453
     }
-    mostrarToast('🗑 Venta vaciada'); // v508: aviso corto (solo llega acá si había productos)
 }
 
 // ========== RENDER VENTA ==========
@@ -6325,11 +6322,9 @@ let _cotizacionesCache = null;
 
 // Orden fijo — nunca se reordena ni se oculta ninguno.
 const _PM_MEDIOS_DEF = [
-    // v510: Mis deudas pasa a leer/guardar en la hoja DEUDAS (ver módulo al final del archivo)
-    // v509: EFECTIVO (ARS) pasó a la tercera posición, después de CLP y dólares
+    { metodo: 'EFECTIVO',      moneda: 'ARS', emoji: '💵', nombre: 'EFECTIVO' },
     { metodo: 'EFECTIVO',      moneda: 'CLP', emoji: '🇨🇱', nombre: 'PESOS CHILENOS' },
     { metodo: 'EFECTIVO',      moneda: 'USD', emoji: '🇺🇸', nombre: 'DÓLARES' },
-    { metodo: 'EFECTIVO',      moneda: 'ARS', emoji: '💵', nombre: 'EFECTIVO' },
     { metodo: 'TARJETA',       moneda: 'ARS', emoji: '💳', nombre: 'TARJETA' },
     { metodo: 'TRANSFERENCIA', moneda: 'ARS', emoji: '📱', nombre: 'TRANSFERENCIA' },
     { metodo: 'FIADO',         moneda: 'ARS', emoji: '🧾', nombre: 'FIADO' }
@@ -8400,7 +8395,7 @@ function abrirResumen() {
                     <div class="resumen-venta-detalle">
                         ${v.items.map(i => `${i.qty}× ${i.name.substring(0, 30)}`).join(' · ')}
                     </div>
-                    ${!v.stockRebajado ? '<div style="font-size:0.7rem;color:#f57c00;margin-top:3px;">⚠️ Stock pendiente de rebaja manual</div>' : ''}
+                    ${!v.stockRebajado ? '<div style="font-size:0.7rem;color:#f57c00;margin-top:3px;">⚠️ Stock por verificar. No descontar nuevamente sin comprobar la planilla.</div>' : ''}
                 </div>
             `).join('');
     }
@@ -17087,27 +17082,27 @@ function tragCerrarJuego() {
     <div class="modal-sheet" style="display:flex;flex-direction:column;">
         <div class="modal-handle"></div>
         <div class="modal-header" style="flex-shrink:0;">
-            <span class="modal-titulo">🤝 Mis deudas</span>
+            <span class="modal-titulo">🤝 Préstamos</span>
             <button class="modal-cerrar" onclick="cerrarPrestamos()">✕</button>
         </div>
         <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:0;">
             <div style="display:flex;border-bottom:2px solid #f0f0f0;flex-shrink:0;">
                 <button id="prestTabNuevo" onclick="prestShowTab('nuevo')"
-                    style="flex:1;padding:10px;border:none;background:transparent;font-weight:700;font-size:0.82rem;cursor:pointer;border-bottom:3px solid var(--verde);color:var(--verde);font-family:inherit;">
+                    style="flex:1;padding:10px;border:none;background:transparent;font-weight:700;font-size:0.82rem;cursor:pointer;border-bottom:3px solid #673ab7;color:#673ab7;font-family:inherit;">
                     ➕ Nuevo
                 </button>
                 <button id="prestTabLista" onclick="prestShowTab('lista')"
                     style="flex:1;padding:10px;border:none;background:transparent;font-weight:700;font-size:0.82rem;cursor:pointer;color:#888;font-family:inherit;">
-                    📋 Mis deudas
+                    📋 Mis préstamos
                 </button>
             </div>
-            <div id="prestPanelNuevo" style="padding:16px 20px 48px;display:flex;flex-direction:column;gap:12px;">
+            <div id="prestPanelNuevo" style="padding:16px 20px;display:flex;flex-direction:column;gap:12px;">
                 <div class="form-grupo">
                     <label class="form-label">Acreedor (a quién le debés) *</label>
                     <input type="text" class="form-input" id="prestAcreedor" placeholder="Ej: Juan, Banco, Familiar..." autocomplete="off"
                         oninput="prestSugerirAcreedor(this.value)" list="prestAcreedoresList">
                     <datalist id="prestAcreedoresList"></datalist>
-                    <div id="prestSugerencias" style="display:none;background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;margin-top:4px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div>
+                    <div id="prestSugerencias" style="display:none;background:#fff;border:1.5px solid #e0d7f7;border-radius:10px;margin-top:4px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div>
                 </div>
                 <div class="form-grupo">
                     <label class="form-label">Monto total *</label>
@@ -17136,12 +17131,12 @@ function tragCerrarJuego() {
                     <input type="text" class="form-input" id="prestObs" placeholder="Notas adicionales..." autocomplete="off">
                 </div>
                 <button onclick="prestRegistrar()" id="btnPrestRegistrar"
-                    style="width:100%;padding:14px;border:none;border-radius:12px;background:var(--verde);color:white;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">
-                    🤝 Registrar deuda
+                    style="width:100%;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#4527a0,#673ab7);color:white;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">
+                    🤝 Registrar préstamo
                 </button>
                 <div id="prestError" style="display:none;color:#c62828;font-size:0.8rem;text-align:center;background:#ffebee;padding:8px;border-radius:8px;"></div>
             </div>
-            <div id="prestPanelLista" style="padding:16px 20px 48px;display:none;">
+            <div id="prestPanelLista" style="padding:16px 20px;display:none;">
                 <div id="prestListaContenido">
                     <div style="text-align:center;color:#888;padding:20px;font-size:0.82rem;">Cargando...</div>
                 </div>
@@ -17155,96 +17150,29 @@ function tragCerrarJuego() {
 
 // ══════════════════════════════════════════════════════
 //  MÓDULO PRÉSTAMOS
-//  Fuente de verdad: hoja DEUDAS (v510, portado de Naturaleza Ilustrada v474) en la planilla.
-//  localStorage queda solo como caché para que abra rápido
-//  y funcione un instante offline — cada acción real (nuevo,
-//  pagar cuota, cancelar) se manda al servidor.
 // ══════════════════════════════════════════════════════
 const LS_PREST = 'copihue_prestamos';
-let _prestSincronizando = false;
 function prestCargar(){try{return JSON.parse(localStorage.getItem(LS_PREST)||'[]');}catch(e){return[];}}
 function prestGuardar(lista){localStorage.setItem(LS_PREST,JSON.stringify(lista));prestActualizarBadge();}
-
-// Trae la lista real desde la planilla y actualiza la caché local.
-async function prestSincronizar(){
-    if(_prestSincronizando) return;
-    _prestSincronizando = true;
-    try{
-        const resp = await _apiFetch('listarPrestamos');
-        if(resp && resp.ok && Array.isArray(resp.prestamos)){
-            // El backend guarda pagos como texto "Pago $X dd/mm/yyyy | ...";
-            // acá solo necesitamos la cantidad para la UI (pagadas/total).
-            const lista = resp.prestamos.map(p => ({
-                id: p.idPrestamo,
-                fecha: p.fecha,
-                acreedor: p.acreedor,
-                monto: p.monto,
-                motivo: p.motivo,
-                cuotas: p.cuotas,
-                montoCuota: p.montoCuota,
-                vencimiento: p.vencimiento || null,
-                obs: p.obs,
-                estado: p.estado,
-                saldo: p.saldo,
-                pagos: Array(p.cuotasPagadas || 0).fill({monto: p.montoCuota}) // solo para contar length en la UI existente
-            }));
-            prestGuardar(lista);
-        }
-    }catch(e){
-        console.warn('⚠️ No se pudo sincronizar Mis deudas con la planilla, mostrando caché local:', e.message);
-    }finally{
-        _prestSincronizando = false;
-    }
-}
-
-// v462 — Saldo real: el que manda la planilla (incluye abonos parciales).
-// Si el dato viene de una caché vieja sin saldo, se calcula como antes.
-// v467 — Una deuda está cerrada si está pagada (CANCELADO) o anulada (ANULADO).
-function _prestCerrada(p){
-    return p.estado==='PAGADO'||p.estado==='CANCELADO'||p.estado==='ANULADO'||(p.pagos||[]).length>=(parseInt(p.cuotas)||1);
-}
-// Anulada = se cerró con la ✕ sin pagarla (ANULADO, o CANCELADO viejo con saldo pendiente)
-function _prestAnulada(p){
-    return p.estado==='ANULADO'||((p.estado==='CANCELADO'||p.estado==='PAGADO')&&_prestSaldo(p)>0);
-}
-function _prestSaldo(p){
-    const s=parseFloat(p.saldo);
-    if(!isNaN(s)&&p.saldo!==null&&p.saldo!==undefined&&p.saldo!=='') return Math.max(0,s);
-    return (p.monto||0)-(p.pagos||[]).reduce((a,pg)=>a+(pg.monto||0),0);
-}
-// v462 — Fecha "2026-11-11" leída como día LOCAL (new Date('2026-11-11') la
-// toma como medianoche UTC y en Argentina mostraba el día anterior).
-function _prestFecha(v){
-    if(!v) return null;
-    const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(v));
-    const d=m?new Date(+m[1],+m[2]-1,+m[3]):new Date(v);
-    return isNaN(d.getTime())?null:d;
-}
 function prestActualizarBadge(){
     const lista=prestCargar();
     const hoy=new Date();
-    const activos=lista.filter(p=>!_prestCerrada(p));
-    const vencidos=activos.filter(p=>{const v=_prestFecha(p.vencimiento);return v&&v<=hoy;});
+    const activos=lista.filter(p=>p.estado!=='CANCELADO'&&(p.pagos||[]).length<(parseInt(p.cuotas)||1));
+    const vencidos=activos.filter(p=>p.vencimiento&&new Date(p.vencimiento)<=hoy);
     const badge=document.getElementById('badgePrestamos');
     if(badge){
-        if(activos.length>0){badge.textContent=activos.length;badge.style.display='flex';badge.style.background='#c62828';}
+        if(activos.length>0){badge.textContent=activos.length;badge.style.display='flex';badge.style.background=vencidos.length>0?'#c62828':'#673ab7';}
         else{badge.style.display='none';}
     }
 }
 function abrirPrestamos(){
     document.getElementById('modalPrestamos').style.display='flex';
-    prestShowTab('lista'); // pinta con la caché al instante
+    prestShowTab('lista');
     const d=new Date();d.setMonth(d.getMonth()+1);
     document.getElementById('prestVencimiento').value=d.toISOString().split('T')[0];
     // Precargar acreedores en el datalist
     prestCargarSugerencias();
-    // Trae la versión real de la planilla y repinta cuando llegue
-    prestSincronizar().then(()=>{
-        if(document.getElementById('prestPanelLista').style.display!=='none') prestRenderLista();
-        prestCargarSugerencias();
-    });
 }
-let _prestTodosAcreedores = []; // cache: [{nombre, freq}], se arma en prestCargarSugerencias
 function prestCargarSugerencias(){
     const lista=prestCargar();
     // Acreedores predefinidos + los del historial
@@ -17253,25 +17181,21 @@ function prestCargarSugerencias(){
     PREST_BASE.forEach(a=>freq[a]=0); // base con frecuencia 0
     lista.forEach(p=>{if(p.acreedor)freq[p.acreedor]=(freq[p.acreedor]||0)+1;});
     const acreedores=Object.keys(freq).sort((a,b)=>freq[b]-freq[a]);
-    _prestTodosAcreedores = acreedores.map(a=>({nombre:a, freq:freq[a]}));
-    // Poblar datalist (queda como respaldo nativo del navegador)
+    // Poblar datalist
     const dl=document.getElementById('prestAcreedoresList');
     if(dl) dl.innerHTML=acreedores.map(a=>`<option value="${a}">`).join('');
     // Mostrar chips de sugerencia rápida si hay acreedores frecuentes
-    prestRenderSugerencias(_prestTodosAcreedores.slice(0,4));
-}
-function prestRenderSugerencias(items){
     const sugs=document.getElementById('prestSugerencias');
-    if(!sugs) return;
-    if(!items.length){ sugs.style.display='none'; return; }
-    sugs.innerHTML=items.map(({nombre:a,freq:f})=>
-        `<button type="button" onclick="prestSelAcreedor('${a.replace(/'/g,"\\'")}')"
-            style="display:block;width:100%;padding:10px 14px;border:none;background:transparent;text-align:left;cursor:pointer;font-family:inherit;font-size:.82rem;font-weight:600;border-bottom:1px solid #f5f5f5"
-            onmouseover="this.style.background='#f3eeff'" onmouseout="this.style.background='transparent'">
-            🤝 ${a} <span style="font-size:.68rem;color:#888">(${f} vez${f>1?'es':''})</span>
-        </button>`
-    ).join('');
-    sugs.style.display='block';
+    if(sugs && acreedores.length>0){
+        sugs.innerHTML=acreedores.slice(0,4).map(a=>
+            `<button type="button" onclick="prestSelAcreedor('${a.replace(/'/g,"\'")}")"
+                style="display:block;width:100%;padding:10px 14px;border:none;background:transparent;text-align:left;cursor:pointer;font-family:inherit;font-size:.82rem;font-weight:600;border-bottom:1px solid #f5f5f5"
+                onmouseover="this.style.background='#f3eeff'" onmouseout="this.style.background='transparent'">
+                🤝 ${a} <span style="font-size:.68rem;color:#888">(${freq[a]} vez${freq[a]>1?'es':''})</span>
+            </button>`
+        ).join('');
+        sugs.style.display='block';
+    }
 }
 function prestSelAcreedor(nombre){
     document.getElementById('prestAcreedor').value=nombre;
@@ -17286,23 +17210,19 @@ function prestSelAcreedor(nombre){
     document.getElementById('prestMonto').focus();
 }
 function prestSugerirAcreedor(val){
-    // v441 — FIX: antes ocultaba el panel apenas se escribía algo, en vez de
-    // filtrarlo. Ahora filtra por coincidencia (sin importar mayúsculas) y
-    // mantiene los botones tocables mientras se escribe.
-    const q = val.trim().toLowerCase();
-    if(!q){ prestRenderSugerencias(_prestTodosAcreedores.slice(0,4)); return; }
-    const filtrados = _prestTodosAcreedores.filter(({nombre})=>nombre.toLowerCase().includes(q));
-    prestRenderSugerencias(filtrados.slice(0,6));
+    const sugs=document.getElementById('prestSugerencias');
+    if(val.trim()) sugs.style.display='none';
+    else prestCargarSugerencias();
 }
 function cerrarPrestamos(){document.getElementById('modalPrestamos').style.display='none';}
 function prestShowTab(tab){
     const esN=tab==='nuevo';
     document.getElementById('prestPanelNuevo').style.display=esN?'flex':'none';
     document.getElementById('prestPanelLista').style.display=esN?'none':'block';
-    document.getElementById('prestTabNuevo').style.borderBottom=esN?'3px solid var(--verde)':'none';
-    document.getElementById('prestTabNuevo').style.color=esN?'var(--verde)':'#888';
-    document.getElementById('prestTabLista').style.borderBottom=esN?'none':'3px solid var(--verde)';
-    document.getElementById('prestTabLista').style.color=esN?'#888':'var(--verde)';
+    document.getElementById('prestTabNuevo').style.borderBottom=esN?'3px solid #673ab7':'none';
+    document.getElementById('prestTabNuevo').style.color=esN?'#673ab7':'#888';
+    document.getElementById('prestTabLista').style.borderBottom=esN?'none':'3px solid #673ab7';
+    document.getElementById('prestTabLista').style.color=esN?'#888':'#673ab7';
     if(tab==='lista')prestRenderLista();
 }
 function prestCalcCuota(){
@@ -17310,7 +17230,7 @@ function prestCalcCuota(){
     const c=parseInt(document.getElementById('prestCuotas').value)||1;
     document.getElementById('prestMontoCuota').textContent='$'+Math.round(m/c).toLocaleString('es-AR');
 }
-async function prestRegistrar(){
+function prestRegistrar(){
     const acreedor=document.getElementById('prestAcreedor').value.trim();
     const monto=parseFloat(document.getElementById('prestMonto').value);
     const motivo=document.getElementById('prestMotivo').value.trim();
@@ -17322,63 +17242,48 @@ async function prestRegistrar(){
     if(!monto||monto<=0){errEl.textContent='⚠️ Ingresá el monto';errEl.style.display='block';return;}
     errEl.style.display='none';
     const btn=document.getElementById('btnPrestRegistrar');
-    btn.disabled=true;btn.textContent='⏳ Guardando en la planilla...';
-    const nuevo={idPrestamo:'p_'+Date.now(),acreedor,monto,motivo,cuotas,vencimiento:vencimiento||null,obs};
-    try{
-        const resp = await _apiFetch('guardarPrestamo', nuevo);
-        if(!resp || !resp.success){
-            errEl.textContent='❌ '+(resp?.mensaje||'No se pudo guardar. Probá de nuevo.');
-            errEl.style.display='block';
-            btn.disabled=false;btn.textContent='🤝 Registrar deuda';
-            return;
-        }
-    }catch(e){
-        errEl.textContent='🔌 Sin conexión con la planilla. Probá de nuevo.';
-        errEl.style.display='block';
-        btn.disabled=false;btn.textContent='🤝 Registrar deuda';
-        return;
-    }
+    btn.disabled=true;btn.textContent='⏳ Guardando...';
+    const nuevo={id:'p_'+Date.now(),fecha:new Date().toISOString().split('T')[0],acreedor,monto,motivo,cuotas,montoCuota:Math.round(monto/cuotas),vencimiento:vencimiento||null,obs,estado:'PENDIENTE',pagos:[]};
+    const lista=prestCargar();lista.push(nuevo);prestGuardar(lista);
     ['prestAcreedor','prestMonto','prestMotivo','prestObs'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('prestCuotas').value='1';
     document.getElementById('prestMontoCuota').textContent='$0';
-    btn.disabled=false;btn.textContent='🤝 Registrar deuda';
+    btn.disabled=false;btn.textContent='🤝 Registrar préstamo';
     prestShowTab('lista');
-    await prestSincronizar();
-    prestRenderLista();
 }
 function prestRenderLista(){
     const lista=prestCargar();
     const el=document.getElementById('prestListaContenido');
     const hoy=new Date();
     const fmt=n=>'$'+Math.round(n||0).toLocaleString('es-AR');
-    const activos=lista.filter(p=>!_prestCerrada(p));
-    const cancelados=lista.filter(p=>_prestCerrada(p));
-    if(lista.length===0){el.innerHTML='<div style="text-align:center;color:#888;padding:30px;font-size:0.82rem">Sin deudas registradas 🎉</div>';return;}
+    const activos=lista.filter(p=>p.estado!=='CANCELADO'&&(p.pagos||[]).length<(parseInt(p.cuotas)||1));
+    const cancelados=lista.filter(p=>p.estado==='CANCELADO'||(p.pagos||[]).length>=(parseInt(p.cuotas)||1));
+    if(lista.length===0){el.innerHTML='<div style="text-align:center;color:#888;padding:30px;font-size:0.82rem">Sin préstamos registrados 🎉</div>';return;}
     let h='';
-    const totalDeuda=activos.reduce((s,p)=>s+_prestSaldo(p),0);
+    const totalDeuda=activos.reduce((s,p)=>s+(p.monto-(p.pagos||[]).reduce((s2,pg)=>s2+pg.monto,0)),0);
     if(activos.length>0){
-        h+=`<div style="background:linear-gradient(135deg,#d84315,#ef6c00);border-radius:14px;padding:13px;margin-bottom:14px;color:#fff">
+        h+=`<div style="background:linear-gradient(135deg,#4527a0,#673ab7);border-radius:14px;padding:13px;margin-bottom:14px;color:#fff">
             <div style="font-size:.68rem;opacity:.8;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">💸 Total que debés</div>
             <div style="font-size:1.5rem;font-weight:900">${fmt(totalDeuda)}</div>
-            <div style="font-size:.68rem;opacity:.75;margin-top:2px">${activos.length} deuda${activos.length>1?'s':''} activa${activos.length>1?'s':''}</div>
+            <div style="font-size:.68rem;opacity:.75;margin-top:2px">${activos.length} préstamo${activos.length>1?'s':''} activo${activos.length>1?'s':''}</div>
         </div>`;
     }
     activos.forEach(p=>{
         const cuotasTotal=parseInt(p.cuotas)||1;
         const pagadas=(p.pagos||[]).length;
-        const saldo=_prestSaldo(p);
-        const pagado=Math.max(0,(p.monto||0)-saldo);
-        const pct=p.monto?Math.round(pagado/p.monto*100):0;
-        const venc=_prestFecha(p.vencimiento);
+        const pagado=(p.pagos||[]).reduce((s,pg)=>s+pg.monto,0);
+        const saldo=p.monto-pagado;
+        const pct=Math.round(pagado/p.monto*100);
+        const venc=p.vencimiento?new Date(p.vencimiento):null;
         const diasVenc=venc?Math.round((venc-hoy)/86400000):null;
         const vencido=diasVenc!==null&&diasVenc<0;
         const urgente=diasVenc!==null&&diasVenc>=0&&diasVenc<=7;
-        h+=`<div style="background:#fff;border-radius:14px;border:2px solid ${vencido?'#c62828':urgente?'#ff9800':'#e0e0e0'};padding:13px;margin-bottom:10px">
+        h+=`<div style="background:#fff;border-radius:14px;border:2px solid ${vencido?'#c62828':urgente?'#ff9800':'#e0d7f7'};padding:13px;margin-bottom:10px">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
                 <div><div style="font-size:.88rem;font-weight:900;color:#333">${p.acreedor}</div>${p.motivo?`<div style="font-size:.7rem;color:#888;margin-top:1px">${p.motivo}</div>`:''}</div>
-                <div style="text-align:right"><div style="font-size:1rem;font-weight:900;color:#c62828">${fmt(saldo)}</div><div style="font-size:.62rem;color:#888">saldo</div></div>
+                <div style="text-align:right"><div style="font-size:1rem;font-weight:900;color:#673ab7">${fmt(saldo)}</div><div style="font-size:.62rem;color:#888">saldo</div></div>
             </div>
-            <div style="background:#e53935;border-radius:20px;height:6px;margin-bottom:6px;overflow:hidden"><div style="background:linear-gradient(90deg,#2e7d32,#66bb6a);border-radius:20px 0 0 20px;height:6px;width:${pct}%"></div></div>
+            <div style="background:#f0f0f0;border-radius:20px;height:6px;margin-bottom:6px"><div style="background:linear-gradient(90deg,#673ab7,#9c27b0);border-radius:20px;height:6px;width:${pct}%"></div></div>
             <div style="display:flex;justify-content:space-between;font-size:.68rem;color:#888;margin-bottom:8px">
                 <span>${cuotasTotal>1?`${pagadas}/${cuotasTotal} cuotas · ${fmt(p.montoCuota)}/cuota`:`${fmt(pagado)} pagado de ${fmt(p.monto)}`}</span>
                 <span>${pct}%</span>
@@ -17388,189 +17293,43 @@ function prestRenderLista(){
             ${!vencido&&!urgente&&venc?`<div style="font-size:.68rem;color:#888;margin-bottom:6px">📅 Próximo venc: ${venc.toLocaleDateString('es-AR')}</div>`:''}
             <div style="display:flex;gap:6px">
                 <button onclick="prestPagarCuota('${p.id}')" ${pagadas>=cuotasTotal?'disabled':''}
-                    style="flex:1;padding:7px;border:none;border-radius:8px;background:${pagadas<cuotasTotal?'var(--verde)':'#ccc'};color:#fff;font-size:.75rem;font-weight:700;cursor:pointer;font-family:inherit">
-                    ✅ Pagar cuota ${pagadas<cuotasTotal?fmt(Math.min(p.montoCuota,saldo)):''}
+                    style="flex:1;padding:7px;border:none;border-radius:8px;background:${pagadas<cuotasTotal?'#673ab7':'#ccc'};color:#fff;font-size:.75rem;font-weight:700;cursor:pointer;font-family:inherit">
+                    ✅ Pagar cuota ${pagadas<cuotasTotal?fmt(p.montoCuota):''}
                 </button>
-                <button onclick="prestAbonar('${p.id}')"
-                    style="padding:7px 10px;border:1.5px solid var(--verde);border-radius:8px;background:#fff;color:var(--verde);font-size:.75rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">💵 Abonar</button>
-                <button onclick="prestCancelar('${p.id}')" title="Anular deuda" style="padding:7px 10px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#888;font-size:.75rem;font-weight:700;cursor:pointer;font-family:inherit">✕</button>
+                <button onclick="prestCancelar('${p.id}')" style="padding:7px 10px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#888;font-size:.75rem;font-weight:700;cursor:pointer;font-family:inherit">✕</button>
             </div>
-            ${pagado>0?`<button onclick="prestReabrir('${p.id}')" style="margin-top:8px;background:none;border:none;padding:0;color:#888;font-size:.7rem;font-weight:700;text-decoration:underline;cursor:pointer;font-family:inherit">↩ Deshacer el último pago</button>`:''}
         </div>`;
     });
     if(cancelados.length>0){
-        h+=`<div style="font-size:.68rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">✅ Pagadas y anuladas</div>`;
+        h+=`<div style="font-size:.68rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px">✅ Cancelados</div>`;
         cancelados.forEach(p=>{
             h+=`<div style="background:#f9f9f9;border-radius:10px;padding:10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;opacity:.7">
                 <div><div style="font-size:.8rem;font-weight:700">${p.acreedor}</div><div style="font-size:.65rem;color:#888">${fmt(p.monto)} · ${p.fecha}</div></div>
-                <div style="text-align:right">
-                    <div style="font-size:.72rem;font-weight:700;color:${_prestAnulada(p)?'#888':'#2e7d32'}">${_prestAnulada(p)?'🚫 Anulada':'✅ Pagado'}</div>
-                    <button onclick="prestReabrir('${p.id}')" style="margin-top:4px;background:none;border:none;padding:0;color:#555;font-size:.68rem;font-weight:700;text-decoration:underline;cursor:pointer;font-family:inherit">${_prestAnulada(p)?'↩ Reabrir':'↩ Deshacer pago'}</button>
-                </div>
+                <div style="font-size:.72rem;color:#2e7d32;font-weight:700">✅ Pagado</div>
             </div>`;
         });
     }
     el.innerHTML=h;
 }
-async function prestPagarCuota(id){
+function prestPagarCuota(id){
     const lista=prestCargar();
     const p=lista.find(x=>x.id===id);if(!p)return;
     const cuotas=parseInt(p.cuotas)||1;
     if((p.pagos||[]).length>=cuotas)return;
-
-    let proximoVencimiento=null;
-    if(p.vencimiento&&(p.pagos||[]).length+1<cuotas){
-        const v=new Date(p.vencimiento);v.setMonth(v.getMonth()+1);
-        proximoVencimiento=v.toISOString().split('T')[0];
-    }
-    const idOperacion='pago_'+id+'_'+((p.pagos||[]).length+1);
-
-    // v466 — Pagar NUNCA se registra sin confirmar (antes un toque ya descontaba)
-    {
-        const fmtP=n=>'$'+Math.round(n||0).toLocaleString('es-AR');
-        const saldoP=_prestSaldo(p);
-        const montoP=Math.min(parseFloat(p.montoCuota)||0,saldoP);
-        const esUltima=(p.pagos||[]).length+1>=cuotas||saldoP-montoP<=0;
-        if(!confirm('Vas a registrar un pago de '+fmtP(montoP)+' a '+p.acreedor+(p.motivo?' ('+p.motivo+')':'')+'.\n'+
-            (esUltima?'Con esto la deuda queda SALDADA.':'Saldo que queda: '+fmtP(saldoP-montoP))+'\n\n¿Confirmás?')) return;
-    }
-
-    try{
-        const resp = await _apiFetch('pagarCuotaPrestamo', {idPrestamo:id, idOperacion, proximoVencimiento});
-        if(!resp || !resp.success){
-            alert('❌ '+(resp?.mensaje||'No se pudo registrar el pago. Probá de nuevo.'));
-            return;
-        }
-    }catch(e){
-        alert('🔌 Sin conexión con la planilla. Probá de nuevo.');
-        return;
-    }
-    await prestSincronizar();
-    prestRenderLista();
+    if(!p.pagos)p.pagos=[];
+    p.pagos.push({fecha:new Date().toISOString().split('T')[0],monto:p.montoCuota});
+    if(p.vencimiento&&p.pagos.length<cuotas){const v=new Date(p.vencimiento);v.setMonth(v.getMonth()+1);p.vencimiento=v.toISOString().split('T')[0];}
+    if(p.pagos.length>=cuotas)p.estado='CANCELADO';
+    prestGuardar(lista);prestRenderLista();
 }
-// v462 — Abono parcial: descuenta del saldo el monto que se escriba.
-// Requiere Code.gs v10.9 (acción abonarPrestamo).
-async function prestAbonar(id){
+function prestCancelar(id){
+    if(!confirm('¿Marcar este préstamo como cancelado?'))return;
     const lista=prestCargar();
-    const p=lista.find(x=>x.id===id);if(!p)return;
-    const fmt=n=>'$'+Math.round(n||0).toLocaleString('es-AR');
-    const saldo=_prestSaldo(p);
-    if(saldo<=0){alert('Esta deuda ya no tiene saldo.');return;}
-    const escrito=prompt('Abono a '+p.acreedor+(p.motivo?' ('+p.motivo+')':'')+'\nSaldo actual: '+fmt(saldo)+'\n\n¿Cuánto vas a abonar?');
-    if(escrito===null)return;
-    const monto=Math.round(parseFloat(String(escrito).replace(/\./g,'').replace(',','.').replace(/[^0-9.]/g,'')));
-    if(!monto||monto<=0){alert('⚠️ Escribí un monto válido.');return;}
-    if(monto>saldo){alert('⚠️ El abono ('+fmt(monto)+') es mayor que el saldo ('+fmt(saldo)+').');return;}
-    const queda=saldo-monto;
-    if(!confirm('Vas a abonar '+fmt(monto)+' a '+p.acreedor+'.\n'+(queda>0?'Saldo que queda: '+fmt(queda):'Con esto la deuda queda saldada.')+'\n\n¿Confirmás?'))return;
-    // Mismo abono sobre el mismo saldo = mismo id: si se reintenta tras un corte, no se descuenta dos veces
-    const idOperacion='abono_'+id+'_'+saldo+'_'+monto;
-    try{
-        const resp = await _apiFetch('abonarPrestamo', {idPrestamo:id, monto:monto, idOperacion:idOperacion});
-        if(!resp || !resp.success){
-            alert('❌ '+(resp?.mensaje||'No se pudo registrar el abono: falta actualizar Code.gs (v10.9).'));
-            return;
-        }
-        mostrarToast(resp.saldo>0?('✅ Abono registrado — saldo '+fmt(resp.saldo)):'✅ Deuda saldada','verde');
-    }catch(e){
-        alert('🔌 Sin conexión con la planilla. Volvé a intentar el MISMO abono: es seguro, no se descuenta dos veces.');
-        return;
-    }
-    await prestSincronizar();
-    prestRenderLista();
-    prestActualizarBadge();
+    const p=lista.find(x=>x.id===id);
+    if(p)p.estado='CANCELADO';
+    prestGuardar(lista);prestRenderLista();
 }
-// v467 — Reabrir una deuda anulada, o deshacer el último pago/abono.
-// Requiere Code.gs v10.10 (acción reabrirPrestamo).
-async function prestReabrir(id){
-    const lista=prestCargar();
-    const p=lista.find(x=>x.id===id);if(!p)return;
-    const anulada=_prestAnulada(p);
-    const pregunta=anulada
-        ? '¿Reabrir la deuda con '+p.acreedor+(p.motivo?' ('+p.motivo+')':'')+'?\n\nVuelve a quedar pendiente con el saldo que tenía.'
-        : '¿Deshacer el ÚLTIMO pago de la deuda con '+p.acreedor+(p.motivo?' ('+p.motivo+')':'')+'?\n\nEse monto vuelve al saldo y la deuda queda pendiente.';
-    if(!confirm(pregunta))return;
-    try{
-        const resp = await _apiFetch('reabrirPrestamo', {idPrestamo:id});
-        if(!resp || !resp.success){
-            alert('❌ '+(resp?.mensaje||'No se pudo deshacer: falta actualizar Code.gs (v10.10).'));
-            return;
-        }
-        mostrarToast(resp.deshecho?('↩ Deshecho: '+resp.deshecho):'↩ Deuda reabierta','verde');
-    }catch(e){
-        alert('🔌 Sin conexión con la planilla. Antes de reintentar, tocá 🔄 y fijate si ya se deshizo.');
-        return;
-    }
-    await prestSincronizar();
-    prestRenderLista();
-    prestActualizarBadge();
-}
-async function prestCancelar(id){
-    if(!confirm('¿ANULAR esta deuda?\n\nNo se registra ningún pago: queda como "Anulada" con su saldo intacto.\nPodés reabrirla después.'))return;
-    try{
-        const resp = await _apiFetch('cancelarPrestamo', {idPrestamo:id});
-        if(!resp || !resp.success){
-            alert('❌ '+(resp?.mensaje||'No se pudo cancelar. Probá de nuevo.'));
-            return;
-        }
-    }catch(e){
-        alert('🔌 Sin conexión con la planilla. Probá de nuevo.');
-        return;
-    }
-    await prestSincronizar();
-    prestRenderLista();
-}
-document.addEventListener('DOMContentLoaded', function(){
-    prestActualizarBadge();
-    prestMostrarAlertas();
-});
-
-function prestMostrarAlertas(){
-    const lista = prestCargar();
-    const hoy = new Date(); hoy.setHours(0,0,0,0);
-    const alertas = [];
-    lista.forEach(p => {
-        if(_prestCerrada(p)) return;
-        const cuotasTotal = parseInt(p.cuotas) || 1;
-        const pagadas = (p.pagos||[]).length;
-        if(pagadas >= cuotasTotal) return;
-        if(!p.vencimiento) return;
-        const venc = _prestFecha(p.vencimiento); if(!venc) return; venc.setHours(0,0,0,0);
-        const dias = Math.round((venc - hoy) / 86400000);
-        if(dias <= 3) alertas.push({p, dias});
-    });
-    if(alertas.length === 0) return;
-    const wrap = document.createElement('div');
-    wrap.id = 'prestAlertaBanner';
-    wrap.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;display:flex;flex-direction:column;';
-    alertas.forEach(({p, dias}) => {
-        const vencido = dias < 0;
-        const color = vencido || dias === 1 ? '#c62828' : dias === 2 ? '#e65100' : '#f9a825';
-        const emoji = vencido || dias <= 1 ? '🔴' : dias === 2 ? '🟠' : '🟡';
-        const msg = vencido ? `${emoji} VENCIDO hace ${Math.abs(dias)} día${Math.abs(dias)>1?'s':''}`
-                  : dias === 0 ? '🔴 VENCE HOY'
-                  : `${emoji} Vence en ${dias} día${dias>1?'s':''}`;
-        const fmt = n => '$'+Math.round(n||0).toLocaleString('es-AR');
-        const cuotasTotal = parseInt(p.cuotas)||1;
-        const pagadas = (p.pagos||[]).length;
-        const div = document.createElement('div');
-        div.style.cssText = `background:${color};color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;`;
-        div.innerHTML = `
-            <div style="flex:1;min-width:0">
-                <div style="font-size:0.8rem;font-weight:900">${msg} · ${p.acreedor}</div>
-                <div style="font-size:0.7rem;opacity:0.9">${fmt(p.montoCuota)} ${cuotasTotal>1?`· cuota ${pagadas+1}/${cuotasTotal}`:'· pago único'}</div>
-            </div>
-            <div style="display:flex;gap:6px;flex-shrink:0">
-                <button onclick="abrirPrestamos();document.getElementById('prestAlertaBanner').remove()"
-                    style="padding:5px 10px;border:none;border-radius:8px;background:rgba(255,255,255,0.25);color:#fff;font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">Ver 🤝</button>
-                <button onclick="this.parentElement.parentElement.remove()"
-                    style="padding:5px 8px;border:none;border-radius:8px;background:rgba(0,0,0,0.2);color:#fff;font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">✕</button>
-            </div>`;
-        wrap.appendChild(div);
-    });
-    document.body.appendChild(wrap);
-    setTimeout(() => { const el=document.getElementById('prestAlertaBanner'); if(el) el.remove(); }, 8000);
-}
+document.addEventListener('DOMContentLoaded',prestActualizarBadge);
 
 </script>
 </body>
