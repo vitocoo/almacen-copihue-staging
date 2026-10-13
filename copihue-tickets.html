@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Copihue · Tickets de FIADO v1.2</title>
+<title>Copihue · Tickets de FIADO v1.3</title>
 <style>
 :root{
   --bg:#f4f1ee; --card:#fff; --ink:#2b2321; --mut:#7a6f6a; --line:#e6dfda;
@@ -20,7 +20,7 @@
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:40px}
-.stg{background:var(--stg);color:#000;text-align:center;font-weight:800;font-size:.72rem;padding:3px 8px;border-bottom:3px solid #000}
+.stg{background:#b3261e;color:#fff;text-align:center;font-weight:800;font-size:.72rem;padding:3px 8px;border-bottom:3px solid #000}
 header{background:var(--brand);color:var(--brand-ink);padding:12px 16px}
 header h1{margin:0;font-size:1.15rem}
 .hrow{display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -70,14 +70,14 @@ label.chk input{margin-top:3px}
 </style>
 </head>
 <body>
-<div class="stg">🚧 STAGING — NO ES EL SITIO REAL 🚧</div>
+<div class="stg">⚠️ PRODUCCIÓN — DATOS REALES ⚠️</div>
 <header>
   <div class="wrap hrow" style="padding:0 16px">
    <div>
     <h1>🎫 Tickets de FIADO <span id="ver" style="font-size:.7rem;font-weight:600;background:rgba(255,255,255,.22);border-radius:8px;padding:2px 7px;vertical-align:middle"></span></h1>
     <div class="sub">Revisa los FIADOS sin ticket y completa la celda del ticket con tu confirmación · backend <span id="urlTail"></span></div>
    </div>
-   <a class="volver" id="btnVolver" href="seba21-staging.html">← Volver al POS</a>
+   <a class="volver" id="btnVolver" href="seba21.html">← Volver al POS</a>
   </div>
 </header>
 
@@ -101,7 +101,7 @@ label.chk input{margin-top:3px}
   <div id="status" class="mut"></div>
   <div id="list"></div>
 
-  <div class="actions" style="margin-top:18px"><a class="volver" href="seba21-staging.html" style="color:var(--ink);border-color:var(--line);background:var(--card)" data-volver>← Volver al POS</a></div>
+  <div class="actions" style="margin-top:18px"><a class="volver" href="seba21.html" style="color:var(--ink);border-color:var(--line);background:var(--card)" data-volver>← Volver al POS</a></div>
   <details>
     <summary>Registro de esta sesión (tiempos y respuestas)</summary>
     <div class="actions"><button id="btnCopyLog">Copiar registro</button></div>
@@ -123,12 +123,12 @@ label.chk input{margin-top:3px}
 
 <!-- Habilitar escritura -->
 <div id="ovUnlock" class="overlay"><div class="sheet">
-  <h2>Habilitar escritura (STAGING)</h2>
-  <div class="box warn">Este interruptor es solo una ayuda de esta página. <b>No es una protección del servidor</b>: el servidor acepta cualquier llamada. Por eso la dirección está fija a STAGING y cada cambio pide tu confirmación.</div>
-  <label class="chk"><input type="checkbox" id="u1"> Verifiqué en el editor de Apps Script que el proyecto de STAGING usa la planilla que termina en <b>…C0U2TI</b>.</label>
-  <label class="chk"><input type="checkbox" id="u2"> La planilla abierta en mi navegador es «Base de Datos_Staging».</label>
-  <div class="mut" style="margin:6px 0">Escribí los últimos caracteres del ID de la planilla de STAGING (<b>0U2TI</b>):</div>
-  <input id="u3" type="text" autocomplete="off" placeholder="0U2TI">
+  <h2>Habilitar escritura (PRODUCCIÓN)</h2>
+  <div class="box warn">Este interruptor es solo una ayuda de esta página. <b>No es una protección del servidor</b>: el servidor acepta cualquier llamada. Por eso la dirección está fija a PRODUCCIÓN y cada cambio pide tu confirmación.</div>
+  <label class="chk"><input type="checkbox" id="u1"> Verifiqué en el editor de Apps Script que el proyecto de PRODUCCIÓN usa la planilla real que termina en <b>…klPznA</b>.</label>
+  <label class="chk"><input type="checkbox" id="u2"> La planilla abierta en mi navegador es la REAL de Almacén Copihue, no la copia de STAGING.</label>
+  <div class="mut" style="margin:6px 0">Escribí los últimos caracteres del ID de la planilla real (<b>klPznA</b>):</div>
+  <input id="u3" type="text" autocomplete="off" placeholder="klPznA">
   <div class="actions">
     <button id="uCancel">Cancelar</button>
     <button id="uGo" class="pri" disabled>Habilitar</button>
@@ -137,15 +137,15 @@ label.chk input{margin-top:3px}
 
 <script>
 'use strict';
-/* ====== Configuración FIJA: solo COPIHUE STAGING ====== */
-const API_URL = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
-const API_TAIL = 'ypB9pg';
-const PROD_TAILS = ['brrHA', 'vP4lA', 'xhKFk2WA'];
-const APP_VERSION = '1.2';
+/* ====== Configuración FIJA: solo COPIHUE PRODUCCIÓN ====== */
+const API_URL = 'https://script.google.com/macros/s/AKfycbx-84yapENFqCNS1nfivFOR4P25l8U27gEoeWvVL6Nu5HmKr8e7m3KIJjshqtR_2brrHA/exec';
+const API_TAIL = 'brrHA';
+const STG_TAILS = ['ypB9pg'];
+const APP_VERSION = '1.3';
 const APP_FECHA = '13/10/2026';
-const SHEET_TAIL = '0U2TI';          // últimos caracteres del ID de la planilla de STAGING (lo confirma la persona)
+const SHEET_TAIL = 'klPznA';          // últimos caracteres del ID de la planilla REAL (lo confirma la persona)
 const TIMEOUT_MS = 60000;
-const URL_OK = API_URL.endsWith(API_TAIL + '/exec') && !PROD_TAILS.some(t => API_URL.includes(t));
+const URL_OK = API_URL.endsWith(API_TAIL + '/exec') && !STG_TAILS.some(t => API_URL.includes(t));
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -215,6 +215,15 @@ function fechaTxt(f){
   const o = x.soloDia ? { day:'2-digit', month:'2-digit', year:'numeric' } : { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false };
   return x.d.toLocaleString('es-AR', Object.assign({ timeZone: x.soloDia ? 'UTC' : TZ }, o));
 }
+/* Redondeo del POS (calcularRedondeo en seba21): el FIADO guarda el total bajado al múltiplo de 100 anterior. */
+function cmpImporte(tk, tf){
+  tk = Number(tk); tf = Number(tf);
+  if (!isFinite(tk) || !isFinite(tf)) return 'distinto';
+  if (Math.abs(tk - tf) <= 1) return 'igual';
+  if (tk > tf && tk % 100 !== 0 && Math.floor(tk / 100) * 100 === tf) return 'redondeo';
+  return 'distinto';
+}
+function horaTxt(h){ const m = /(\d{1,2}):(\d{2})/.exec(String(h || '')); return m ? m[1].padStart(2,'0') + ':' + m[2] : String(h || ''); }
 function sinTicket(f){ return !String(f.ticket || '').trim(); }
 function norm(s){ return String(s||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim(); }
 
@@ -288,7 +297,8 @@ function evaluar(f, c, det){
   if (c.coherencia && c.coherencia.estado !== 'VENTA_REGISTRADA_CON_TICKET_Y_FIADO_SIN_TICKET') bloqueos.push('Coherencia venta/fiado: ' + esc(c.coherencia.estado) + '.');
   const imp = v.ventas && v.ventas.importeTotal, tf = Number(f.totalOriginal);
   if (imp == null) avisos.push('El servidor no informó el importe del ticket.');
-  else if (Math.abs(imp - tf) > 1) bloqueos.push('El importe del ticket (' + money(imp) + ') no coincide con el del fiado (' + money(tf) + ').');
+  else if (cmpImporte(imp, tf) === 'distinto') bloqueos.push('El importe del ticket (' + money(imp) + ') no coincide con el del fiado (' + money(tf) + ').');
+  else if (cmpImporte(imp, tf) === 'redondeo') avisos.push('Importe del ticket ' + money(imp) + ' vs FIADO ' + money(tf) + ': la diferencia de ' + money(imp - tf) + ' es el redondeo del POS (se baja al múltiplo de $100). Revisá el detalle.');
   else oks.push('Importe coincide: ' + money(imp) + '.');
   if (S.fiados.some(x => x.idFiado !== f.idFiado && String(x.ticket||'').trim() === tk)) bloqueos.push('Ese ticket ya está asignado a otro FIADO.');
   if (det){
@@ -296,7 +306,7 @@ function evaluar(f, c, det){
     else{
       if (!/FIADO/i.test(det.metodoPago || '')) bloqueos.push('El ticket ' + esc(det.ticket) + ' no figura como método FIADO (figura «' + esc(det.metodoPago) + '»).');
       else oks.push('El ticket figura como FIADO.');
-      if (Math.abs((Number(det.total)||0) - tf) > 1) bloqueos.push('El total del detalle (' + money(det.total) + ') no coincide con el fiado (' + money(tf) + ').');
+      if (cmpImporte(det.total, tf) === 'distinto') bloqueos.push('El total del detalle (' + money(det.total) + ') no coincide con el fiado (' + money(tf) + ').');
       if (det.cliente && norm(det.cliente).indexOf(norm(f.cliente)) === -1 && norm(f.cliente).indexOf(norm(det.cliente)) === -1) avisos.push('El cliente del ticket («' + esc(det.cliente) + '») no es idéntico al del fiado («' + esc(f.cliente) + '»). Revisalo.');
       else if (det.cliente) oks.push('Cliente coincide.');
     }
@@ -316,7 +326,7 @@ function veredicto(f, r){
     h += `<div class="box ok"><b>Ticket encontrado: ${esc(ev.ticket)}</b><ul>${ev.oks.map(x => '<li>' + x + '</li>').join('')}</ul>
       <div class="mut" style="margin-top:4px">Coincidir en estos datos no demuestra que el contenido sea idéntico: revisá el detalle.</div></div>`;
     if (ev.det && ev.det.ok){
-      h += `<div class="mut">Detalle: ${esc(ev.det.fecha)} ${esc(ev.det.hora)} · ${esc(ev.det.metodoPago)} · ${esc(ev.det.items.map(i => i.cantidad + '× ' + i.nombre).join(' · ').slice(0,160))}</div>`;
+      h += `<div class="mut">Detalle: ${esc(ev.det.fecha)} ${esc(horaTxt(ev.det.hora))} · ${esc(ev.det.metodoPago)} · ${esc(ev.det.items.map(i => i.cantidad + '× ' + i.nombre).join(' · ').slice(0,160))}</div>`;
     }
     h += `<div class="actions"><button class="ok" data-act="completar" data-k="${esc(f.idFiado)}" data-t="${esc(ev.ticket)}" data-src="servidor" ${S.write ? '' : 'disabled'}>✔ Completar con ticket ${esc(ev.ticket)}</button>${S.write ? '' : '<span class="mut">Habilitá la escritura para completar.</span>'}</div>`;
   }
@@ -337,7 +347,10 @@ async function manual(k){
     if (det.ok !== true) bloqueos.push('El servidor no encontró el ticket ' + esc(txt) + ' (' + esc(det.error||'') + ').');
     else{
       if (!/FIADO/i.test(det.metodoPago || '')) bloqueos.push('Ese ticket no figura como FIADO (figura «' + esc(det.metodoPago) + '»).'); else oks.push('Figura como FIADO.');
-      if (Math.abs((Number(det.total)||0) - tf) > 1) bloqueos.push('Total del ticket ' + money(det.total) + ' ≠ total del fiado ' + money(tf) + '.'); else oks.push('Total coincide: ' + money(det.total) + '.');
+      { const ci = cmpImporte(det.total, tf);
+        if (ci === 'distinto') bloqueos.push('Total del ticket ' + money(det.total) + ' ≠ total del fiado ' + money(tf) + '.');
+        else if (ci === 'redondeo') avisos.push('Total del ticket ' + money(det.total) + ' vs FIADO ' + money(tf) + ': la diferencia de ' + money(Number(det.total) - tf) + ' es el redondeo del POS. Revisá el detalle.');
+        else oks.push('Total coincide: ' + money(det.total) + '.'); }
       if (det.cliente && norm(det.cliente).indexOf(norm(f.cliente)) === -1 && norm(f.cliente).indexOf(norm(det.cliente)) === -1) avisos.push('El cliente del ticket («' + esc(det.cliente) + '») no es idéntico al del fiado.'); else if (det.cliente) oks.push('Cliente coincide.');
     }
     if (S.fiados.some(x => x.idFiado !== k && String(x.ticket||'').trim().replace(/^0+/,'') === txt.replace(/^0+/,''))) bloqueos.push('Ese ticket ya está asignado a otro FIADO.');
@@ -354,7 +367,7 @@ function veredictoManual(f, m){
   if (!m.bloqueos.length){
     const d = m.det;
     h += `<div class="box ok"><b>Ticket ${esc(m.ticket)} verificado en Ventas</b><ul>${m.oks.map(x => '<li>' + x + '</li>').join('')}</ul></div>
-      <div class="mut">${esc(d.fecha)} ${esc(d.hora)} · ${esc(d.metodoPago)} · ${esc(d.cliente||'')} · ${esc(d.items.map(i => i.cantidad + '× ' + i.nombre).join(' · ').slice(0,160))}</div>
+      <div class="mut">${esc(d.fecha)} ${esc(horaTxt(d.hora))} · ${esc(d.metodoPago)} · ${esc(d.cliente||'')} · ${esc(d.items.map(i => i.cantidad + '× ' + i.nombre).join(' · ').slice(0,160))}</div>
       <div class="actions"><button class="ok" data-act="completar" data-k="${esc(f.idFiado)}" data-t="${esc(m.ticket)}" data-src="manual" ${S.write ? '' : 'disabled'}>✔ Completar con ticket ${esc(m.ticket)} (tipeado)</button>${S.write ? '' : '<span class="mut">Habilitá la escritura para completar.</span>'}</div>`;
   }
   return h;
@@ -424,13 +437,13 @@ async function ejecutarEscritura(){
 /* ====== Habilitar / bloquear escritura ====== */
 function setWrite(on){
   S.write = !!on && URL_OK;
-  $('modePill').textContent = S.write ? 'ESCRITURA HABILITADA (STAGING)' : 'SOLO LECTURA';
+  $('modePill').textContent = S.write ? 'ESCRITURA HABILITADA (PRODUCCIÓN)' : 'SOLO LECTURA';
   $('modePill').className = 'pill ' + (S.write ? 'rw' : 'ro');
   $('btnUnlock').style.display = S.write ? 'none' : '';
   $('btnLock').style.display = S.write ? '' : 'none';
   pintar();
 }
-function chkUnlock(){ $('uGo').disabled = !($('u1').checked && $('u2').checked && $('u3').value.trim().toUpperCase().endsWith(SHEET_TAIL) && $('u3').value.trim().length >= 5); }
+function chkUnlock(){ $('uGo').disabled = !($('u1').checked && $('u2').checked && $('u3').value.trim().toUpperCase().endsWith(SHEET_TAIL.toUpperCase()) && $('u3').value.trim().length >= 5); }
 
 /* ====== Eventos ====== */
 document.addEventListener('click', ev => {
@@ -457,7 +470,7 @@ $('urlTail').textContent = '…' + API_TAIL;
 $('ver').textContent = 'v' + APP_VERSION + ' · ' + APP_FECHA;
 log('Copihue Tickets de FIADO v' + APP_VERSION + ' (' + APP_FECHA + ') · backend …' + API_TAIL);
 if (!URL_OK){
-  $('status').innerHTML = '<div class="box bad">La dirección del backend no es la de STAGING. La página queda bloqueada.</div>';
+  $('status').innerHTML = '<div class="box bad">La dirección del backend es la de STAGING. La página queda bloqueada.</div>';
   $('btnLoad').disabled = true; $('btnUnlock').disabled = true;
 }
 setWrite(false);   // siempre arranca en SOLO LECTURA
