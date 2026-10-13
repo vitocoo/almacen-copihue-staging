@@ -1,0 +1,1871 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>📥 Ingreso · Copihue</title>
+  <style>
+    * { box-sizing: border-box; }
+    html { overscroll-behavior-y: contain; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      padding: 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      margin: 0;
+      min-height: 100vh;
+      overscroll-behavior-y: contain;
+    }
+    .card {
+      background: #fff;
+      padding: 20px;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+      max-width: 480px;
+      margin: auto;
+    }
+    h3 {
+      margin: 0 0 20px 0;
+      color: #2c3e50;
+      font-size: 22px;
+      border-bottom: 3px solid #667eea;
+      padding-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .version { font-size: 11px; color: #aaa; font-weight: 400; }
+
+    /* Estado de conexión */
+    .conn-status {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: #f0f0f0;
+      color: #999;
+    }
+    .conn-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #bbb;
+      flex-shrink: 0;
+    }
+    .conn-status.conectando .conn-dot {
+      background: #f0ad4e;
+      animation: pulso 1s infinite;
+    }
+    .conn-status.online {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    .conn-status.online .conn-dot { background: #43a047; }
+    .conn-status.offline {
+      background: #ffebee;
+      color: #c62828;
+    }
+    .conn-status.offline .conn-dot { background: #e74c3c; }
+    @keyframes pulso {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: 0.3; }
+    }
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #667eea;
+      margin: 20px 0 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin: 12px 0 6px;
+      color: #34495e;
+      font-size: 14px;
+    }
+    label .opcional { color: #95a5a6; font-weight: 400; font-size: 12px; font-style: italic; }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e6ed;
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: inherit;
+      background: #fff;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus { outline: none; border-color: #667eea; }
+
+    /* Inputs con botón X para limpiar */
+    .input-wrap { position: relative; }
+    .input-wrap input { padding-right: 32px; }
+    .input-wrap .btn-clear {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #bbb;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      display: none;
+    }
+    .input-wrap .btn-clear:hover { color: #e74c3c; }
+
+    /* Forzar mayúsculas en inputs de texto (excepto filtro de categoría) */
+    input[type="text"]:not(#categoriaInput) { text-transform: uppercase; }
+    input[type="text"]::placeholder { text-transform: none; }
+
+    /* Categoría nuevo producto */
+    select#categoria.nuevo-producto { border-color: #e74c3c; background: #fff8f8; }
+    .aviso-categoria { font-size: 12px; color: #e74c3c; margin-top: 4px; display: none; }
+    .aviso-categoria.visible { display: block; }
+
+    /* Skeleton cargando categorías */
+    .select-loading {
+      width: 100%;
+      padding: 12px;
+      border: 2px dashed #c0c9d4;
+      border-radius: 10px;
+      font-size: 14px;
+      color: #95a5a6;
+      background: #f8f9fa;
+      text-align: center;
+      display: none;
+    }
+    .select-loading.visible { display: block; }
+
+    /* Info producto encontrado */
+    .info {
+      background: #f8f9fa;
+      border-left: 4px solid #667eea;
+      padding: 14px;
+      margin-top: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.7;
+      display: none;
+    }
+    .info .precio-grande { font-size: 18px; color: #27ae60; font-weight: 700; }
+    .info .alerta { color: #e74c3c; font-weight: 700; }
+
+    /* Banner precargado */
+    .banner-precargado {
+      background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+      border-left: 4px solid #43a047;
+      padding: 10px 14px;
+      margin-top: 8px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #2e7d32;
+      display: none;
+    }
+    .banner-precargado.visible { display: flex; align-items: center; gap: 8px; }
+
+    /* Precio sugerido */
+    .precio-sugerido {
+      background: linear-gradient(135deg, #fff3cd 0%, #ffe5a0 100%);
+      border-left: 4px solid #ffc107;
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      display: none;
+    }
+    .precio-sugerido strong { color: #856404; display: block; margin-bottom: 2px; }
+    .precio-sugerido .monto { font-size: 20px; font-weight: 700; color: #27ae60; }
+
+    /* Loading spinner */
+    .loading { display: none; text-align: center; color: #667eea; font-size: 13px; margin-top: 8px; }
+    .loading.active { display: block; }
+
+    /* Autocomplete dropdown */
+    .autocomplete-wrap { position: relative; }
+    .autocomplete-list {
+      position: absolute;
+      top: 100%;
+      left: 0; right: 0;
+      background: white;
+      border: 2px solid #667eea;
+      border-top: none;
+      border-radius: 0 0 10px 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+    }
+    .autocomplete-list.open { display: block; }
+    .autocomplete-item {
+      padding: 8px 14px;
+      cursor: pointer;
+      font-size: 14px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .autocomplete-item:hover { background: #f0f4ff; }
+    .autocomplete-item .match { font-weight: 700; color: #667eea; }
+    .autocomplete-item .item-texto { flex: 1; min-width: 0; }
+    .autocomplete-thumb {
+      width: 36px; height: 36px;
+      border-radius: 6px;
+      object-fit: contain;
+      background: #f5f6f8;
+      border: 1px solid #eee;
+      flex-shrink: 0;
+    }
+
+    /* Foto grande en panel de info del producto */
+    .info-foto-wrap {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .info-foto {
+      width: 72px; height: 72px;
+      border-radius: 10px;
+      object-fit: contain;
+      background: #fff;
+      border: 1px solid #e0e6ed;
+      flex-shrink: 0;
+    }
+    .info-texto { flex: 1; min-width: 0; }
+
+    /* Categoría autocomplete */
+    .cat-wrap { position: relative; }
+    .cat-input-box {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      border: 2px solid #e0e6ed;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+      transition: border-color 0.2s;
+    }
+    .cat-input-box:focus-within { border-color: #667eea; }
+    .cat-input-box.nuevo-producto { border-color: #e74c3c; background: #fff8f8; }
+    .cat-input-box input {
+      border: none !important;
+      border-radius: 0 !important;
+      flex: 1;
+      padding: 12px;
+      font-size: 15px;
+    }
+    .cat-input-box input:focus { outline: none; }
+    .cat-chevron {
+      padding: 0 12px;
+      color: #95a5a6;
+      cursor: pointer;
+      font-size: 12px;
+      user-select: none;
+    }
+    .cat-clear {
+      padding: 0 6px;
+      color: #95a5a6;
+      cursor: pointer;
+      font-size: 14px;
+      user-select: none;
+      line-height: 1;
+    }
+    .cat-clear:hover { color: #e74c3c; }
+    .cat-list {
+      position: absolute;
+      top: 100%;
+      left: 0; right: 0;
+      background: white;
+      border: 2px solid #667eea;
+      border-top: none;
+      border-radius: 0 0 10px 10px;
+      max-height: 220px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+    }
+    .cat-list.open { display: block; }
+    .cat-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      font-size: 14px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .cat-item:hover { background: #f0f4ff; }
+    .cat-item.active { background: #eef1ff; font-weight: 700; }
+
+    /* Botón guardar */
+    button.btn-guardar {
+      width: 100%;
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(102,126,234,0.4);
+      transition: all 0.2s;
+    }
+    button.btn-guardar:hover { transform: translateY(-2px); }
+    button.btn-guardar:disabled { opacity: 0.6; transform: none; cursor: not-allowed; }
+
+    /* Botón de alerta para cantidades/precios fuera de rango */
+    @keyframes parpadeoRojo {
+      0%, 100% { background: #e74c3c; box-shadow: 0 4px 20px rgba(231,76,60,0.6); }
+      50%      { background: #c0392b; box-shadow: 0 4px 30px rgba(231,76,60,0.9); }
+    }
+    button.btn-guardar.alerta-valor {
+      animation: parpadeoRojo 0.8s infinite;
+      background: #e74c3c;
+    }
+    .aviso-valor-raro {
+      background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+      border-left: 4px solid #e74c3c;
+      padding: 12px 14px;
+      margin-top: 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #b71c1c;
+      line-height: 1.6;
+      display: none;
+    }
+    .aviso-valor-raro.visible { display: block; }
+    .aviso-valor-raro strong { display: block; margin-bottom: 4px; font-size: 14px; }
+
+    /* Panel de últimos ingresos / deshacer */
+    .historial-wrap {
+      margin-top: 16px;
+      border: 1px solid #e0e6ed;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .historial-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: #f8f9fa;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      color: #34495e;
+      user-select: none;
+    }
+    .historial-toggle:hover { background: #f0f2f5; }
+    .historial-chevron { transition: transform 0.2s; color: #95a5a6; font-size: 12px; }
+    .historial-chevron.open { transform: rotate(180deg); }
+    .historial-lista {
+      max-height: 360px;
+      overflow-y: auto;
+      border-top: 1px solid #e0e6ed;
+    }
+    .historial-loading {
+      padding: 16px;
+      text-align: center;
+      color: #95a5a6;
+      font-size: 13px;
+    }
+    .historial-vacio {
+      padding: 16px;
+      text-align: center;
+      color: #95a5a6;
+      font-size: 13px;
+    }
+    .historial-item {
+      padding: 10px 14px;
+      border-bottom: 1px solid #f0f2f5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .historial-item:last-child { border-bottom: none; }
+    .historial-item-check {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      accent-color: #667eea;
+    }
+    .historial-resumen {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 14px;
+      background: #eef1fb;
+      border-top: 1px solid #e0e6ed;
+      font-size: 13px;
+      font-weight: 700;
+      color: #34495e;
+    }
+    .historial-resumen.show { display: flex; }
+    .historial-resumen-total { color: #2e7d32; }
+    .historial-resumen-sindato { font-weight: 500; color: #c0392b; font-size: 11px; }
+    .btn-vaciar-seleccion {
+      flex-shrink: 0;
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: 1.5px solid #95a5a6;
+      background: #fff;
+      color: #7f8c8d;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .historial-item-info { flex: 1; min-width: 0; }
+    .historial-item-nombre {
+      font-size: 13px;
+      font-weight: 600;
+      color: #2c3e50;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .historial-item-detalle {
+      font-size: 12px;
+      color: #95a5a6;
+      margin-top: 2px;
+    }
+    button.btn-deshacer-item {
+      flex-shrink: 0;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1.5px solid #e74c3c;
+      background: #fff;
+      color: #e74c3c;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    button.btn-deshacer-item:hover { background: #e74c3c; color: #fff; }
+    button.btn-deshacer-item:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) scale(0.9);
+      opacity: 0;
+      background: #2e7d32;
+      color: white;
+      padding: 14px 26px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 15px;
+      transition: transform 0.25s, opacity 0.25s;
+      z-index: 9999;
+      pointer-events: none;
+      text-align: center;
+      white-space: pre-line;
+      max-width: 320px;
+    }
+    #toast.show { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    #toast.error { background: #c62828; }
+
+    @media (max-width: 480px) {
+      .card { padding: 16px; }
+      h3 { font-size: 19px; }
+    }
+
+    /* v26 — cola de ingresos por confirmar */
+    .cola-wrap { display:none; margin-top:14px; border:2px solid #f0b34a; background:#fff8e6; border-radius:12px; padding:10px 12px; font-size:0.88rem; color:#6b4a00; }
+    .cola-wrap.visible { display:block; }
+    .cola-head { display:flex; align-items:center; justify-content:space-between; gap:8px; font-weight:700; }
+    .cola-head button { border:none; background:#f0b34a; color:#3b2800; font-weight:700; border-radius:8px; padding:6px 10px; cursor:pointer; font-size:0.82rem; }
+    .cola-head button:disabled { opacity:0.6; cursor:not-allowed; }
+    .cola-item { margin-top:8px; padding-top:8px; border-top:1px dashed #e0c27a; display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+    .cola-item small { display:block; color:#8a6a1f; }
+    .cola-item.rechazada { color:#a12a1f; }
+    .cola-item.rechazada small { color:#a12a1f; }
+    .cola-item button { border:1px solid #c9a24a; background:#fff; border-radius:8px; padding:4px 8px; cursor:pointer; font-size:0.78rem; }
+  </style>
+</head>
+<body>
+<div style="background:#ffcc00;border-bottom:3px solid #000;color:#000;text-align:center;font-weight:900;font-size:0.7rem;line-height:1.2;padding:3px 6px;">🚧 STAGING — NO ES EL SITIO REAL 🚧</div>
+<div class="card">
+  <h3>
+    <span>📦 Ingreso Mercadería</span>
+    <span style="display:flex; align-items:center; gap:8px;">
+      <span class="conn-status" id="connStatus" title="Verificando conexión...">
+        <span class="conn-dot"></span><span class="conn-text">Conectando...</span>
+      </span>
+      <span class="version" id="versionBadge"></span>
+    </span>
+  </h3>
+
+  <!-- PRODUCTO -->
+  <div class="section-title">🏷️ Producto</div>
+
+  <label>Nombre del producto</label>
+  <div class="autocomplete-wrap input-wrap">
+    <input id="producto" type="text" placeholder="Escribí para buscar..."
+      autocomplete="off" oninput="onProductoInput()" onfocus="onProductoInput()">
+    <button class="btn-clear" id="clear-producto" onclick="clearField('producto')" tabindex="-1">✕</button>
+    <div class="autocomplete-list" id="autoList"></div>
+  </div>
+  <div class="loading" id="loadingInfo">Buscando información...</div>
+  <div class="banner-precargado" id="bannerPrecargado">
+    <span>✅</span><span id="textoPrecargado">Datos del último ingreso cargados — modificá lo que cambió</span>
+  </div>
+  <div class="info" id="info"></div>
+
+  <label>Cantidad a ingresar</label>
+  <input id="cantidad" type="number" min="1" value="1" oninput="calcularSugerido();verificarValoresRaros()">
+
+  <label>Categoría</label>
+  <!-- Se renderiza dinámicamente en buildCategoriaWidget() -->
+  <div class="select-loading visible" id="catLoading">⏳ Cargando categorías...</div>
+  <div class="cat-wrap" id="catWrap" style="display:none">
+    <div class="cat-input-box" id="catInputBox">
+      <input id="categoriaInput" type="text" placeholder="Escribí para filtrar..."
+        autocomplete="off" oninput="filtrarCategorias()" onfocus="abrirCatList()">
+      <span class="cat-clear" id="catClear" onclick="limpiarCategoria()" style="display:none">✕</span>
+      <span class="cat-chevron" onclick="toggleCatList()">▼</span>
+    </div>
+    <div class="cat-list" id="catList"></div>
+  </div>
+  <input type="hidden" id="categoria" value="">
+  <div class="aviso-categoria" id="avisoCategoria">
+    ⚠️ Producto nuevo — seleccioná la categoría antes de guardar
+  </div>
+
+  <!-- PRECIOS -->
+  <div class="section-title">💰 Precios</div>
+
+  <label>Precio de COSTO (unitario)</label>
+  <div class="input-wrap">
+    <input id="precioCosto" type="number" min="0" step="1" placeholder="Ej: 1500"
+      oninput="calcularSugerido();toggleClear('precioCosto');verificarValoresRaros()">
+    <button class="btn-clear" id="clear-precioCosto" onclick="clearField('precioCosto');calcularSugerido();verificarValoresRaros()" tabindex="-1">✕</button>
+  </div>
+
+  <div class="precio-sugerido" id="precioSugerido">
+    <strong>💡 Precio mínimo sugerido (+50%):</strong>
+    <span class="monto" id="montoSugerido">$0</span>
+  </div>
+
+  <label>Precio de VENTA <span class="opcional">(vacío = mantener actual)</span></label>
+  <div class="input-wrap">
+    <input id="precioVenta" type="number" min="0" step="1" placeholder="Precio al público"
+      oninput="toggleClear('precioVenta');verificarValoresRaros()">
+    <button class="btn-clear" id="clear-precioVenta" onclick="clearField('precioVenta');verificarValoresRaros()" tabindex="-1">✕</button>
+  </div>
+
+  <!-- ADICIONAL -->
+  <div class="section-title">📋 Información adicional</div>
+
+  <label>Proveedor <span class="opcional">(opcional)</span></label>
+  <div class="autocomplete-wrap input-wrap">
+    <input id="proveedor" type="text" placeholder="Nombre del proveedor"
+      autocomplete="off" oninput="filtrarProveedores();toggleClear('proveedor')">
+    <button class="btn-clear" id="clear-proveedor" onclick="clearField('proveedor');document.getElementById('autoListProv').classList.remove('open')" tabindex="-1">✕</button>
+    <div class="autocomplete-list" id="autoListProv"></div>
+  </div>
+
+  <label>Fecha de vencimiento <span class="opcional">(opcional)</span></label>
+  <div class="input-wrap">
+    <input id="fechaVencimiento" type="date" oninput="toggleClear('fechaVencimiento')">
+    <button class="btn-clear" id="clear-fechaVencimiento" onclick="clearField('fechaVencimiento')" tabindex="-1">✕</button>
+  </div>
+
+  <div class="aviso-valor-raro" id="avisoValorRaro"></div>
+
+  <button class="btn-guardar" id="btnGuardar" onclick="guardar()">✅ Guardar Ingreso</button>
+
+  <!-- v26 — ingresos que no recibieron confirmación: se reintentan solos con el mismo idOperacion -->
+  <div class="cola-wrap" id="colaWrap">
+    <div class="cola-head"><span id="colaTitulo">⏳ Ingresos por confirmar</span><button id="colaBtn" onclick="_colaReintentarYa()">Reintentar ahora</button></div>
+    <div id="colaLista"></div>
+  </div>
+
+  <!-- Panel de últimos ingresos con opción de deshacer cada uno -->
+  <div class="historial-wrap">
+    <div class="historial-toggle" id="historialToggle" onclick="toggleHistorial()">
+      <span>🕘 Últimos ingresos</span>
+      <span class="historial-chevron" id="historialChevron">▼</span>
+    </div>
+    <div class="historial-lista" id="historialLista" style="display:none">
+      <div class="historial-loading" id="historialLoading">Cargando...</div>
+    </div>
+    <div class="historial-resumen" id="historialResumen">
+      <span id="historialResumenTexto">0 seleccionados</span>
+      <button class="btn-vaciar-seleccion" onclick="vaciarSeleccionHistorial()">Vaciar</button>
+    </div>
+  </div>
+</div>
+
+
+<div id="toast"></div>
+
+<script>
+// ── Changelog ──────────────────────────────────────────────────────────────────
+// v24 — (1) Fix backend (Code.gs v10.12): deshacer un ingreso que había
+//       creado un producto nuevo ahora borra su fila completa de Inventario
+//       en vez de dejarla con stock 0 — antes deshacerIngreso() no
+//       distinguía "producto nuevo" de "producto existente" y siempre solo
+//       restaba stock. Con resguardo: si hubo otra actividad sobre el
+//       producto desde que se creó, no borra nada y avisa para revisión
+//       manual. (2) Fix bug propio de v23: deshacerItem() todavía llamaba a
+//       chequearConexion() para refrescar stock — desde v23 esa función es
+//       solo ping y ya no trae catálogo; ahora llama a sincronizarCatalogo().
+//       (3) El toast de deshacer ahora muestra el mensaje real del backend
+//       (antes era un texto fijo, así que el aviso de "revisá manualmente"
+//       nunca se veía) — se agregó white-space:pre-line para que los saltos
+//       de línea del mensaje se vean bien.
+// v23 — Arquitectura de conexión rediseñada tras auditoría: el chequeo
+//       periódico de "¿estoy conectado?" (chequearConexion, cada 60s) ahora
+//       usa action=ping contra el GAS (agregado en Code.gs, responde sin
+//       tocar Sheets) en vez de traer el catálogo completo — antes esa
+//       llamada disparaba, sin que el nombre lo sugiriera, una lectura
+//       completa de inventario+ventas+historial (calcularRotacionAuto), que
+//       era la causa real de los timeouts esporádicos aunque el badge
+//       dijera "Conectado". Reintenta 1 vez ante un fallo puntual y recién
+//       marca offline al 2do fallo consecutivo (antes: un solo fallo =
+//       rojo). Se agregaron listeners de online/offline del navegador como
+//       complemento. La actualización de catálogo/stock (la llamada pesada)
+//       se separó en sincronizarCatalogo(), que corre cada 3 minutos y
+//       además se dispara apenas se guarda un ingreso con éxito. guardar()
+//       y buscarOperacion() no se tocaron.
+// v22 — Panel de "últimos ingresos": cada ítem ahora tiene un checkbox para
+//       seleccionarlo. Al marcar uno o más aparece una barra con el total
+//       (cantidad × costo unitario, suma de todos los marcados) para cotejar
+//       contra la boleta física del proveedor, más un botón "Vaciar" para
+//       destildar todo. El costo unitario se lee de r.costo / r.precioCosto /
+//       r.costoUnitario (lo que devuelva el GAS) — si getUltimosIngresos no
+//       trae ese dato, el ítem se cuenta pero se avisa que no suma al total.
+// v21 — Alineación con el contrato de "Reglas de Oro": (1) protección de
+//       salida sin confirmar — beforeunload + interceptación del botón
+//       atrás/gesto/botón físico vía historial "guardia", solo pregunta si
+//       hay datos sin guardar en el formulario; (2) overscroll-behavior-y:
+//       contain en html/body para que el pull-to-refresh no dispare una
+//       recarga; (3) el toast de mensajes pasa de abajo-centrado a centrado
+//       en pantalla (prioridad 1 de la regla de mensajes).
+// v20 — Producto y proveedor ahora se fuerzan a MAYÚSCULAS SIN TILDES en el
+//       valor real del campo (antes era solo visual vía CSS), en tiempo real
+//       mientras se tipea y de nuevo al guardar. También se normalizan los
+//       nombres que llegan de la planilla (init/chequearConexion) para que
+//       el autocompletado siga encontrando productos/proveedores viejos que
+//       tengan tildes cargadas. Esto evita que "Café", "CAFE" y "café"
+//       terminen siendo 3 productos distintos por diferencias de tipeo.
+// v19 — Fix: cargarHistorial() (panel "últimos ingresos") ya no pisa el
+//       badge global de conexión. Si getUltimosIngresos tarda/falla, el
+//       error queda contenido en el panel local; el badge sigue reflejando
+//       solo lo que reportan init()/chequearConexion() (los chequeos reales
+//       de salud de conexión). Esto era lo que hacía aparecer "Sin conexión"
+//       en rojo aunque el resto del formulario funcionara bien.
+// v18 — Se saca el fetch de red por cada producto elegido (buscarInfo/
+//        getInfoProducto), fuente de errores de conexión y lentitud. Ahora
+//        seleccionarProducto() lee directo de _productosMap, ya cargado en
+//        memoria desde init() — igual patrón que usa seba21.html, cero
+//        llamadas de red al elegir. Onput ya no dispara fetch por cada
+//        tecleo/pausa (antes: debounce de 600ms golpeando el GAS mientras
+//        el usuario todavía filtraba sugerencias). El chequeo de conexión
+//        cada 60s ahora además refresca en silencio _productosMap con el
+//        stock/precio/costo más reciente de la planilla (antes tiraba esos
+//        datos a la basura), y se dispara también justo después de guardar
+//        o deshacer un ingreso — así el stock que ves acá no queda
+//        desactualizado si otra caja vende el mismo producto mientras tenés
+//        esta pantalla abierta. Se agrega la constante APP_VERSION: de ahí
+//        salen solos el <title> y el badge del header, no se hardcodea más
+//        en dos lugares.
+// v17 — Fotos de producto. Reutiliza el mismo patrón de index.html (catálogo):
+//        URL = raw.githubusercontent.com/almacen-copihue/almacen-copihue/main/
+//        imagenes-productos/ + simplificarNombre(producto) + .jpg. Mismo
+//        algoritmo de slug que el catálogo, así apuntan al mismo archivo.
+//        Se ve en 3 lugares: miniatura en cada opción del autocomplete,
+//        foto grande en el panel de info (encontrado y no encontrado), y
+//        miniatura en cada ítem del panel de últimos ingresos/deshacer.
+//        Si la foto no existe, se oculta sola (onerror) sin romper el layout.
+// v16 — Fix: parpadeo "no encontrado" → "encontrado" al escribir el nombre de un
+//        producto. Causa real: condición de carrera — si tipeabas rápido, varias
+//        búsquedas quedaban en vuelo y la que respondía último (no la más nueva)
+//        pisaba la pantalla. Ahora cada búsqueda tiene un ID de secuencia y se
+//        descartan las respuestas obsoletas. Además: aparece "🔎 Buscando..."
+//        de inmediato en vez de dejar el panel vacío durante el debounce.
+// v15 — Reemplaza el panel "deshacer último ingreso" (1 solo) por un panel
+//        plegable "🕘 Últimos ingresos" con los últimos 8 movimientos, cada uno
+//        con su propio botón Deshacer. Cubre el caso de detectar el error 2-3
+//        productos después, no solo el inmediato anterior. Se auto-abre y
+//        refresca tras guardar con éxito. REQUIERE Code.gs actualizado:
+//        getUltimosIngresos() + deshacerIngreso() nuevas, más columna
+//        idOperacion/stockAnterior en Historial (ver Code.gs adjunto).
+// v14 — Indicador de estado de conexión junto al badge de versión: punto + texto
+//        que muestra "Conectando..." / "Conectado" / "Sin conexión" en tiempo real.
+//        Se actualiza al cargar, al guardar (éxito o falla), y con un chequeo
+//        liviano automático cada 60s mientras el formulario está abierto.
+// v13 — Límites de alerta bajados a la escala real del negocio:
+//        cantidad > 100u, costo unitario > $50.000, venta > $80.000.
+// v12 — Validación de valores fuera de rango (típico error de tipeo: un cero de
+//        más). Límites: cantidad > 500, costo unitario > $500.000, venta >
+//        $1.000.000. Al superarlos: banner rojo explicando qué está mal +
+//        botón Guardar parpadea en rojo + al tocar Guardar pide confirmación
+//        explícita con los números en pantalla (Cancelar = vuelve sin guardar).
+//        Se chequea en vivo mientras se escribe, no solo al guardar.
+// v11 — Anti-duplicados: lock duro contra doble-submit (_guardando), timeout subido
+//        de 15s a 30s (conexión Patagonia), idOperacion único enviado al GAS para
+//        detectar reintentos. Mensaje de error ahora avisa explícitamente "revisá
+//        el Historial antes de reintentar" en vez de invitar a reintentar a ciegas.
+//        Panel "Deshacer este ingreso" tras guardar — permite revertir el
+//        último ingreso (elimina fila de Historial + resta stock sumado) sin tener
+//        que ir a la planilla a mano. REQUIERE acción 'deshacerIngreso' en el GAS.
+// v10 — Botón ✕ para limpiar rápido: producto, costo, venta, proveedor, fecha venc.
+// v9  — Botón ✕ para limpiar categoría rápido.
+// v8  — Límite de autocomplete de productos subido de 8 a 15 resultados.
+// v7  — Mayúsculas forzadas (CSS) en producto y proveedor.
+// v6 — Fix: highlight de texto en dropdown de categorías partía mal las palabras
+//       (espacios raros). Se quitó el resaltado, queda texto plano.
+// v5 — Fix crítico: GAS devuelve campo 'category' (inglés) no 'categoria'.
+//       El fallback de extracción desde productos nunca encontraba nada porque
+//       buscaba p.categoria. Ahora lee p.category || p.categoria.
+//       Además: _categorias se inicializa con CATS_FALLBACK de entrada (no vacío)
+//       así el widget nunca aparece vacío mientras init() carga.
+// v4 — Fix: categorías nunca quedaban vacías. Se agrega fallback hardcodeado con
+//       las categorías reales de Copihue para cuando el GAS no las devuelve.
+//       Fix: dropdown de categoría se renderiza al abrir (focus/chevron), no solo
+//       al escribir. Así el listado completo aparece de entrada.
+// v3 — Categorías dinámicas desde GAS (no más hardcode); widget con búsqueda.
+//       Al seleccionar producto existente se precargan TODOS los datos del último
+//       ingreso (costo, venta, proveedor, categoría) con banner visual verde.
+//       La cantidad se resetea a 1 (lo más común es ingresar nueva remesa).
+// v2 — (base recibida)
+// ──────────────────────────────────────────────────────────────────────────────
+
+// v26 — Ingreso a prueba de mala señal (misma idea que el ingreso de seba21):
+//       (1) COLA de ingresos "por confirmar" guardada en el celular
+//       (localStorage): si un guardado no recibe respuesta (timeout, sin red,
+//       servidor ocupado), el ingreso queda en la cola CON SU idOperacion, el
+//       formulario se limpia y se puede seguir cargando; la página reintenta
+//       sola con el MISMO idOperacion y el servidor (ingresarMercaderia →
+//       buscarPorIdOperacion) lo reconoce sin sumar stock de nuevo. Antes se
+//       generaba un idOperacion NUEVO en cada click de Guardar, por lo que un
+//       reintento tras un timeout podía duplicar el stock. (2) CATÁLOGO
+//       guardado en el celular: al abrir, el autocompletado funciona al
+//       instante aunque el servidor esté lento o sin conexión; se actualiza en
+//       segundo plano (45 s de espera + reintentos). (3) Menos carga: tras
+//       guardar ya no se pide el catálogo completo (se actualiza el stock
+//       local con la respuesta); la sincronización periódica pasa de 3 a 10
+//       min y se salta si la pantalla está oculta. (4) Cartel de producto
+//       nuevo: se quitó el ✅ duplicado. NO cambia Code.gs.
+
+// v27 — Sugerencia de proveedor: además de los proveedores de los productos
+//       del Inventario, suma los de la hoja "Proveedores" (acción existente
+//       getProveedores, guardada en el celular). La búsqueda ignora espacios,
+//       guiones y puntos ("maxi", "maxiconsumo" y "maxi consumo" encuentran lo
+//       mismo), los que EMPIEZAN igual van primero y se muestran hasta 8. El
+//       clic en una sugerencia ya no se rompe con nombres con apóstrofo.
+const APP_VERSION = 'v27';
+document.title = '📥 Ingreso · Copihue ' + APP_VERSION + ' (STAGING)';
+document.getElementById('versionBadge').textContent = APP_VERSION;
+
+const API_URL = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
+
+// Mismo patrón que usa index.html (catálogo) para las fotos de producto
+const IMG_BASE = 'https://raw.githubusercontent.com/almacen-copihue/almacen-copihue/main/imagenes-productos/';
+
+function simplificarNombre(nombre) {
+  return nombre
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]/g, "")
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim();
+}
+
+// v19 — Fuerza MAYÚSCULAS y sin tildes/acentos en el valor REAL de los campos
+// de texto libre (producto, proveedor). Antes esto era solo visual (CSS
+// text-transform:uppercase), así que el valor guardado en la planilla podía
+// quedar con minúsculas y/o acentos según cómo tipeó cada operador — eso
+// generaba variantes duplicadas del mismo producto/proveedor ("Café", "CAFE",
+// "café" tratados como 3 productos distintos). Se aplica en cada tecleo y
+// de nuevo como red de seguridad al guardar.
+function normalizarTexto(str) {
+  return (str || '')
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+// Normaliza el input in-place preservando la posición del cursor
+function normalizarInput(el) {
+  const pos = el.selectionStart;
+  const antes = el.value;
+  const despues = normalizarTexto(antes);
+  if (antes === despues) return despues;
+  el.value = despues;
+  // el largo no cambia (mayúsculas/quitar tildes no altera la cantidad de
+  // caracteres), así que el cursor puede quedar donde estaba
+  if (pos !== null) el.setSelectionRange(pos, pos);
+  return despues;
+}
+
+function urlFoto(nombreProducto) {
+  return IMG_BASE + simplificarNombre(nombreProducto) + '.jpg';
+}
+
+// Fallback: categorías reales de Copihue (se usa si el GAS no las devuelve)
+const CATS_FALLBACK = [
+  { value:'ALMACEN',          emoji:'📦', label:'Almacén' },
+  { value:'ALFAJORES',        emoji:'🍫', label:'Alfajores' },
+  { value:'GALLETITAS',       emoji:'🍪', label:'Galletitas' },
+  { value:'GOLOSINAS',        emoji:'🍬', label:'Golosinas' },
+  { value:'SNACKS',           emoji:'🍿', label:'Snacks' },
+  { value:'GASEOSAS',         emoji:'🥤', label:'Gaseosas' },
+  { value:'BEBIDAS',          emoji:'🧃', label:'Bebidas' },
+  { value:'CERVEZAS',         emoji:'🍺', label:'Cervezas' },
+  { value:'VINOS',            emoji:'🍷', label:'Vinos' },
+  { value:'LACTEOS',          emoji:'🥛', label:'Lácteos' },
+  { value:'HELADERA',         emoji:'🧊', label:'Heladera' },
+  { value:'FIAMBRES',         emoji:'🥩', label:'Fiambres' },
+  { value:'FRUTAS Y VERDURAS',emoji:'🥦', label:'Frutas y Verduras' },
+  { value:'PANADERIA',        emoji:'🍞', label:'Panadería' },
+  { value:'PANIFICADOS',      emoji:'🥐', label:'Panificados' },
+  { value:'CONDIMENTOS',      emoji:'🧂', label:'Condimentos' },
+  { value:'LIMPIEZA',         emoji:'🧹', label:'Limpieza' },
+  { value:'HIGIENE PERSONAL', emoji:'🧴', label:'Higiene Personal' },
+  { value:'OTROS',            emoji:'🔹', label:'Otros' },
+];
+
+let _productos    = [];   // array de strings (nombres)
+let _productosMap = {};   // nombre → objeto completo {category, precioCosto, precioVenta, proveedor, ...}
+let _proveedores  = [];
+let _categorias   = CATS_FALLBACK.slice(); // empieza con fallback; init() lo reemplaza con datos reales
+let _catFiltradas = [];   // subset según búsqueda
+let _esNuevo      = false;
+let _infoTimer    = null;
+let _catAbierta   = false;
+
+// ── INIT ───────────────────────────────────────────────────────────────────────
+// ── v27: PROVEEDORES (Inventario + hoja "Proveedores") ───────────────────────
+const PROV_CACHE_KEY = 'ingreso_proveedores_v1';
+let _provHoja = [];   // nombres que vienen de la hoja "Proveedores"
+try {
+  const c = JSON.parse(localStorage.getItem(PROV_CACHE_KEY) || 'null');
+  if (c && Array.isArray(c.nombres)) _provHoja = c.nombres.map(n => normalizarTexto(String(n)).trim()).filter(Boolean);
+} catch (e) {}
+
+function _reconstruirProveedores() {
+  const set = new Set();
+  Object.keys(_productosMap).forEach(k => {
+    const p = _productosMap[k];
+    if (p && p.proveedor) set.add(normalizarTexto(String(p.proveedor)).trim());
+  });
+  _provHoja.forEach(n => set.add(n));
+  _proveedores = [...set].filter(Boolean).sort();
+}
+
+async function _traerProveedores() {
+  try {
+    const r = await fetch(API_URL + '?action=getProveedores&t=' + Date.now(), { redirect: 'follow', signal: AbortSignal.timeout(30000) });
+    if (!r.ok) return;
+    const data = await r.json();
+    if (!data || data.success !== true || !Array.isArray(data.proveedores)) return;
+    _provHoja = data.proveedores.map(p => normalizarTexto(String((p && (p.nombre || p.name)) || p || '')).trim()).filter(Boolean);
+    try { localStorage.setItem(PROV_CACHE_KEY, JSON.stringify({ ts: Date.now(), nombres: _provHoja })); } catch (e) {}
+    _reconstruirProveedores();
+  } catch (e) { console.warn('Proveedores (hoja) no disponibles por ahora:', e); }
+}
+
+// v26 — catálogo: caché local + red con más tiempo de espera y reintentos.
+const CATALOGO_CACHE_KEY = 'ingreso_catalogo_v1';
+let _catalogoCompleto = false;  // ya hay un catálogo completo aplicado (de caché o de red)
+let _catalogoDe = 0;            // ts del catálogo que se está usando
+let _catReintentos = 0;
+
+function _leerCatalogoCache() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CATALOGO_CACHE_KEY) || 'null');
+    if (c && c.data && Array.isArray(c.data.productos) && c.data.productos.length) return c;
+  } catch (e) {}
+  return null;
+}
+function _guardarCatalogoCache(data) {
+  try {
+    const slim = (data.productos || []).map(p => {
+      if (!p || typeof p !== 'object') return p;
+      return { name: p.name, nombre: p.nombre, category: p.category, categoria: p.categoria,
+               precioCosto: p.precioCosto, precioVenta: p.precioVenta, price: p.price,
+               proveedor: p.proveedor, stock: p.stock };
+    });
+    localStorage.setItem(CATALOGO_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: { productos: slim, categorias: data.categorias } }));
+  } catch (e) { /* sin espacio o sin storage: se sigue sin caché */ }
+}
+function _horaTxt(ts) { try { return new Date(ts).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
+
+// Categorías: mismo criterio que tenía init() (GAS → productos → fallback).
+function _categoriasDesde(data, rawProductos) {
+  if (data && data.categorias && data.categorias.length) {
+    return data.categorias.map(c => {
+      if (typeof c === 'string') return { value: c.trim().toUpperCase(), label: c.trim(), emoji: '' };
+      return {
+        value: (c.value || c.nombre || c).trim().toUpperCase(),
+        label: (c.label || c.nombre || c.value || c).trim(),
+        emoji: c.emoji || ''
+      };
+    });
+  }
+  const catSet = new Set();
+  rawProductos.forEach(p => {
+    const cat = p && (p.category || p.categoria);
+    if (cat) catSet.add(cat.trim().toUpperCase());
+  });
+  if (catSet.size > 0) {
+    return [...catSet].filter(Boolean).sort().map(c => {
+      const fb = CATS_FALLBACK.find(f => f.value === c);
+      return fb || { value: c, label: c, emoji: '' };
+    });
+  }
+  return CATS_FALLBACK;
+}
+
+// completo=true: reemplaza todo (carga inicial). completo=false: mezcla (solo agrega/actualiza).
+function _aplicarCatalogo(data, completo) {
+  const rawProductos = (data && data.productos) || [];
+  if (completo) {
+    _productos.length = 0;
+    Object.keys(_productosMap).forEach(k => { delete _productosMap[k]; });
+  }
+  const yaEstan = new Set(_productos);
+  rawProductos.forEach(p => {
+    if (!p) return;
+    const nombreRaw = typeof p === 'string' ? p : (p.name || p.nombre || '');
+    if (!nombreRaw) return;
+    const nombre = normalizarTexto(nombreRaw);
+    if (!yaEstan.has(nombre)) { _productos.push(nombre); yaEstan.add(nombre); }
+    if (typeof p === 'object') _productosMap[nombre] = p;
+  });
+  _reconstruirProveedores();
+  const cats = _categoriasDesde(data, rawProductos);
+  if (completo || JSON.stringify(cats) !== JSON.stringify(_categorias)) {
+    _categorias = cats;
+    buildCategoriaWidget();
+  }
+}
+
+async function init() {
+  setConnStatus('conectando');
+  const cache = _leerCatalogoCache();
+  if (cache) {
+    try {
+      _aplicarCatalogo(cache.data, true);
+      _catalogoCompleto = true;
+      _catalogoDe = cache.ts;
+    } catch (e) { console.warn('Caché de catálogo ilegible:', e); }
+  }
+  await _traerCatalogo();
+  _traerProveedores(); // v27: en segundo plano, después del catálogo (no compite con él)
+}
+
+// Trae el catálogo completo (llamada pesada). 45 s de espera; si falla, la
+// página sigue usable con el catálogo guardado y reintenta a los 20 s, 1 min y 3 min.
+async function _traerCatalogo() {
+  try {
+    const r = await fetch(API_URL + '?t=' + Date.now(), { redirect: 'follow', signal: AbortSignal.timeout(45000) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if (!data || !Array.isArray(data.productos)) throw new Error('catálogo ilegible');
+    _aplicarCatalogo(data, !_catalogoCompleto);
+    _catalogoCompleto = true;
+    _catalogoDe = Date.now();
+    _guardarCatalogoCache(data);
+    _catReintentos = 0;
+    setConnStatus('online');
+    return true;
+  } catch (e) {
+    console.warn('Catálogo no disponible por ahora:', e);
+    setConnStatus('offline');
+    if (_catalogoCompleto) {
+      const el = document.getElementById('connStatus');
+      if (el) el.title = 'Sin conexión con el servidor. Se usa el catálogo guardado a las ' + _horaTxt(_catalogoDe) + '. Los ingresos se guardan en cola y se confirman solos.';
+    } else {
+      _categorias = CATS_FALLBACK;
+      buildCategoriaWidget();
+    }
+    const d = [20000, 60000, 180000][_catReintentos];
+    if (d !== undefined) { _catReintentos++; setTimeout(_traerCatalogo, d); }
+    return false;
+  }
+}
+
+// ── ESTADO DE CONEXIÓN ──────────────────────────────────────────────────────────
+function setConnStatus(estado) {
+  const el = document.getElementById('connStatus');
+  el.classList.remove('conectando', 'online', 'offline');
+  el.classList.add(estado);
+  const textos = {
+    conectando: 'Conectando...',
+    online:     'Conectado',
+    offline:    'Sin conexión'
+  };
+  const titulos = {
+    conectando: 'Verificando conexión con la planilla...',
+    online:     'Conectado — el backend responde',
+    offline:    'No se pudo conectar con el backend. Categorías y autocompletado pueden estar desactualizados.'
+  };
+  el.querySelector('.conn-text').textContent = textos[estado];
+  el.title = titulos[estado];
+}
+
+// v23 — Antes, este chequeo de "¿estoy conectado?" de paso traía el catálogo
+// completo (inventario + ventas + historial, vía calcularRotacionAuto en el
+// GAS) — una operación pesada disfrazada de simple ping. Eso generaba
+// timeouts reales aunque el backend estuviera funcionando, y competía por
+// cupo de ejecuciones de Apps Script con las otras apps de la tienda.
+// Ahora usa action=ping (agregado en Code.gs, responde sin tocar ninguna
+// Sheet) y separa por completo la actualización de catálogo/stock en
+// sincronizarCatalogo(), más abajo, con su propia frecuencia.
+async function _pingUnaVez(timeoutMs) {
+  const r = await fetch(API_URL + '?action=ping&t=' + Date.now(), { redirect: 'follow', signal: AbortSignal.timeout(timeoutMs) });
+  if (!r.ok) throw new Error('ping no-ok: ' + r.status);
+  const data = await r.json();
+  if (!data || data.ok !== true) throw new Error('ping con respuesta inesperada');
+}
+
+let _failsConexion = 0;
+const UMBRAL_FALLOS_OFFLINE = 2; // un fallo aislado no pinta todo de rojo
+
+// Re-chequeo periódico (cada 60s). Reintenta una vez ante un fallo puntual
+// (glitch de wifi de un instante) y recién marca "Sin conexión" al segundo
+// fallo consecutivo — así un hipo momentáneo no hace parpadear el badge.
+async function chequearConexion() {
+  try {
+    await _pingUnaVez(6000);
+  } catch (e1) {
+    try {
+      await new Promise(res => setTimeout(res, 1200));
+      await _pingUnaVez(6000);
+    } catch (e2) {
+      _failsConexion++;
+      if (_failsConexion >= UMBRAL_FALLOS_OFFLINE) setConnStatus('offline');
+      return;
+    }
+  }
+  _failsConexion = 0;
+  setConnStatus('online');
+}
+setInterval(chequearConexion, 60000);
+
+// Reacciona al instante cuando el dispositivo recupera o pierde la red.
+// Complementa el ping, no lo reemplaza: al volver la red no se asume que ya
+// está todo bien, se verifica con un ping real.
+window.addEventListener('online',  () => { _failsConexion = 0; chequearConexion(); });
+window.addEventListener('offline', () => { setConnStatus('offline'); });
+
+// ── SINCRONIZACIÓN DE CATÁLOGO (stock/precio/costo/proveedor) ──────────────
+// Esta es la llamada "pesada" (trae el catálogo completo del GAS, igual que
+// antes) — separada del chequeo de conexión de arriba. Refresca en silencio
+// _productosMap/_productos con los datos más recientes de la planilla: si
+// mientras tenés esta pantalla abierta alguien vende el mismo producto en
+// otra caja, este refresco evita que sigas viendo el stock viejo al
+// elegirlo acá. No toca ningún campo que el operador ya esté completando a
+// mano. Se dispara al cargar la pantalla (dentro de init()), cada 3 minutos,
+// y apenas se guarda un ingreso con éxito (ahí es cuando más cambia el stock
+// por acción propia).
+async function sincronizarCatalogo() {
+  if (!_catalogoCompleto) { return _traerCatalogo(); } // todavía no hay catálogo: usar la carga completa
+  try {
+    const r = await fetch(API_URL + '?t=' + Date.now(), { redirect: 'follow', signal: AbortSignal.timeout(45000) });
+    if (!r.ok) return;
+    const data = await r.json();
+    if (!data || !Array.isArray(data.productos)) return;
+    _aplicarCatalogo(data, false); // mezcla: producto nuevo cargado por otra caja, stock/precios al día
+    _catalogoDe = Date.now();
+    _guardarCatalogoCache(data);
+    _traerProveedores();
+  } catch(e) {
+    console.warn('Error sincronizando catálogo:', e);
+  }
+}
+// v26: cada 10 min (antes 3) y solo si la pantalla está visible — la llamada es pesada.
+setInterval(() => { if (!document.hidden) sincronizarCatalogo(); }, 600000);
+
+// ── v26: COLA DE INGRESOS POR CONFIRMAR ─────────────────────────────────────
+// Cada ingreso se guarda acá ANTES de enviarse y se borra recién cuando el
+// servidor confirma (success:true, incluido "yaExistia"). Los reintentos usan
+// SIEMPRE el mismo idOperacion → el servidor no suma el stock dos veces.
+// Un rechazo de negocio (success:false que no sea "ocupado") NO se reintenta.
+const COLA_KEY = 'ingresos_pendientes_v1';
+let _colaMem = null;            // respaldo si localStorage no está disponible
+let _colaEnVuelo = new Set();   // ids que se están enviando ahora mismo
+let _colaOcupada = false;
+let _colaTimer = null;
+let _colaFallos = 0;
+
+function _colaLeer() {
+  try { const a = JSON.parse(localStorage.getItem(COLA_KEY) || '[]'); return Array.isArray(a) ? a : []; }
+  catch (e) { return _colaMem ? _colaMem.slice() : []; }
+}
+function _colaEscribir(a) {
+  _colaMem = a.slice();
+  try { localStorage.setItem(COLA_KEY, JSON.stringify(a)); } catch (e) {}
+}
+function _colaAgregar(op) { const a = _colaLeer(); a.push(op); _colaEscribir(a); _colaActualizarUI(); }
+function _colaQuitar(id) { _colaEscribir(_colaLeer().filter(o => o.id !== id)); _colaActualizarUI(); }
+function _colaMarcar(id, cambios) { _colaEscribir(_colaLeer().map(o => o.id === id ? Object.assign({}, o, cambios) : o)); }
+
+function _msgSinCheck(m, porDefecto) { return String(m || porDefecto || '').replace(/^\s*✅\s*/, ''); }
+
+// Envía UNA operación. Devuelve {tipo:'ok'|'negocio'|'red', res?, error?}.
+async function _enviarOp(op, timeoutMs) {
+  _colaEnVuelo.add(op.id);
+  try {
+    const url = API_URL + '?action=ingresar&data=' + encodeURIComponent(JSON.stringify(op.datos));
+    const r = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(timeoutMs) });
+    const res = await r.json();
+    if (res && res.success === true) return { tipo: 'ok', res };
+    const m = String((res && res.mensaje) || '');
+    if (/procesando otro ingreso|intent[aá] nuevamente|ocupad/i.test(m)) return { tipo: 'red', error: m }; // servidor ocupado: reintentar
+    return { tipo: 'negocio', res: res || {} };
+  } catch (e) {
+    return { tipo: 'red', error: (e && e.name) || String(e) };
+  } finally {
+    _colaEnVuelo.delete(op.id);
+  }
+}
+
+function _actualizarLocalTrasIngreso(datos, res) {
+  try {
+    const nombre = normalizarTexto(datos.producto);
+    let p = _productosMap[nombre];
+    const stock = (res && res.nuevoStock !== undefined && res.nuevoStock !== null) ? res.nuevoStock : (res && res.stockActual);
+    if (!p) {
+      p = { name: nombre, category: datos.categoria };
+      _productosMap[nombre] = p;
+      if (!_productos.includes(nombre)) _productos.push(nombre);
+    }
+    if (stock !== undefined && stock !== null) p.stock = stock;
+    if (datos.precioCosto) p.precioCosto = datos.precioCosto;
+    if (datos.precioVenta) { p.precioVenta = datos.precioVenta; p.price = datos.precioVenta; }
+    if (datos.proveedor) p.proveedor = datos.proveedor;
+  } catch (e) {}
+}
+
+async function _colaProcesar() {
+  if (_colaOcupada) return;
+  _colaOcupada = true;
+  const btn = document.getElementById('colaBtn');
+  if (btn) btn.disabled = true;
+  let huboRed = false, confirmados = 0;
+  try {
+    const lista = _colaLeer().filter(o => o.estado !== 'rechazada');
+    for (const op of lista) {
+      if (_colaEnVuelo.has(op.id)) continue;           // lo está enviando guardar() ahora mismo
+      _colaMarcar(op.id, { intentos: (op.intentos || 0) + 1 });
+      const r = await _enviarOp(op, 45000);
+      if (r.tipo === 'ok') {
+        _colaQuitar(op.id); confirmados++;
+        _actualizarLocalTrasIngreso(op.datos, r.res);
+      } else if (r.tipo === 'negocio') {
+        _colaMarcar(op.id, { estado: 'rechazada', msg: String((r.res && r.res.mensaje) || 'El servidor no lo aceptó') });
+      } else {
+        huboRed = true; break;                           // se mantiene el orden: se reintenta todo más tarde
+      }
+    }
+  } catch (e) { console.warn('Cola de ingresos:', e); }
+  finally { _colaOcupada = false; if (btn) btn.disabled = false; }
+  _colaActualizarUI();
+  if (confirmados) {
+    setConnStatus('online');
+    if (_historialAbierto) cargarHistorial();
+    if (!_colaLeer().some(o => o.estado !== 'rechazada')) toast('✅ Ingresos pendientes confirmados');
+  }
+  if (huboRed) {
+    _colaFallos++;
+    _colaProgramar([15000, 30000, 60000, 120000, 300000][Math.min(_colaFallos - 1, 4)]);
+  } else { _colaFallos = 0; }
+}
+
+function _colaProgramar(ms) {
+  clearTimeout(_colaTimer);
+  if (!_colaLeer().some(o => o.estado !== 'rechazada')) return;
+  _colaTimer = setTimeout(_colaProcesar, ms);
+}
+function _colaReintentarYa() { _colaFallos = 0; clearTimeout(_colaTimer); _colaProcesar(); }
+function _colaDescartar(id) {
+  const op = _colaLeer().find(o => o.id === id);
+  if (op && confirm('¿Descartar este ingreso rechazado?\n' + op.datos.producto + ' ×' + op.datos.cantidad + '\nNo se va a enviar de nuevo.')) _colaQuitar(id);
+}
+
+function _colaActualizarUI() {
+  const wrap = document.getElementById('colaWrap');
+  if (!wrap) return;
+  const lista = _colaLeer();
+  const esperando = lista.filter(o => o.estado !== 'rechazada').length;
+  const rech = lista.length - esperando;
+  wrap.classList.toggle('visible', lista.length > 0);
+  const t = document.getElementById('colaTitulo');
+  if (t) t.textContent = esperando ? ('⏳ ' + esperando + ' ingreso' + (esperando > 1 ? 's' : '') + ' por confirmar') + (rech ? ' · ' + rech + ' rechazado' + (rech > 1 ? 's' : '') : '') : (rech + ' ingreso' + (rech > 1 ? 's' : '') + ' rechazado' + (rech > 1 ? 's' : ''));
+  const b = document.getElementById('colaBtn');
+  if (b) b.style.display = esperando ? '' : 'none';
+  const l = document.getElementById('colaLista');
+  if (!l) return;
+  l.innerHTML = lista.map(o => {
+    const esc = x => String(x).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const det = o.estado === 'rechazada'
+      ? '❌ ' + esc(o.msg)
+      : 'Esperando confirmación del servidor' + (o.intentos ? ' · intento ' + o.intentos : '');
+    return '<div class="cola-item' + (o.estado === 'rechazada' ? ' rechazada' : '') + '"><div><b>' + esc(o.datos.producto) + '</b> ×' + esc(o.datos.cantidad) + '<small>' + det + '</small></div>' +
+      (o.estado === 'rechazada' ? '<button onclick="_colaDescartar(\'' + o.id + '\')">Descartar</button>' : '') + '</div>';
+  }).join('');
+}
+
+// Arranque: mostrar lo que haya quedado de antes y reintentar a los pocos segundos.
+_colaActualizarUI();
+setTimeout(_colaProcesar, 3000);
+window.addEventListener('online', () => { _colaFallos = 0; _colaProcesar(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && _colaLeer().some(o => o.estado !== 'rechazada')) _colaProgramar(1500); });
+
+// ── PROTECCIÓN DE SALIDA SIN CONFIRMAR (regla de oro 3) ─────────────────────
+// Cubre: cerrar/recargar la pestaña, navegar a otra URL (beforeunload) y el
+// botón "atrás" del navegador / gesto de deslizar / botón físico del celu
+// (popstate, vía una entrada de historial "guardia"). Solo pregunta si hay
+// datos cargados en el formulario que todavía no se guardaron.
+function hayDatosSinGuardar() {
+  const nombre    = document.getElementById('producto').value.trim();
+  const cantidad  = document.getElementById('cantidad').value;
+  const costo     = document.getElementById('precioCosto').value;
+  const venta     = document.getElementById('precioVenta').value;
+  const proveedor = document.getElementById('proveedor').value.trim();
+  return !!(nombre || costo || venta || proveedor || (cantidad && cantidad !== '1'));
+}
+
+window.addEventListener('beforeunload', function(e) {
+  if (!hayDatosSinGuardar()) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
+
+let _permitirSalida = false;
+history.pushState({ copihueGuard: true }, '', location.href);
+window.addEventListener('popstate', function() {
+  if (_permitirSalida) return; // el usuario ya confirmó que quiere salir
+  if (hayDatosSinGuardar()) {
+    if (confirm('⚠️ Tenés datos sin guardar (producto, precio o proveedor).\n¿Seguro que querés salir sin guardar?')) {
+      _permitirSalida = true;
+      history.back();
+    } else {
+      history.pushState({ copihueGuard: true }, '', location.href);
+    }
+  }
+});
+
+init();
+// Construir el widget de categoría de inmediato con el fallback —
+// init() lo enriquecerá con datos reales del GAS cuando termine
+buildCategoriaWidget();
+
+// ── WIDGET CATEGORÍA ────────────────────────────────────────────────────────────
+function buildCategoriaWidget() {
+  document.getElementById('catLoading').classList.remove('visible');
+  document.getElementById('catWrap').style.display = 'block';
+  _catFiltradas = [..._categorias];
+  renderCatList(_catFiltradas, '');
+}
+
+function renderCatList(items, query) {
+  const list = document.getElementById('catList');
+  const catVal = document.getElementById('categoria').value;
+  list.innerHTML = items.map(c => {
+    const display = c.emoji ? c.emoji + ' ' + c.label : c.label;
+    const isActive = c.value === catVal ? ' active' : '';
+    return `<div class="cat-item${isActive}" onclick="seleccionarCategoria('${c.value}','${display.replace(/'/g,"\\'")}')">${display}</div>`;
+  }).join('');
+}
+
+function filtrarCategorias() {
+  const q = document.getElementById('categoriaInput').value;
+  const qUp = q.trim().toUpperCase();
+  _catFiltradas = qUp ? _categorias.filter(c => c.label.toUpperCase().includes(qUp) || c.value.includes(qUp)) : [..._categorias];
+  renderCatList(_catFiltradas, q);
+  abrirCatList();
+  // Mostrar/ocultar X
+  document.getElementById('catClear').style.display = q ? 'inline' : 'none';
+}
+
+function limpiarCategoria() {
+  document.getElementById('categoria').value = '';
+  document.getElementById('categoriaInput').value = '';
+  document.getElementById('catClear').style.display = 'none';
+  _catFiltradas = [..._categorias];
+  renderCatList(_catFiltradas, '');
+  document.getElementById('categoriaInput').focus();
+  abrirCatList();
+}
+
+function abrirCatList() {
+  // Re-renderizar con el texto actual del input (puede estar vacío = mostrar todo)
+  const q = document.getElementById('categoriaInput').value;
+  const qUp = q.trim().toUpperCase();
+  _catFiltradas = qUp
+    ? _categorias.filter(c => c.label.toUpperCase().includes(qUp) || c.value.includes(qUp))
+    : [..._categorias];
+  renderCatList(_catFiltradas, q);
+  document.getElementById('catList').classList.add('open');
+  _catAbierta = true;
+}
+
+function cerrarCatList() {
+  document.getElementById('catList').classList.remove('open');
+  _catAbierta = false;
+}
+
+function toggleCatList() {
+  _catAbierta ? cerrarCatList() : abrirCatList();
+}
+
+function seleccionarCategoria(value, display) {
+  document.getElementById('categoria').value = value;
+  document.getElementById('categoriaInput').value = display;
+  document.getElementById('catClear').style.display = 'inline';
+  document.getElementById('catInputBox').classList.remove('nuevo-producto');
+  cerrarCatList();
+  if (value) {
+    document.getElementById('avisoCategoria').classList.remove('visible');
+  }
+}
+
+// Setear categoría por value (usado al precargar)
+function setCategoriaByValue(val) {
+  if (!val) return;
+  const vUp = val.trim().toUpperCase();
+  const cat = _categorias.find(c => c.value === vUp);
+  if (cat) {
+    const display = cat.emoji ? cat.emoji + ' ' + cat.label : cat.label;
+    seleccionarCategoria(cat.value, display);
+  } else {
+    // Categoría no está en la lista (viene de la planilla pero no en catálogo)
+    document.getElementById('categoria').value = vUp;
+    document.getElementById('categoriaInput').value = vUp;
+    cerrarCatList();
+  }
+}
+
+// ── AUTOCOMPLETE PRODUCTO ──────────────────────────────────────────────────────
+function onProductoInput() {
+  const val  = normalizarInput(document.getElementById('producto')).trim();
+  const list = document.getElementById('autoList');
+  toggleClear('producto');
+
+  // Mientras se está escribiendo/filtrando no hay ninguna selección
+  // confirmada todavía, así que cualquier dato precargado de una
+  // búsqueda anterior ya no es válido — lo ocultamos.
+  clearTimeout(_infoTimer);
+  document.getElementById('info').style.display = 'none';
+  ocultarBannerPrecargado();
+  resetCategoria();
+
+  if (val.length < 2) {
+    list.classList.remove('open');
+    return;
+  }
+
+  const valUp  = val.toUpperCase();
+  const matches = _productos.filter(p => p.toUpperCase().includes(valUp)).slice(0, 15);
+
+  if (!matches.length) {
+    list.classList.remove('open');
+  } else {
+    list.innerHTML = matches.map(p => {
+      const idx    = p.toUpperCase().indexOf(valUp);
+      const before = p.substring(0, idx);
+      const match  = p.substring(idx, idx + val.length);
+      const after  = p.substring(idx + val.length);
+      return `<div class="autocomplete-item" onclick="seleccionarProducto('${p.replace(/'/g,"\\'")}')">
+        <img class="autocomplete-thumb" src="${urlFoto(p)}" onerror="this.style.display='none'" loading="lazy">
+        <span class="item-texto">${before}<span class="match">${match}</span>${after}</span>
+      </div>`;
+    }).join('');
+    list.classList.add('open');
+  }
+
+  // OJO: acá antes se disparaba buscarInfo() (llamada al servidor) con un
+  // debounce de 600ms en cada pausa de tipeo. Eso hacía que, mientras el
+  // usuario todavía estaba escribiendo/eligiendo entre las sugerencias, la
+  // app ya estuviera consultando al backend por cada texto intermedio —
+  // sentías que "abría" cada sugerencia una por una. Ahora la búsqueda al
+  // servidor sólo se dispara en seleccionarProducto(), es decir, cuando el
+  // usuario efectivamente elige un producto de la lista.
+}
+
+function mostrarBuscando() {
+  const infoDiv = document.getElementById('info');
+  ocultarBannerPrecargado();
+  infoDiv.style.display = 'block';
+  infoDiv.innerHTML = '<span style="color:#95a5a6">🔎 Buscando...</span>';
+}
+
+function seleccionarProducto(nombre) {
+  document.getElementById('producto').value = nombre;
+  document.getElementById('autoList').classList.remove('open');
+  mostrarInfoLocal(nombre);
+}
+
+// Cerrar dropdowns al click fuera
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.autocomplete-wrap')) {
+    document.getElementById('autoList').classList.remove('open');
+    document.getElementById('autoListProv').classList.remove('open');
+  }
+  if (!e.target.closest('.cat-wrap')) {
+    cerrarCatList();
+  }
+});
+
+// ── INFO PRODUCTO (LOCAL, SIN FETCH) ────────────────────────────────────────────
+// Antes esto hacía un fetch al GAS (action=getInfoProducto) por cada producto
+// elegido, lo que era una fuente extra de errores/lentitud de conexión.
+// _productosMap ya tiene toda esta info (categoría, costo, precio, proveedor,
+// stock) cargada una sola vez en init() — la misma fuente que usa la lista de
+// sugerencias — así que mostrarla es instantáneo y no depende de la red.
+function mostrarInfoLocal(nombre) {
+  const infoDiv = document.getElementById('info');
+  const p = _productosMap[nombre];
+
+  if (!p) {
+    _esNuevo = true;
+    document.getElementById('catInputBox').classList.add('nuevo-producto');
+    document.getElementById('avisoCategoria').classList.add('visible');
+    infoDiv.style.display = 'block';
+    infoDiv.innerHTML = `
+      <div class="info-foto-wrap">
+        <img class="info-foto" src="${urlFoto(nombre)}" onerror="this.style.display='none'" loading="lazy">
+        <div class="info-texto">
+          <span class="alerta">⚠️ Producto no encontrado</span><br>
+          <small>Se creará como nuevo — seleccioná la categoría antes de guardar</small>
+        </div>
+      </div>`;
+    return;
+  }
+
+  _esNuevo = false;
+  document.getElementById('catInputBox').classList.remove('nuevo-producto');
+  document.getElementById('avisoCategoria').classList.remove('visible');
+
+  const categoria   = p.category || p.categoria || '';
+  const precioCosto = Number(p.precioCosto) || 0;
+  const precioVenta = Number(p.price ?? p.precioVenta) || 0;
+  const proveedor   = (p.proveedor || '').trim();
+  const stockActual = (p.stock !== undefined && p.stock !== null && p.stock !== '') ? p.stock : '—';
+
+  // ── PRECARGA COMPLETA DEL ÚLTIMO INGRESO ──────────────────────────
+  let precargo = false;
+
+  if (categoria) {
+    setCategoriaByValue(categoria);
+    precargo = true;
+  }
+
+  if (precioCosto) {
+    document.getElementById('precioCosto').value = precioCosto;
+    toggleClear('precioCosto');
+    calcularSugerido();
+    precargo = true;
+  }
+
+  if (precioVenta) {
+    document.getElementById('precioVenta').value = precioVenta;
+    toggleClear('precioVenta');
+    precargo = true;
+  }
+
+  if (proveedor) {
+    document.getElementById('proveedor').value = proveedor;
+    toggleClear('proveedor');
+    precargo = true;
+  }
+
+  // Fecha vencimiento: no se precarga (cada remesa puede ser diferente)
+
+  // Cantidad: siempre resetear a 1 — el operador la ajusta según lo que llegó
+  document.getElementById('cantidad').value = 1;
+
+  if (precargo) mostrarBannerPrecargado();
+
+  // Panel info (stock actual)
+  infoDiv.style.display = 'block';
+  infoDiv.innerHTML = `
+    <div class="info-foto-wrap">
+      <img class="info-foto" src="${urlFoto(nombre)}" onerror="this.style.display='none'" loading="lazy">
+      <div class="info-texto">
+        <strong>📊 Datos actuales en planilla:</strong><br>
+        Stock actual: <strong>${stockActual}</strong> unidades<br>
+        Precio venta: <span class="precio-grande">$${precioVenta.toLocaleString('es-AR')}</span>
+        ${precioCosto ? '<br>Último costo: <strong>$' + precioCosto.toLocaleString('es-AR') + '</strong>' : ''}
+        ${proveedor   ? '<br>Proveedor: <strong>' + proveedor + '</strong>' : ''}
+      </div>
+    </div>
+  `;
+}
+
+function resetCategoria() {
+  _esNuevo = false;
+  document.getElementById('catInputBox').classList.remove('nuevo-producto');
+  document.getElementById('avisoCategoria').classList.remove('visible');
+}
+
+function mostrarBannerPrecargado() {
+  document.getElementById('bannerPrecargado').classList.add('visible');
+}
+
+function ocultarBannerPrecargado() {
+  document.getElementById('bannerPrecargado').classList.remove('visible');
+}
+
+// ── PRECIO SUGERIDO ────────────────────────────────────────────────────────────
+function calcularSugerido() {
+  const costo = parseFloat(document.getElementById('precioCosto').value) || 0;
+  const div   = document.getElementById('precioSugerido');
+  if (costo > 0) {
+    document.getElementById('montoSugerido').textContent = '$' + Math.ceil(costo * 1.5).toLocaleString('es-AR');
+    div.style.display = 'block';
+  } else {
+    div.style.display = 'none';
+  }
+}
+
+// ── AUTOCOMPLETE PROVEEDOR ─────────────────────────────────────────────────────
+function _claveProv(t) { return normalizarTexto(String(t || '')).replace(/[^A-Z0-9]/g, ''); }
+
+function filtrarProveedores() {
+  const val  = normalizarInput(document.getElementById('proveedor')).trim();
+  const list = document.getElementById('autoListProv');
+  const k = _claveProv(val);
+  if (!k) { list.classList.remove('open'); return; }
+
+  const conClave = _proveedores.map(p => ({ p, c: _claveProv(p) })).filter(x => x.c.includes(k));
+  conClave.sort((a, b) => (b.c.startsWith(k) - a.c.startsWith(k)) || a.p.localeCompare(b.p)); // los que empiezan igual, primero
+  const matches = conClave.slice(0, 8).map(x => x.p);
+  if (!matches.length) { list.classList.remove('open'); return; }
+
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  list.innerHTML = matches.map(p =>
+    `<div class="autocomplete-item" data-n="${esc(p)}" onclick="elegirProveedor(this.dataset.n)">${esc(p)}</div>`
+  ).join('');
+  list.classList.add('open');
+}
+
+function elegirProveedor(nombre) {
+  document.getElementById('proveedor').value = nombre;
+  document.getElementById('autoListProv').classList.remove('open');
+  toggleClear('proveedor');
+}
+
+// ── HELPERS X LIMPIAR ─────────────────────────────────────────────────────────
+function toggleClear(id) {
+  const val = document.getElementById(id).value;
+  const btn = document.getElementById('clear-' + id);
+  if (btn) btn.style.display = val ? 'block' : 'none';
+}
+
+function clearField(id) {
+  document.getElementById(id).value = '';
+  const btn = document.getElementById('clear-' + id);
+  if (btn) btn.style.display = 'none';
+  document.getElementById(id).focus();
+}
+
+// ── PANEL DE ÚLTIMOS INGRESOS / DESHACER ────────────────────────────────────────
+let _historialAbierto = false;
+let _historialCargado = false;
+
+function toggleHistorial() {
+  _historialAbierto = !_historialAbierto;
+  const lista = document.getElementById('historialLista');
+  const chev  = document.getElementById('historialChevron');
+  lista.style.display = _historialAbierto ? 'block' : 'none';
+  chev.classList.toggle('open', _historialAbierto);
+  if (_historialAbierto) cargarHistorial();
+}
+
+async function cargarHistorial() {
+  const lista = document.getElementById('historialLista');
+  lista.innerHTML = '<div class="historial-loading">Cargando...</div>';
+
+  try {
+    const r    = await fetch(API_URL + '?action=getUltimosIngresos&limite=8&t=' + Date.now(), { redirect: 'follow', signal: AbortSignal.timeout(15000) });
+    const data = await r.json();
+
+    if (!data.ok || !data.registros || !data.registros.length) {
+      lista.innerHTML = '<div class="historial-vacio">Todavía no hay ingresos registrados</div>';
+      _historialCargado = true;
+      return;
+    }
+
+    lista.innerHTML = data.registros.map((r, idx) => {
+      const detalle = `${r.fecha} · +${r.cantidad}u` + (r.proveedor ? ' · ' + r.proveedor : '');
+      // Tolerante a distintos nombres que pueda usar el GAS para el costo unitario
+      const costoUnit = r.costo ?? r.precioCosto ?? r.costoUnitario ?? null;
+      return `
+        <div class="historial-item" id="hist-item-${idx}">
+          <input type="checkbox" class="historial-item-check" id="hist-check-${idx}"
+            data-cantidad="${r.cantidad}" data-costo="${costoUnit === null ? '' : costoUnit}"
+            onchange="actualizarResumenHistorial()">
+          <img class="autocomplete-thumb" src="${urlFoto(r.producto)}" onerror="this.style.display='none'" loading="lazy">
+          <div class="historial-item-info">
+            <div class="historial-item-nombre">${r.producto}</div>
+            <div class="historial-item-detalle">${detalle}</div>
+          </div>
+          <button class="btn-deshacer-item" id="hist-btn-${idx}"
+            onclick='deshacerItem(${idx}, ${r.fila}, ${JSON.stringify(r.producto)}, ${r.cantidad})'>
+            ↩️ Deshacer
+          </button>
+        </div>`;
+    }).join('');
+    _historialCargado = true;
+    actualizarResumenHistorial();
+
+  } catch(e) {
+    lista.innerHTML = '<div class="historial-vacio">⚠️ No se pudo cargar — revisá la conexión</div>';
+    console.error(e);
+  }
+}
+
+// Suma cantidad × costo de los ítems marcados con checkbox, para chequear
+// contra el total de la boleta física del proveedor.
+function actualizarResumenHistorial() {
+  const checks   = document.querySelectorAll('.historial-item-check:checked');
+  const resumen  = document.getElementById('historialResumen');
+  const texto    = document.getElementById('historialResumenTexto');
+
+  if (!checks.length) { resumen.classList.remove('show'); return; }
+
+  let total = 0;
+  let cantidadItems = 0;
+  let faltanCostos = 0;
+
+  checks.forEach(chk => {
+    cantidadItems++;
+    const cantidad = parseFloat(chk.dataset.cantidad) || 0;
+    const costo    = chk.dataset.costo === '' ? null : parseFloat(chk.dataset.costo);
+    if (costo === null || isNaN(costo)) { faltanCostos++; return; }
+    total += cantidad * costo;
+  });
+
+  const totalTxt = total.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  texto.innerHTML = `${cantidadItems} seleccionado${cantidadItems === 1 ? '' : 's'} · <span class="historial-resumen-total">${totalTxt}</span>` +
+    (faltanCostos ? `<br><span class="historial-resumen-sindato">⚠️ ${faltanCostos} sin costo cargado — no suma al total</span>` : '');
+  resumen.classList.add('show');
+}
+
+function vaciarSeleccionHistorial() {
+  document.querySelectorAll('.historial-item-check:checked').forEach(chk => chk.checked = false);
+  actualizarResumenHistorial();
+}
+
+async function deshacerItem(idx, fila, producto, cantidad) {
+  if (!confirm(`↩️ ¿Deshacer este ingreso?\n\n📦 ${producto}\n➕ +${cantidad} unidades\n\nEsto elimina la fila del Historial y resta el stock que se sumó.`)) return;
+
+  const btn = document.getElementById('hist-btn-' + idx);
+  const item = document.getElementById('hist-item-' + idx);
+  btn.disabled    = true;
+  btn.textContent = '⏳...';
+
+  try {
+    const datos = { fila, producto, cantidad };
+    const url   = API_URL + '?action=deshacerIngreso&data=' + encodeURIComponent(JSON.stringify(datos));
+    const r     = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(30000) });
+    const res   = await r.json();
+    setConnStatus('online');
+
+    if (res.success) {
+      toast('✅ ' + (res.mensaje || 'Ingreso deshecho'));
+      if (item) item.remove();
+      // Si era el último ingreso pendiente de revertir, limpiar referencia
+      if (_ultimoIngreso && _ultimoIngreso.producto === producto && _ultimoIngreso.cantidad === cantidad) {
+        _ultimoIngreso = null;
+      }
+      sincronizarCatalogo(); // refrescar stock local con lo que quedó tras deshacer
+    } else {
+      toast('❌ ' + (res.mensaje || 'No se pudo deshacer'), true);
+      btn.disabled    = false;
+      btn.textContent = '↩️ Deshacer';
+    }
+  } catch(e) {
+    setConnStatus('offline');
+    toast('❌ Error de conexión al deshacer', true);
+    btn.disabled    = false;
+    btn.textContent = '↩️ Deshacer';
+    console.error(e);
+  }
+}
+
+// ── GUARDAR ────────────────────────────────────────────────────────────────────
+let _guardando = false; // lock duro contra doble-submit
+let _ultimoIngreso = null; // referencia al último ingreso guardado (informativo)
+
+// Límites razonables — más allá de esto, casi seguro es un error de tipeo
+// (ej: 10000000000 en vez de 10, o un cero de más por apoyar el dedo)
+const LIMITES = {
+  cantidadMax: 100,        // un ingreso normal de mercadería no supera esto
+  precioCostoMax: 50000,   // costo unitario por encima de esto es sospechoso
+  precioVentaMax: 80000
+};
+
+function verificarValoresRaros() {
+  const cantidad    = Number(document.getElementById('cantidad').value) || 0;
+  const precioCosto = parseFloat(document.getElementById('precioCosto').value) || 0;
+  const precioVenta = parseFloat(document.getElementById('precioVenta').value) || 0;
+
+  const motivos = [];
+  if (cantidad > LIMITES.cantidadMax) {
+    motivos.push(`Cantidad de <strong>${cantidad.toLocaleString('es-AR')}</strong> unidades es muy alta`);
+  }
+  if (precioCosto > LIMITES.precioCostoMax) {
+    motivos.push(`Costo de <strong>$${precioCosto.toLocaleString('es-AR')}</strong> por unidad es muy alto`);
+  }
+  if (precioVenta > LIMITES.precioVentaMax) {
+    motivos.push(`Precio de venta de <strong>$${precioVenta.toLocaleString('es-AR')}</strong> es muy alto`);
+  }
+
+  const btn   = document.getElementById('btnGuardar');
+  const aviso = document.getElementById('avisoValorRaro');
+
+  if (motivos.length > 0) {
+    btn.classList.add('alerta-valor');
+    aviso.classList.add('visible');
+    aviso.innerHTML = '<strong>⚠️ Revisá antes de guardar:</strong>' + motivos.join('<br>') +
+      '<br>¿Seguro que no es un error de tipeo (un cero de más)?';
+    return true;
+  } else {
+    btn.classList.remove('alerta-valor');
+    aviso.classList.remove('visible');
+    aviso.innerHTML = '';
+    return false;
+  }
+}
+
+async function guardar() {
+  if (_guardando) return; // ya hay un guardado en curso, ignorar clicks extra
+
+  const nombre          = normalizarTexto(document.getElementById('producto').value.trim());
+  const cantidad        = Number(document.getElementById('cantidad').value);
+  const categoria       = document.getElementById('categoria').value;
+  const precioCosto     = parseFloat(document.getElementById('precioCosto').value) || null;
+  const precioVenta     = parseFloat(document.getElementById('precioVenta').value) || null;
+  const proveedor       = normalizarTexto(document.getElementById('proveedor').value.trim()) || null;
+  const fechaVencimiento = document.getElementById('fechaVencimiento').value || null;
+
+  if (!nombre)              { toast('❌ Ingresá el nombre del producto', true); return; }
+  if (!cantidad || cantidad <= 0) { toast('❌ La cantidad debe ser mayor a 0', true); return; }
+  if (!categoria)           {
+    toast('❌ Seleccioná una categoría', true);
+    abrirCatList();
+    return;
+  }
+
+  if (_esNuevo && (!categoria || categoria === _categorias[0]?.value)) {
+    if (!confirm('📦 ¿Confirmar categoría "' + categoria + '" para el producto nuevo?')) return;
+  }
+  if (!precioCosto) {
+    if (!confirm('⚠️ No ingresaste precio de costo. ¿Continuar igual?')) return;
+  }
+
+  // Bloqueo duro: valores fuera de rango razonable (posible error de tipeo)
+  if (verificarValoresRaros()) {
+    const ok = confirm(
+      '🚨 VALORES INUSUALES DETECTADOS\n\n' +
+      `Cantidad: ${cantidad.toLocaleString('es-AR')}\n` +
+      (precioCosto ? `Costo unitario: $${precioCosto.toLocaleString('es-AR')}\n` : '') +
+      (precioVenta ? `Precio venta: $${precioVenta.toLocaleString('es-AR')}\n` : '') +
+      '\n¿Estás SEGURO de que estos números son correctos?\n(presioná Cancelar si fue un error de tipeo)'
+    );
+    if (!ok) return;
+  }
+
+  _guardando = true;
+  const btn = document.getElementById('btnGuardar');
+  btn.disabled    = true;
+  btn.textContent = '⏳ Guardando...';
+
+  // v26 — idOperacion único de ESTA operación. Se guarda en la cola ANTES de
+  // enviar y se reutiliza en todos los reintentos: el servidor lo reconoce y no
+  // suma el stock dos veces.
+  const idOperacion = 'ing_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const op = {
+    id: idOperacion, ts: Date.now(), estado: 'pendiente', intentos: 0, msg: '',
+    datos: { producto: nombre, cantidad, categoria, precioCosto, precioVenta, proveedor, fechaVencimiento, idOperacion }
+  };
+  _colaAgregar(op);
+
+  let r;
+  if (navigator.onLine === false) r = { tipo: 'red', error: 'sin red' };   // sin red: directo a la cola
+  else r = await _enviarOp(op, 30000);
+
+  btn.disabled    = false;
+  btn.textContent = '✅ Guardar Ingreso';
+  _guardando = false;
+
+  if (r.tipo === 'ok') {
+    setConnStatus('online');
+    _colaQuitar(op.id);
+    toast('✅ ' + _msgSinCheck(r.res.mensaje, 'Ingreso guardado'));
+    _ultimoIngreso = { idOperacion, producto: nombre, cantidad };
+    // Abrir (o refrescar) el panel de historial para que el botón de deshacer
+    // quede visible de inmediato si el operador se equivocó
+    if (!_historialAbierto) toggleHistorial(); else cargarHistorial();
+    // v26: sin pedir el catálogo completo — se actualiza el stock local con la respuesta.
+    _actualizarLocalTrasIngreso(op.datos, r.res);
+    limpiar();
+  } else if (r.tipo === 'negocio') {
+    // El servidor rechazó la operación (no es un problema de conexión): no se reintenta.
+    _colaQuitar(op.id);
+    toast('❌ ' + (r.res.mensaje || 'Error al guardar'), true);
+  } else {
+    // Sin respuesta / sin red / servidor ocupado: queda en la cola y se confirma sola.
+    setConnStatus('offline');
+    _colaActualizarUI();
+    toast('⏳ Sin respuesta del servidor. El ingreso quedó en cola y se confirma solo — no lo cargues de nuevo.', true);
+    limpiar();
+    _colaProgramar(15000);
+  }
+}
+
+function limpiar() {
+  document.getElementById('producto').value       = '';
+  document.getElementById('cantidad').value       = '1';
+  document.getElementById('categoria').value      = '';
+  document.getElementById('categoriaInput').value = '';
+  document.getElementById('catClear').style.display = 'none';
+  document.getElementById('precioCosto').value    = '';
+  document.getElementById('precioVenta').value    = '';
+  document.getElementById('proveedor').value      = '';
+  document.getElementById('fechaVencimiento').value = '';
+  ['producto','precioCosto','precioVenta','proveedor','fechaVencimiento'].forEach(id => {
+    const btn = document.getElementById('clear-' + id);
+    if (btn) btn.style.display = 'none';
+  });
+  document.getElementById('info').style.display  = 'none';
+  document.getElementById('precioSugerido').style.display = 'none';
+  document.getElementById('autoList').classList.remove('open');
+  ocultarBannerPrecargado();
+  resetCategoria();
+  document.getElementById('btnGuardar').classList.remove('alerta-valor');
+  document.getElementById('avisoValorRaro').classList.remove('visible');
+  document.getElementById('avisoValorRaro').innerHTML = '';
+  document.getElementById('producto').focus();
+}
+
+// ── TOAST ──────────────────────────────────────────────────────────────────────
+function toast(msg, error = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'show' + (error ? ' error' : '');
+  setTimeout(() => { t.className = ''; }, 3500);
+}
+</script>
+</body>
+</html>
