@@ -88,6 +88,9 @@ label.chk input{margin-top:3px}
   <div class="toolbar">
     <button id="btnLoad" class="pri">🔄 Leer FIADOS</button>
     <input id="q" type="search" placeholder="Buscar cliente o idFiado…">
+    <select id="rango" style="font:inherit;padding:9px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);min-height:40px">
+      <option value="2">Hoy y ayer</option><option value="7" selected>Últimos 7 días</option><option value="30">Últimos 30 días</option><option value="0">Todos</option>
+    </select>
     <label class="chk" style="margin:0;align-items:center"><input id="soloSin" type="checkbox" checked> Solo sin ticket</label>
   </div>
   <div id="status" class="mut"></div>
@@ -186,20 +189,38 @@ async function cargar(){
     const r = await api('listarFiados');
     if (!r || r.ok !== true || !Array.isArray(r.fiados)) throw new Error((r && r.error) || 'Respuesta inesperada de listarFiados');
     S.fiados = r.fiados; S.loadedAt = new Date();
-    $('status').textContent = `${S.fiados.length} FIADOS leídos a las ${S.loadedAt.toLocaleTimeString('es-AR')} (${r.__ms} ms).`;
+    $('status').textContent = `${S.fiados.length} FIADOS leídos a las ${S.loadedAt.toLocaleTimeString('es-AR', { hour12:false })} (${r.__ms} ms).`;
   }catch(e){
     $('status').innerHTML = '<span style="color:var(--bad)">No se pudo leer: ' + esc(e.message) + '. No se cambió nada. Podés volver a tocar «Leer FIADOS».</span>';
   }finally{ S.busy = false; $('btnLoad').disabled = false; pintar(); }
 }
 
+const TZ = 'America/Argentina/Buenos_Aires';
+function fechaDe(f){
+  const v = f && f.fecha; if (!v) return null;
+  const s = String(v).trim();
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + 'T12:00:00') : new Date(s);
+  return isNaN(d.getTime()) ? null : { d, soloDia: /^\d{4}-\d{2}-\d{2}$/.test(s) };
+}
+function fechaTxt(f){
+  const x = fechaDe(f); if (!x) return String(f.fecha || '');
+  const o = x.soloDia ? { day:'2-digit', month:'2-digit', year:'numeric' } : { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false };
+  return x.d.toLocaleString('es-AR', Object.assign({ timeZone: x.soloDia ? 'UTC' : TZ }, o));
+}
 function sinTicket(f){ return !String(f.ticket || '').trim(); }
 function norm(s){ return String(s||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim(); }
 
 function pintar(){
-  const q = norm($('q').value), solo = $('soloSin').checked;
-  const items = S.fiados.filter(f => (!solo || sinTicket(f)) && (!q || norm(f.cliente).includes(q) || norm(f.idFiado).includes(q)));
+  const q = norm($('q').value), solo = $('soloSin').checked, dias = parseInt($('rango').value, 10) || 0;
+  const desde = dias ? Date.now() - dias * 86400000 : 0;
+  const items = S.fiados.filter(f => {
+    if (solo && !sinTicket(f)) return false;
+    if (q && !(norm(f.cliente).includes(q) || norm(f.idFiado).includes(q))) return false;
+    if (desde){ const x = fechaDe(f); if (x && x.d.getTime() < desde) return false; }
+    return true;
+  }).sort((a, b) => { const x = fechaDe(a), y = fechaDe(b); return (y ? y.d.getTime() : 0) - (x ? x.d.getTime() : 0); });
   if (!S.loadedAt){ $('list').innerHTML = '<div class="empty">Tocá «Leer FIADOS» para empezar.</div>'; return; }
-  if (!items.length){ $('list').innerHTML = '<div class="empty">' + (solo ? 'No hay FIADOS sin ticket con ese filtro. 🎉' : 'Sin resultados.') + '</div>'; return; }
+  if (!items.length){ $('list').innerHTML = '<div class="empty">' + (solo ? 'No hay FIADOS sin ticket con ese filtro. 🎉 (probá «Todos» en el rango de fechas)' : 'Sin resultados.') + '</div>'; return; }
   $('list').innerHTML = items.map(f => tarjeta(f)).join('');
 }
 
@@ -208,7 +229,7 @@ function tarjeta(f){
   const sin = sinTicket(f);
   let h = `<div class="card" data-k="${esc(k)}">
     <div class="row"><h3>${esc(f.cliente || '(sin nombre)')}</h3><span class="tot">${money(f.totalOriginal || f.total)}</span></div>
-    <div class="mut">${esc(f.fecha)} · fila ${esc(f.fila)} · ${esc(f.estado || '')}</div>
+    <div class="mut">${esc(fechaTxt(f))} · fila ${esc(f.fila)} · ${esc(f.estado || '')}</div>
     <div class="mut" style="margin-top:2px">${esc((f.descripcion||'').slice(0,110))}</div>
     <div class="mono" style="margin-top:2px">${esc(k)}</div>
     <div style="margin-top:6px">${sin ? '<span class="badge b-warn">SIN TICKET</span>' : '<span class="badge b-ok">Ticket ' + esc(f.ticket) + '</span>'}</div>`;
@@ -412,7 +433,7 @@ document.addEventListener('click', ev => {
   else if (b.dataset.act === 'completar') pedirConfirmacion(k, b.dataset.t, b.dataset.src);
 });
 $('btnLoad').onclick = cargar;
-$('q').oninput = pintar; $('soloSin').onchange = pintar;
+$('q').oninput = pintar; $('soloSin').onchange = pintar; $('rango').onchange = pintar;
 $('btnUnlock').onclick = () => { $('u1').checked = $('u2').checked = false; $('u3').value = ''; chkUnlock(); $('ovUnlock').classList.add('open'); };
 $('btnLock').onclick = () => setWrite(false);
 $('uCancel').onclick = () => $('ovUnlock').classList.remove('open');
