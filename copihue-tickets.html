@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Copihue · Tickets de FIADO v1</title>
+<style>
+:root{
+  --bg:#f4f1ee; --card:#fff; --ink:#2b2321; --mut:#7a6f6a; --line:#e6dfda;
+  --brand:#9b1c1c; --brand-ink:#fff; --ok:#1b7a3a; --ok-bg:#e7f5ec; --warn:#a15c00; --warn-bg:#fff3dc;
+  --bad:#b3261e; --bad-bg:#fde8e6; --info:#1556a8; --info-bg:#e6eefb; --stg:#ffcc00;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#1c1816; --card:#27211f; --ink:#f1ebe7; --mut:#a89d97; --line:#3b3330;
+    --brand:#d94b4b; --ok:#5fd18a; --ok-bg:#16301f; --warn:#f0b255; --warn-bg:#352a14;
+    --bad:#ff8a80; --bad-bg:#3a1b19; --info:#8db8f5; --info-bg:#172a45;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:40px}
+.stg{background:var(--stg);color:#000;text-align:center;font-weight:800;font-size:.72rem;padding:3px 8px;border-bottom:3px solid #000}
+header{background:var(--brand);color:var(--brand-ink);padding:12px 16px}
+header h1{margin:0;font-size:1.15rem}
+header .sub{font-size:.78rem;opacity:.9;margin-top:2px}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px}
+.modebar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.78rem;font-weight:700}
+.pill.ro{background:var(--info-bg);color:var(--info)}
+.pill.rw{background:var(--warn-bg);color:var(--warn)}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);padding:9px 12px;min-height:40px}
+button.pri{background:var(--brand);color:#fff;border-color:var(--brand);font-weight:700}
+button.ok{background:var(--ok);color:#fff;border-color:var(--ok);font-weight:700}
+button:disabled{opacity:.45;cursor:not-allowed}
+input[type=text],input[type=search],input[type=number]{font:inherit;padding:9px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);min-height:40px;width:100%}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+.toolbar>*{flex:1 1 140px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0}
+.card h3{margin:0 0 2px;font-size:1rem}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.mut{color:var(--mut);font-size:.82rem}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:.76rem;word-break:break-all}
+.tot{font-weight:800;font-size:1.05rem}
+.badge{display:inline-block;padding:2px 8px;border-radius:8px;font-size:.74rem;font-weight:700;margin-right:4px}
+.b-ok{background:var(--ok-bg);color:var(--ok)} .b-warn{background:var(--warn-bg);color:var(--warn)}
+.b-bad{background:var(--bad-bg);color:var(--bad)} .b-info{background:var(--info-bg);color:var(--info)}
+.box{border-radius:10px;padding:9px 10px;margin:8px 0;font-size:.88rem}
+.box.ok{background:var(--ok-bg);color:var(--ok)} .box.warn{background:var(--warn-bg);color:var(--warn)}
+.box.bad{background:var(--bad-bg);color:var(--bad)} .box.info{background:var(--info-bg);color:var(--info)}
+.box ul{margin:4px 0 0 18px;padding:0}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.manual{display:flex;gap:8px;margin-top:8px}
+.manual input{max-width:150px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center;z-index:50}
+.overlay.open{display:flex}
+.sheet{background:var(--card);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:16px;max-height:90vh;overflow:auto}
+@media(min-width:700px){.overlay{align-items:center}.sheet{border-radius:18px}}
+.sheet h2{margin:0 0 8px;font-size:1.1rem}
+dl.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:8px 0;font-size:.9rem}
+dl.kv dt{color:var(--mut)} dl.kv dd{margin:0;font-weight:600;word-break:break-word}
+details{margin:14px 0}
+summary{cursor:pointer;color:var(--mut);font-size:.85rem}
+pre{white-space:pre-wrap;word-break:break-word;font-size:.74rem;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;max-height:260px;overflow:auto}
+.empty{text-align:center;color:var(--mut);padding:28px 8px}
+label.chk{display:flex;gap:8px;align-items:flex-start;margin:8px 0;font-size:.9rem}
+label.chk input{margin-top:3px}
+</style>
+</head>
+<body>
+<div class="stg">🚧 STAGING — NO ES EL SITIO REAL 🚧</div>
+<header>
+  <div class="wrap" style="padding:0">
+    <h1>🎫 Tickets de FIADO</h1>
+    <div class="sub">Revisa los FIADOS sin ticket y completa la celda del ticket con tu confirmación · backend <span id="urlTail"></span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="modebar">
+    <span id="modePill" class="pill ro">SOLO LECTURA</span>
+    <button id="btnUnlock">🔓 Habilitar escritura…</button>
+    <button id="btnLock" style="display:none">🔒 Volver a solo lectura</button>
+  </div>
+
+  <div class="box info">Esta página <b>no cambia nada</b> hasta que habilites la escritura y confirmes cada ticket. Solo escribe la <b>columna C (ticket)</b> de la fila del FIADO, y <b>solo si está vacía</b>. No toca ventas, stock ni otros datos.</div>
+
+  <div class="toolbar">
+    <button id="btnLoad" class="pri">🔄 Leer FIADOS</button>
+    <input id="q" type="search" placeholder="Buscar cliente o idFiado…">
+    <label class="chk" style="margin:0;align-items:center"><input id="soloSin" type="checkbox" checked> Solo sin ticket</label>
+  </div>
+  <div id="status" class="mut"></div>
+  <div id="list"></div>
+
+  <details>
+    <summary>Registro de esta sesión (tiempos y respuestas)</summary>
+    <div class="actions"><button id="btnCopyLog">Copiar registro</button></div>
+    <pre id="log">(vacío)</pre>
+  </details>
+</main>
+
+<!-- Confirmación de escritura -->
+<div id="ovWrite" class="overlay"><div class="sheet">
+  <h2>Confirmar ticket</h2>
+  <dl class="kv" id="wKv"></dl>
+  <div id="wWarn"></div>
+  <div class="box warn">Se escribirá <b>solo la celda C</b> de esa fila de FIADOS (hoy vacía). Después la página vuelve a leer la planilla para comprobar que quedó escrito. No se reintenta sola.</div>
+  <div class="actions">
+    <button id="wCancel">Cancelar</button>
+    <button id="wGo" class="ok">Escribir ticket</button>
+  </div>
+</div></div>
+
+<!-- Habilitar escritura -->
+<div id="ovUnlock" class="overlay"><div class="sheet">
+  <h2>Habilitar escritura (STAGING)</h2>
+  <div class="box warn">Este interruptor es solo una ayuda de esta página. <b>No es una protección del servidor</b>: el servidor acepta cualquier llamada. Por eso la dirección está fija a STAGING y cada cambio pide tu confirmación.</div>
+  <label class="chk"><input type="checkbox" id="u1"> Verifiqué en el editor de Apps Script que el proyecto de STAGING usa la planilla que termina en <b>…C0U2TI</b>.</label>
+  <label class="chk"><input type="checkbox" id="u2"> La planilla abierta en mi navegador es «Base de Datos_Staging».</label>
+  <div class="mut" style="margin:6px 0">Escribí los últimos caracteres del ID de la planilla de STAGING (<b>0U2TI</b>):</div>
+  <input id="u3" type="text" autocomplete="off" placeholder="0U2TI">
+  <div class="actions">
+    <button id="uCancel">Cancelar</button>
+    <button id="uGo" class="pri" disabled>Habilitar</button>
+  </div>
+</div></div>
+
+<script>
+'use strict';
+/* ====== Configuración FIJA: solo COPIHUE STAGING ====== */
+const API_URL = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
+const API_TAIL = 'ypB9pg';
+const PROD_TAILS = ['brrHA', 'vP4lA', 'xhKFk2WA'];
+const SHEET_TAIL = '0U2TI';          // últimos caracteres del ID de la planilla de STAGING (lo confirma la persona)
+const TIMEOUT_MS = 60000;
+const URL_OK = API_URL.endsWith(API_TAIL + '/exec') && !PROD_TAILS.some(t => API_URL.includes(t));
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => '$' + (Number(n) || 0).toLocaleString('es-AR');
+
+const S = { fiados: [], res: {}, write: false, busy: false, loadedAt: null };
+const LOG = [];
+function log(line){
+  const t = new Date().toLocaleTimeString('es-AR');
+  LOG.push(t + ' ' + line); if (LOG.length > 300) LOG.shift();
+  $('log').textContent = LOG.join('\n');
+}
+
+/* ====== Llamada al backend (GET). Sin reintentos automáticos. ====== */
+async function api(action, data, opts){
+  if (!URL_OK) throw new Error('URL de backend no válida: la página está bloqueada.');
+  let url = API_URL + '?action=' + encodeURIComponent(action);
+  if (data !== undefined && data !== null) url += '&data=' + encodeURIComponent(JSON.stringify(data));
+  url += '&_=' + Date.now();
+  const t0 = performance.now();
+  const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+  let resp, txt;
+  try{
+    resp = await fetch(url, { redirect: 'follow', signal: ctl.signal });
+    txt = await resp.text();
+  }catch(e){
+    const ms = Math.round(performance.now() - t0);
+    const kind = e.name === 'AbortError' ? 'TIMEOUT' : 'RED';
+    log(`✗ ${action} ${kind} ${ms}ms`);
+    const err = new Error(kind === 'TIMEOUT' ? 'El servidor no respondió en ' + (TIMEOUT_MS/1000) + ' s' : 'Sin conexión con el servidor');
+    err.kind = kind; err.ms = ms; throw err;
+  }finally{ clearTimeout(to); }
+  const ms = Math.round(performance.now() - t0);
+  if (!resp.ok){ log(`✗ ${action} HTTP ${resp.status} ${ms}ms`); const e = new Error('Error HTTP ' + resp.status); e.kind='HTTP'; e.ms=ms; throw e; }
+  if (!txt || !txt.trim()){ log(`✗ ${action} respuesta VACÍA ${ms}ms`); const e = new Error('Respuesta vacía'); e.kind='VACIA'; e.ms=ms; throw e; }
+  let json;
+  try{ json = JSON.parse(txt); }
+  catch(_){ log(`✗ ${action} JSON inválido ${ms}ms · ${txt.slice(0,120).replace(/\s+/g,' ')}`); const e = new Error('Respuesta no válida del servidor'); e.kind='JSON'; e.ms=ms; throw e; }
+  log(`✓ ${action} ${ms}ms`);
+  json.__ms = ms;
+  return json;
+}
+
+/* ====== Lectura de FIADOS ====== */
+async function cargar(){
+  if (S.busy) return; S.busy = true; $('btnLoad').disabled = true;
+  $('status').textContent = 'Leyendo FIADOS…';
+  try{
+    const r = await api('listarFiados');
+    if (!r || r.ok !== true || !Array.isArray(r.fiados)) throw new Error((r && r.error) || 'Respuesta inesperada de listarFiados');
+    S.fiados = r.fiados; S.loadedAt = new Date();
+    $('status').textContent = `${S.fiados.length} FIADOS leídos a las ${S.loadedAt.toLocaleTimeString('es-AR')} (${r.__ms} ms).`;
+  }catch(e){
+    $('status').innerHTML = '<span style="color:var(--bad)">No se pudo leer: ' + esc(e.message) + '. No se cambió nada. Podés volver a tocar «Leer FIADOS».</span>';
+  }finally{ S.busy = false; $('btnLoad').disabled = false; pintar(); }
+}
+
+function sinTicket(f){ return !String(f.ticket || '').trim(); }
+function norm(s){ return String(s||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim(); }
+
+function pintar(){
+  const q = norm($('q').value), solo = $('soloSin').checked;
+  const items = S.fiados.filter(f => (!solo || sinTicket(f)) && (!q || norm(f.cliente).includes(q) || norm(f.idFiado).includes(q)));
+  if (!S.loadedAt){ $('list').innerHTML = '<div class="empty">Tocá «Leer FIADOS» para empezar.</div>'; return; }
+  if (!items.length){ $('list').innerHTML = '<div class="empty">' + (solo ? 'No hay FIADOS sin ticket con ese filtro. 🎉' : 'Sin resultados.') + '</div>'; return; }
+  $('list').innerHTML = items.map(f => tarjeta(f)).join('');
+}
+
+function tarjeta(f){
+  const k = f.idFiado, r = S.res[k];
+  const sin = sinTicket(f);
+  let h = `<div class="card" data-k="${esc(k)}">
+    <div class="row"><h3>${esc(f.cliente || '(sin nombre)')}</h3><span class="tot">${money(f.totalOriginal || f.total)}</span></div>
+    <div class="mut">${esc(f.fecha)} · fila ${esc(f.fila)} · ${esc(f.estado || '')}</div>
+    <div class="mut" style="margin-top:2px">${esc((f.descripcion||'').slice(0,110))}</div>
+    <div class="mono" style="margin-top:2px">${esc(k)}</div>
+    <div style="margin-top:6px">${sin ? '<span class="badge b-warn">SIN TICKET</span>' : '<span class="badge b-ok">Ticket ' + esc(f.ticket) + '</span>'}</div>`;
+  if (sin){
+    h += `<div class="actions"><button data-act="buscar" data-k="${esc(k)}">🔎 Buscar ticket en el servidor</button></div>`;
+    if (r) h += veredicto(f, r);
+    h += `<div class="manual"><input type="number" inputmode="numeric" min="1" placeholder="N° ticket" data-man="${esc(k)}" value="${esc((r && r.manualTxt) || '')}"><button data-act="manual" data-k="${esc(k)}">Verificar ticket tipeado</button></div>`;
+    if (r && r.manual) h += veredictoManual(f, r.manual);
+  }
+  return h + '</div>';
+}
+
+/* ====== Búsqueda del ticket (solo lectura) ====== */
+function idVentaDe(idFiado){ return idFiado + '_v'; }
+
+async function buscar(k){
+  const f = S.fiados.find(x => x.idFiado === k); if (!f) return;
+  S.res[k] = Object.assign(S.res[k] || {}, { cargando: true }); pintar();
+  try{
+    const c = await api('consultarEstadoOperacion', { idVenta: idVentaDe(k), idFiado: k });
+    let det = null, detErr = null;
+    const tk = c && c.venta && c.venta.ticket;
+    if (c && c.venta && c.venta.estado === 'REGISTRADA' && tk){
+      try{ det = await api('getDetalleTicket', { ticket: String(tk) }); }catch(e){ detErr = e.message; }
+    }
+    S.res[k] = Object.assign(S.res[k] || {}, { cargando: false, c, det, detErr, ev: evaluar(f, c, det) });
+  }catch(e){
+    S.res[k] = Object.assign(S.res[k] || {}, { cargando: false, c: null, error: e.message, ev: null });
+  }
+  pintar();
+}
+
+/* Reglas para proponer un ticket. Todo viene del servidor; nada se inventa. */
+function evaluar(f, c, det){
+  const bloqueos = [], avisos = [], oks = [];
+  if (!c || c.success !== true || c.lecturaCompleta !== true) return { ticket: null, bloqueos: ['El servidor no pudo completar la lectura (' + esc((c && (c.mensaje||c.estado)) || 'sin detalle') + ').'], avisos, oks };
+  const v = c.venta, fi = c.fiado;
+  if (!v) return { ticket: null, bloqueos: ['La respuesta no trae datos de la venta.'], avisos, oks };
+  if (v.estado !== 'REGISTRADA'){
+    const m = { EN_PROCESO:'La venta figura EN PROCESO: probá de nuevo en unos minutos.', INCOMPLETA:'La planilla tiene rastro incompleto de esta venta.', INCIERTA:'El servidor no tiene datos concluyentes de esta venta (' + esc(v.motivo||'') + '). Puede ser un fiado viejo o de otro tipo de operación.' };
+    return { ticket: null, bloqueos: [m[v.estado] || ('Estado de la venta: ' + esc(v.estado))], avisos, oks };
+  }
+  const tk = String(v.ticket || '').trim();
+  if (!/^\d{1,7}$/.test(tk)) bloqueos.push('El ticket que devuelve el servidor no es numérico ("' + esc(tk) + '").');
+  if (v.ventas && v.ventas.filasTotal !== 1) bloqueos.push('El ticket tiene ' + esc(v.ventas.filasTotal) + ' filas TOTAL en Ventas.');
+  if (v.idVentaEnMapaConMismoTicket > 1) bloqueos.push('Otro idVenta usa el mismo ticket.');
+  if (!fi || fi.estado !== 'EXISTE_SIN_TICKET') bloqueos.push('El FIADO ya no figura «sin ticket» en el servidor (estado: ' + esc(fi && fi.estado) + ').');
+  if (c.coherencia && c.coherencia.estado !== 'VENTA_REGISTRADA_CON_TICKET_Y_FIADO_SIN_TICKET') bloqueos.push('Coherencia venta/fiado: ' + esc(c.coherencia.estado) + '.');
+  const imp = v.ventas && v.ventas.importeTotal, tf = Number(f.totalOriginal);
+  if (imp == null) avisos.push('El servidor no informó el importe del ticket.');
+  else if (Math.abs(imp - tf) > 1) bloqueos.push('El importe del ticket (' + money(imp) + ') no coincide con el del fiado (' + money(tf) + ').');
+  else oks.push('Importe coincide: ' + money(imp) + '.');
+  if (S.fiados.some(x => x.idFiado !== f.idFiado && String(x.ticket||'').trim() === tk)) bloqueos.push('Ese ticket ya está asignado a otro FIADO.');
+  if (det){
+    if (det.ok !== true) avisos.push('No se pudo leer el detalle del ticket: ' + esc(det.error || ''));
+    else{
+      if (!/FIADO/i.test(det.metodoPago || '')) bloqueos.push('El ticket ' + esc(det.ticket) + ' no figura como método FIADO (figura «' + esc(det.metodoPago) + '»).');
+      else oks.push('El ticket figura como FIADO.');
+      if (Math.abs((Number(det.total)||0) - tf) > 1) bloqueos.push('El total del detalle (' + money(det.total) + ') no coincide con el fiado (' + money(tf) + ').');
+      if (det.cliente && norm(det.cliente).indexOf(norm(f.cliente)) === -1 && norm(f.cliente).indexOf(norm(det.cliente)) === -1) avisos.push('El cliente del ticket («' + esc(det.cliente) + '») no es idéntico al del fiado («' + esc(f.cliente) + '»). Revisalo.');
+      else if (det.cliente) oks.push('Cliente coincide.');
+    }
+  }
+  oks.push('Ventas confirma el ticket ' + esc(tk) + ' ligado a este idVenta.');
+  return { ticket: tk, bloqueos, avisos, oks, det };
+}
+
+function veredicto(f, r){
+  if (r.cargando) return '<div class="box info">Consultando al servidor… (puede tardar)</div>';
+  if (r.error) return `<div class="box bad">No se pudo consultar: ${esc(r.error)}. No se cambió nada. <button data-act="buscar" data-k="${esc(f.idFiado)}">Reintentar consulta</button></div>`;
+  if (!r.ev) return '';
+  const ev = r.ev; let h = '';
+  if (ev.bloqueos.length) h += `<div class="box bad"><b>No se propone ticket.</b><ul>${ev.bloqueos.map(x => '<li>' + x + '</li>').join('')}</ul></div>`;
+  if (ev.avisos.length) h += `<div class="box warn"><ul>${ev.avisos.map(x => '<li>' + x + '</li>').join('')}</ul></div>`;
+  if (!ev.bloqueos.length && ev.ticket){
+    h += `<div class="box ok"><b>Ticket encontrado: ${esc(ev.ticket)}</b><ul>${ev.oks.map(x => '<li>' + x + '</li>').join('')}</ul>
+      <div class="mut" style="margin-top:4px">Coincidir en estos datos no demuestra que el contenido sea idéntico: revisá el detalle.</div></div>`;
+    if (ev.det && ev.det.ok){
+      h += `<div class="mut">Detalle: ${esc(ev.det.fecha)} ${esc(ev.det.hora)} · ${esc(ev.det.metodoPago)} · ${esc(ev.det.items.map(i => i.cantidad + '× ' + i.nombre).join(' · ').slice(0,160))}</div>`;
+    }
+    h += `<div class="actions"><button class="ok" data-act="completar" data-k="${esc(f.idFiado)}" data-t="${esc(ev.ticket)}" data-src="servidor" ${S.write ? '' : 'disabled'}>✔ Completar con ticket ${esc(ev.ticket)}</button>${S.write ? '' : '<span class="mut">Habilitá la escritura para completar.</span>'}</div>`;
+  }
+  return h;
+}
+
+/* ====== Ticket tipeado a mano (verificado con getDetalleTicket) ====== */
+async function manual(k){
+  const f = S.fiados.find(x => x.idFiado === k); if (!f) return;
+  const inp = document.querySelector('input[data-man="' + CSS.escape(k) + '"]');
+  const txt = (inp && inp.value || '').trim();
+  S.res[k] = Object.assign(S.res[k] || {}, { manualTxt: txt });
+  if (!/^\d{1,7}$/.test(txt)){ S.res[k].manual = { error: 'Escribí un número de ticket (solo dígitos).' }; pintar(); return; }
+  S.res[k].manual = { cargando: true }; pintar();
+  try{
+    const det = await api('getDetalleTicket', { ticket: txt });
+    const bloqueos = [], avisos = [], oks = [], tf = Number(f.totalOriginal);
+    if (det.ok !== true) bloqueos.push('El servidor no encontró el ticket ' + esc(txt) + ' (' + esc(det.error||'') + ').');
+    else{
+      if (!/FIADO/i.test(det.metodoPago || '')) bloqueos.push('Ese ticket no figura como FIADO (figura «' + esc(det.metodoPago) + '»).'); else oks.push('Figura como FIADO.');
+      if (Math.abs((Number(det.total)||0) - tf) > 1) bloqueos.push('Total del ticket ' + money(det.total) + ' ≠ total del fiado ' + money(tf) + '.'); else oks.push('Total coincide: ' + money(det.total) + '.');
+      if (det.cliente && norm(det.cliente).indexOf(norm(f.cliente)) === -1 && norm(f.cliente).indexOf(norm(det.cliente)) === -1) avisos.push('El cliente del ticket («' + esc(det.cliente) + '») no es idéntico al del fiado.'); else if (det.cliente) oks.push('Cliente coincide.');
+    }
+    if (S.fiados.some(x => x.idFiado !== k && String(x.ticket||'').trim().replace(/^0+/,'') === txt.replace(/^0+/,''))) bloqueos.push('Ese ticket ya está asignado a otro FIADO.');
+    S.res[k].manual = { det, bloqueos, avisos, oks, ticket: det.ok ? String(det.ticket||txt) : null };
+  }catch(e){ S.res[k].manual = { error: 'No se pudo consultar: ' + e.message }; }
+  pintar();
+}
+function veredictoManual(f, m){
+  if (m.cargando) return '<div class="box info">Verificando ticket en Ventas…</div>';
+  if (m.error) return '<div class="box bad">' + esc(m.error) + '</div>';
+  let h = '';
+  if (m.bloqueos.length) h += `<div class="box bad"><b>No se puede usar ese ticket.</b><ul>${m.bloqueos.map(x => '<li>' + x + '</li>').join('')}</ul></div>`;
+  if (m.avisos.length) h += `<div class="box warn"><ul>${m.avisos.map(x => '<li>' + x + '</li>').join('')}</ul></div>`;
+  if (!m.bloqueos.length){
+    const d = m.det;
+    h += `<div class="box ok"><b>Ticket ${esc(m.ticket)} verificado en Ventas</b><ul>${m.oks.map(x => '<li>' + x + '</li>').join('')}</ul></div>
+      <div class="mut">${esc(d.fecha)} ${esc(d.hora)} · ${esc(d.metodoPago)} · ${esc(d.cliente||'')} · ${esc(d.items.map(i => i.cantidad + '× ' + i.nombre).join(' · ').slice(0,160))}</div>
+      <div class="actions"><button class="ok" data-act="completar" data-k="${esc(f.idFiado)}" data-t="${esc(m.ticket)}" data-src="manual" ${S.write ? '' : 'disabled'}>✔ Completar con ticket ${esc(m.ticket)} (tipeado)</button>${S.write ? '' : '<span class="mut">Habilitá la escritura para completar.</span>'}</div>`;
+  }
+  return h;
+}
+
+/* ====== Escritura: confirmar → releer → escribir → releer ====== */
+let PEND = null;
+function pedirConfirmacion(k, ticket, src){
+  const f = S.fiados.find(x => x.idFiado === k); if (!f) return;
+  if (!S.write) return;
+  PEND = { k, ticket, src };
+  $('wKv').innerHTML = `<dt>Cliente</dt><dd>${esc(f.cliente)}</dd><dt>Total</dt><dd>${money(f.totalOriginal)}</dd><dt>idFiado</dt><dd class="mono">${esc(k)}</dd><dt>Fila FIADOS</dt><dd>${esc(f.fila)}</dd><dt>Ticket a escribir</dt><dd style="font-size:1.2rem">${esc(ticket)}</dd><dt>Origen</dt><dd>${src === 'servidor' ? 'Encontrado y verificado por el servidor' : 'Tipeado por vos, verificado en Ventas'}</dd>`;
+  $('wWarn').innerHTML = '';
+  $('wGo').disabled = false; $('wGo').textContent = 'Escribir ticket';
+  $('ovWrite').classList.add('open');
+}
+
+async function ejecutarEscritura(){
+  if (!PEND || S.busy) return;
+  const { k, ticket, src } = PEND; S.busy = true;
+  const go = $('wGo'); go.disabled = true; go.textContent = 'Comprobando…';
+  const f0 = S.fiados.find(x => x.idFiado === k);
+  const fin = (html, ok) => {
+    $('ovWrite').classList.remove('open'); PEND = null; S.busy = false;
+    $('status').innerHTML = `<div class="box ${ok ? 'ok' : 'bad'}">${html}</div>`;
+  };
+  try{
+    // 1) Releer justo antes de escribir
+    const pre = await api('listarFiados');
+    if (!pre || pre.ok !== true) throw Object.assign(new Error('No se pudo releer FIADOS antes de escribir'), { antes: true });
+    const filas = pre.fiados.filter(x => x.idFiado === k);
+    if (filas.length !== 1){ S.fiados = pre.fiados; pintar(); return fin('No se escribió nada: el idFiado figura ' + filas.length + ' veces en FIADOS.', false); }
+    if (String(filas[0].ticket || '').trim()){ S.fiados = pre.fiados; pintar(); return fin('No se escribió nada: ese FIADO ya tiene ticket (' + esc(filas[0].ticket) + ').', false); }
+    if (pre.fiados.some(x => x.idFiado !== k && String(x.ticket||'').trim().replace(/^0+/,'') === String(ticket).replace(/^0+/,''))){ S.fiados = pre.fiados; pintar(); return fin('No se escribió nada: ese ticket ya pertenece a otro FIADO.', false); }
+    if (Math.abs(Number(filas[0].totalOriginal) - Number(f0.totalOriginal)) > 0.5) { S.fiados = pre.fiados; pintar(); return fin('No se escribió nada: el monto del FIADO cambió desde que lo viste.', false); }
+
+    // 2) Escribir (una sola vez)
+    go.textContent = 'Escribiendo…';
+    log(`→ escribir ticket ${ticket} en ${k} (origen ${src})`);
+    let w;
+    try{ w = await api('actualizarTicketFiado', { idFiado: k, ticket: String(ticket) }); }
+    catch(e){
+      // Resultado incierto: puede haberse escrito. Se relee, sin reintentar.
+      log('? escritura con resultado incierto: ' + e.message);
+      const chk = await api('listarFiados').catch(() => null);
+      if (chk && chk.ok){ S.fiados = chk.fiados; const fx = chk.fiados.find(x => x.idFiado === k);
+        if (fx && String(fx.ticket||'').trim() === String(ticket)){ pintar(); return fin('La respuesta se perdió, pero <b>el ticket ' + esc(ticket) + ' quedó escrito</b> (comprobado leyendo la planilla).', true); }
+        pintar(); return fin('La respuesta se perdió y el ticket <b>no figura escrito</b> al releer. No se reintentó sola. Podés volver a intentarlo si querés.', false); }
+      return fin('Resultado <b>incierto</b>: no se pudo confirmar. No se reintentó. Tocá «Leer FIADOS» para ver el estado real antes de hacer otra cosa.', false);
+    }
+    if (!w || w.success !== true) return fin('El servidor respondió que no pudo: ' + esc((w && w.mensaje) || 'sin detalle') + '. No se cambió nada.', false);
+
+    // 3) Releer y comprobar (el servidor responde «ok» aunque no escriba)
+    go.textContent = 'Verificando…';
+    const post = await api('listarFiados').catch(() => null);
+    if (!post || post.ok !== true){ return fin('El servidor dijo «ok», pero no pude releer la planilla para comprobarlo. Tocá «Leer FIADOS» y verificalo.', false); }
+    S.fiados = post.fiados;
+    const fx = post.fiados.find(x => x.idFiado === k);
+    delete S.res[k]; pintar();
+    if (fx && String(fx.ticket||'').trim() === String(ticket)) return fin(`✔ Listo: el FIADO de <b>${esc(fx.cliente)}</b> ahora tiene el <b>ticket ${esc(ticket)}</b> (comprobado en la planilla).`, true);
+    return fin('El servidor dijo «ok» pero al releer el ticket <b>no quedó escrito</b> (figura «' + esc(fx ? fx.ticket : '—') + '»). Revisá la planilla.', false);
+  }catch(e){
+    return fin('No se escribió nada: ' + esc(e.message) + '.', false);
+  }
+}
+
+/* ====== Habilitar / bloquear escritura ====== */
+function setWrite(on){
+  S.write = !!on && URL_OK;
+  $('modePill').textContent = S.write ? 'ESCRITURA HABILITADA (STAGING)' : 'SOLO LECTURA';
+  $('modePill').className = 'pill ' + (S.write ? 'rw' : 'ro');
+  $('btnUnlock').style.display = S.write ? 'none' : '';
+  $('btnLock').style.display = S.write ? '' : 'none';
+  pintar();
+}
+function chkUnlock(){ $('uGo').disabled = !($('u1').checked && $('u2').checked && $('u3').value.trim().toUpperCase().endsWith(SHEET_TAIL) && $('u3').value.trim().length >= 5); }
+
+/* ====== Eventos ====== */
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('button[data-act]'); if (!b) return;
+  const k = b.dataset.k;
+  if (b.dataset.act === 'buscar') buscar(k);
+  else if (b.dataset.act === 'manual') manual(k);
+  else if (b.dataset.act === 'completar') pedirConfirmacion(k, b.dataset.t, b.dataset.src);
+});
+$('btnLoad').onclick = cargar;
+$('q').oninput = pintar; $('soloSin').onchange = pintar;
+$('btnUnlock').onclick = () => { $('u1').checked = $('u2').checked = false; $('u3').value = ''; chkUnlock(); $('ovUnlock').classList.add('open'); };
+$('btnLock').onclick = () => setWrite(false);
+$('uCancel').onclick = () => $('ovUnlock').classList.remove('open');
+['u1','u2','u3'].forEach(i => $(i).addEventListener('input', chkUnlock));
+$('uGo').onclick = () => { $('ovUnlock').classList.remove('open'); setWrite(true); };
+$('wCancel').onclick = () => { if (!S.busy){ $('ovWrite').classList.remove('open'); PEND = null; } };
+$('wGo').onclick = ejecutarEscritura;
+$('btnCopyLog').onclick = () => { try{ navigator.clipboard.writeText(LOG.join('\n')); $('btnCopyLog').textContent = 'Copiado ✓'; setTimeout(() => $('btnCopyLog').textContent = 'Copiar registro', 1500); }catch(_){} };
+
+/* ====== Arranque ====== */
+$('urlTail').textContent = '…' + API_TAIL;
+if (!URL_OK){
+  $('status').innerHTML = '<div class="box bad">La dirección del backend no es la de STAGING. La página queda bloqueada.</div>';
+  $('btnLoad').disabled = true; $('btnUnlock').disabled = true;
+}
+setWrite(false);   // siempre arranca en SOLO LECTURA
+pintar();
+</script>
+</body>
+</html>
