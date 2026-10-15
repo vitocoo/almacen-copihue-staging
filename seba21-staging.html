@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v513</title>
+    <title>🛒 POS · Copihue v514</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -7826,13 +7826,28 @@ async function _autoVerificarVenta(cls, entrada) {
         const datos = { idVenta: cls.idVenta };
         if (cls.idFiado) datos.idFiado = cls.idFiado;
         const url = API_URL + '?action=consultarEstadoOperacion&data=' + encodeURIComponent(JSON.stringify(datos));
-        const resp = await _apiFetchUrl('consultarEstadoOperacion', url);
-        const val = _pgpValidarRespuesta(resp, cls.idVenta, cls.idFiado || '');
+        let resp = await _apiFetchUrl('consultarEstadoOperacion', url);
+        let val = _pgpValidarRespuesta(resp, cls.idVenta, cls.idFiado || '');
         if (!val.ok) return false;
         if (resp.venta.estado !== 'REGISTRADA') return false;
         const ev = _pgpEvaluarVenta(_pgpCalcLocal(entrada.items), resp.venta);
         if (ev.nivel !== 'ok') return false;
         if (cls.idFiado) {   // v512: FIADO SOLO — también el FIADO con ticket y el MISMO ticket que la venta
+            // v514 — ETAPA 2: venta REGISTRADA y verificada (ev ok) + FIADO existente SIN ticket →
+            // se completa la columna C con el ticket de ESA venta (actualizarTicketFiado solo escribe
+            // si C está vacía) y se vuelve a consultar: solo cuenta como resuelto si ahora coincide (OK).
+            if (resp.fiado && resp.fiado.estado === 'EXISTE_SIN_TICKET' &&
+                resp.coherencia && resp.coherencia.estado === 'VENTA_REGISTRADA_CON_TICKET_Y_FIADO_SIN_TICKET' &&
+                String(resp.coherencia.ticketVenta) === String(resp.venta.ticket) &&
+                String(resp.venta.ticket || '').trim() !== '') {
+                const urlTF = API_URL + '?action=actualizarTicketFiado&data=' +
+                    encodeURIComponent(JSON.stringify({ idFiado: cls.idFiado, ticket: String(resp.venta.ticket) }));
+                const rTF = await _apiFetchUrl('actualizarTicketFiado', urlTF);
+                if (!rTF || rTF.success !== true) return false;
+                resp = await _apiFetchUrl('consultarEstadoOperacion', url);
+                val = _pgpValidarRespuesta(resp, cls.idVenta, cls.idFiado);
+                if (!val.ok || resp.venta.estado !== 'REGISTRADA') return false;
+            }
             if (_pgpEvaluarFiado(resp.fiado).nivel !== 'ok') return false;
             if (!resp.coherencia || resp.coherencia.estado !== 'OK') return false;
         }
