@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v517</title>
+    <title>🛒 POS · Copihue v518</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6773,12 +6773,7 @@ async function confirmarVentaMixta() {
         };
 
         let stockOk = false, ticketNum = null;
-        const ventaData = itemsSnapshot.map(i => ({
-            id: i.esPeso ? i.idOriginal : i.id, name: i.name, qty: i.qty,
-            esPeso: i.esPeso || false, gramos: i.gramos || 0,
-            precioVenta: i.price, precioModificado: i.precioModificado || false,
-            precioOriginal: i.precioOriginal || 0, precioCosto: i.precioCosto || 0
-        }));
+        const ventaData = _itemsParaServidor(itemsSnapshot);
         const ventaPayload = {
             items: ventaData, metodoPago: metodoPagoTexto, vendedor: vendedorActual, idVenta, detallePagos,
             clienteFiado: pagoFiado ? pagoFiado.cliente : '',
@@ -6924,17 +6919,7 @@ async function confirmarVenta() {
     // reconciliar el aviso "stock pendiente" cuando el reintento sí funciona.
     let idVenta = null;
     try {
-        const ventaData = ventaActual.map(i => ({
-            id: i.esPeso ? i.idOriginal : i.id,
-            name: i.name,
-            qty: i.qty,
-            esPeso: i.esPeso || false,
-            gramos: i.gramos || 0,
-            precioVenta: i.price,
-            precioModificado: i.precioModificado || false,
-            precioOriginal: i.precioOriginal || 0,
-            precioCosto: i.precioCosto || 0
-        }));
+        const ventaData = _itemsParaServidor(ventaActual);
         // Agregar método de pago al request
         metodoPagoFinal = metodoPagoActual.toUpperCase();
         idVenta = 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
@@ -6956,16 +6941,7 @@ async function confirmarVenta() {
     // Si falló el stock — guardar para reintento automático en segundo plano
     if (!stockOk) {
         const ventaPendiente = {
-            items: ventaActual.map(i => ({
-                id: i.esPeso ? i.idOriginal : i.id,
-                name: i.name,
-                qty: i.qty,
-                esPeso: i.esPeso || false,
-                gramos: i.gramos || 0,
-                precioVenta: i.price,
-                precioModificado: i.precioModificado || false,
-                precioOriginal: i.precioOriginal || 0
-            })),
+            items: _itemsParaServidor(ventaActual),
             metodoPago: metodoPagoFinal || metodoPagoActual,
             vendedor: vendedorActual,
             idVenta,
@@ -16084,6 +16060,64 @@ async function _confirmarFiadoSinTel() {
     }
 }
 
+// v518 — MULTICOMPRA GRUPAL EN VENTAS: lo que se cobra (y sale en el comprobante) ya descuenta el
+// ahorro grupal (_totalCarritoConDescuentosGrupales), pero los ítems que se mandaban a `vender`
+// llevaban el precio normal, así que la hoja Ventas registraba $X de más (ej. ticket 3338: $28.200 vs
+// $27.200 cobrados). Acá se reparte el ahorro del grupo ENTRE SUS UNIDADES (el servidor hace parseInt del
+// precio: tiene que ser entero) y se manda como precio especial (precioModificado + precioOriginal →
+// el servidor escribe «[PRECIO ESP: $5000→$4500]»). Suma exacta: Σ(items) = total con descuento.
+// Seguridad: si algo del grupo no es el caso simple (producto por peso, precio ya modificado, precio
+// distinto al de lista, cantidades/precios no enteros, o la suma no cierra) NO se toca ese grupo y
+// queda igual que antes. Solo lee; no cambia el carrito ni lo que se muestra o cobra.
+function _itemsParaServidor(lista) {
+    const fila = (i, qty, precioVenta, modif, orig) => ({
+        id: i.esPeso ? i.idOriginal : i.id, name: i.name, qty: qty,
+        esPeso: i.esPeso || false, gramos: i.gramos || 0,
+        precioVenta: precioVenta, precioModificado: modif, precioOriginal: orig,
+        precioCosto: i.precioCosto || 0
+    });
+    const normal = i => fila(i, i.qty, i.price, i.precioModificado || false, i.precioOriginal || 0);
+    const reemplazos = new Map();
+    try {
+        _resumenGruposMulticompra(lista).forEach(g => {
+            const lineas = lista.filter(i => { const mc = _poolMulticompra.get(i.id); return mc && mc.grupo === g.grupo; });
+            if (!lineas.length) return;
+            const ok = lineas.every(i => {
+                const prod = (typeof productos !== 'undefined') ? productos.find(p => p.id === i.id) : null;
+                return !i.esPeso && !i.precioModificado && Number.isInteger(i.qty) && i.qty > 0 &&
+                       Number.isInteger(i.price) && i.price > 0 && prod && prod.price === i.price;
+            });
+            if (!ok) return;
+            const N = lineas.reduce((s, i) => s + i.qty, 0);
+            const A = g.ahorro;
+            if (!(A > 0 && N > 0)) return;
+            const baseRed = Math.floor(A / N);
+            let resto = A - baseRed * N;
+            const tmp = new Map();
+            let sumaNueva = 0, sumaVieja = 0, valido = true;
+            lineas.forEach(i => {
+                const conMas = Math.min(resto, i.qty); resto -= conMas;
+                const sinMas = i.qty - conMas;
+                const rows = [];
+                if (sinMas > 0) rows.push({ qty: sinMas, red: baseRed });
+                if (conMas > 0) rows.push({ qty: conMas, red: baseRed + 1 });
+                rows.forEach(r => { if (i.price - r.red <= 0) valido = false; sumaNueva += (i.price - r.red) * r.qty; });
+                sumaVieja += i.price * i.qty;
+                tmp.set(i, rows);
+            });
+            if (!valido || resto !== 0 || sumaNueva !== sumaVieja - A) return;
+            tmp.forEach((rows, i) => reemplazos.set(i, rows));
+        });
+    } catch (e) { console.warn('⚠️ _itemsParaServidor: se usa el precio normal', e); return lista.map(normal); }
+    const out = [];
+    lista.forEach(i => {
+        const rows = reemplazos.get(i);
+        if (!rows) { out.push(normal(i)); return; }
+        rows.forEach(r => out.push(r.red > 0 ? fila(i, r.qty, i.price - r.red, true, i.price) : fila(i, r.qty, i.price, false, 0)));
+    });
+    return out;
+}
+
 // v517 — RASTRO DEL TICKET DEL FIADO: solo informativo, local a este navegador (no va a la planilla ni cambia ninguna decisión).
 const _FIADO_ORIGEN_KEY = 'fiado_ticket_origen_v1';
 function _fiadoOrigenAnotar(idFiado, cliente, ticket, origen) {
@@ -16127,13 +16161,7 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
     const idVentaFiado = datosFiado.idFiado + '_v';
 
     try {
-        const ventaData = itemsSnapshot.map(i => ({
-            id: i.esPeso ? i.idOriginal : i.id,
-            name: i.name, qty: i.qty,
-            esPeso: i.esPeso || false, gramos: i.gramos || 0,
-            precioVenta: i.price, precioModificado: i.precioModificado || false,
-            precioOriginal: i.precioOriginal || 0, precioCosto: i.precioCosto || 0
-        }));
+        const ventaData = _itemsParaServidor(itemsSnapshot);
         const ventaPayload = {
             items: ventaData, metodoPago: 'FIADO', vendedor: vendedorActual,
             clienteFiado: datosFiado.cliente || '',
@@ -16149,13 +16177,7 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
         console.warn('⚠️ Error venta fiado (se reintentará):', e);
         // Encolar reintento con mismo idVenta para no duplicar
         try {
-            const ventaDataRetry = itemsSnapshot.map(i => ({
-                id: i.esPeso ? i.idOriginal : i.id,
-                name: i.name, qty: i.qty,
-                esPeso: i.esPeso || false, gramos: i.gramos || 0,
-                precioVenta: i.price, precioModificado: i.precioModificado || false,
-                precioOriginal: i.precioOriginal || 0
-            }));
+            const ventaDataRetry = _itemsParaServidor(itemsSnapshot);
             const pendientes = JSON.parse(localStorage.getItem('ventas_pendientes') || '[]');
             pendientes.push({
                 items: ventaDataRetry, metodoPago: 'FIADO', vendedor: vendedorActual,
@@ -16177,13 +16199,7 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
     // (sigue desactivado desde el 19/09/2026).
     if (!stockOk && !_fiadoEncolado) {
         try {
-            const ventaDataQ = itemsSnapshot.map(i => ({
-                id: i.esPeso ? i.idOriginal : i.id,
-                name: i.name, qty: i.qty,
-                esPeso: i.esPeso || false, gramos: i.gramos || 0,
-                precioVenta: i.price, precioModificado: i.precioModificado || false,
-                precioOriginal: i.precioOriginal || 0
-            }));
+            const ventaDataQ = _itemsParaServidor(itemsSnapshot);
             const pendientesQ = JSON.parse(localStorage.getItem('ventas_pendientes') || '[]');
             if (!pendientesQ.some(x => x && x.idVenta === idVentaFiado)) {
                 pendientesQ.push({
@@ -16210,7 +16226,7 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
             const _btnT = document.getElementById('btnOkConfirm');
             if (_btnT) _btnT.textContent = '⏳ Buscando ticket...';
             const _espera = (typeof window._FIADO_ESPERA_TICKET_MS === 'number') ? window._FIADO_ESPERA_TICKET_MS : 4000;
-            const _locT = _pgpCalcLocal(itemsSnapshot.map(i => ({ qty: i.qty, esPeso: i.esPeso || false, precioVenta: i.price })));
+            const _locT = _pgpCalcLocal(_itemsParaServidor(itemsSnapshot));
             const _t0 = Date.now();
             for (let _n = 0; _n < 3 && !ticketNum; _n++) {
                 await new Promise(r => setTimeout(r, _espera));
