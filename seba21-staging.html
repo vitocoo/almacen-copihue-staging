@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v516</title>
+    <title>🛒 POS · Copihue v517</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -8195,6 +8195,7 @@ function _pgpDibujar() {
         h += '<div style="margin-top:6px;font-size:0.78rem;color:#444;">' + (s.total === null ? '<b>No se pudo calcular el total: falló una lectura.</b> ' : '') +
              'Desglose: <b>' + (s.nViejos === null ? '?' : s.nViejos) + '</b> pendientes antiguos · <b>' + (s.o.ok ? nNuevas : '?') + '</b> operaciones nuevas sin completar · <b>' + (s.o.ok ? nRevisar : '?') + '</b> registros a revisar.</div>';
     }
+    h += _fiadoOrigenHtml();
     const idsViejos = new Set();
     clasif.forEach(c => { if (c.idVenta) idsViejos.add(c.idVenta); if (c.idFiado) idsViejos.add(c.idFiado); });
     const hayOpsConsultables = s.sinCompletar.some(x => x.op);
@@ -16083,6 +16084,27 @@ async function _confirmarFiadoSinTel() {
     }
 }
 
+// v517 — RASTRO DEL TICKET DEL FIADO: solo informativo, local a este navegador (no va a la planilla ni cambia ninguna decisión).
+const _FIADO_ORIGEN_KEY = 'fiado_ticket_origen_v1';
+function _fiadoOrigenAnotar(idFiado, cliente, ticket, origen) {
+    try {
+        const arr = JSON.parse(localStorage.getItem(_FIADO_ORIGEN_KEY) || '[]');
+        arr.push({ idFiado: idFiado, cliente: cliente || '', ticket: ticket || '', origen: origen, ts: Date.now() });
+        localStorage.setItem(_FIADO_ORIGEN_KEY, JSON.stringify(arr.slice(-20)));
+    } catch (e) {}
+    try { console.info('🎫 Ticket fiado', idFiado, '→', ticket || '(sin ticket)', '· origen:', origen); } catch (e) {}
+}
+function _fiadoOrigenHtml() {
+    try {
+        const arr = JSON.parse(localStorage.getItem(_FIADO_ORIGEN_KEY) || '[]').slice(-3).reverse();
+        if (!arr.length) return '';
+        const esc = x => String(x).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+        return '<div style="margin-top:8px;padding:8px 10px;background:#fff8e1;border-radius:8px;font-size:0.76rem;color:#5d4037;">' +
+            '<b>Últimos fiados (de dónde salió el ticket del comprobante):</b>' +
+            arr.map(x => '<div>' + esc(new Date(x.ts).toLocaleString('es-AR')) + ' · ' + esc(x.cliente || x.idFiado) + ' · ticket <b>' + esc(x.ticket || '—') + '</b> · ' + esc(x.origen) + '</div>').join('') + '</div>';
+    } catch (e) { return ''; }
+}
+
 async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
     // itemsSnapshot viene desde confirmarFiado — capturado antes de cerrar modal
     const totalOriginal = _totalCarritoConDescuentosGrupales(itemsSnapshot);
@@ -16182,6 +16204,7 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
     // Se usa ese ticket SOLO si la planilla confirma ESA venta: mismo idVenta, una fila TOTAL y
     // filas/unidades/total iguales a lo cobrado (mismos validadores que el panel de pendientes).
     // Si no se confirma, todo sigue como antes (ticket vacío; v514 lo completa después).
+    let _ticketOrigen = ticketNum ? 'respuesta directa de vender' : 'sin ticket';
     if (!ticketNum && !_fiadoRespuestaFallida) {
         try {
             const _btnT = document.getElementById('btnOkConfirm');
@@ -16198,6 +16221,7 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
                     const _vT = _pgpValidarRespuesta(_rT, idVentaFiado, '');
                     if (_vT.ok && _rT.venta.estado === 'REGISTRADA' && _pgpEvaluarVenta(_locT, _rT.venta).nivel === 'ok') {
                         ticketNum = String(_rT.venta.ticket);
+                        _ticketOrigen = 'planilla Ventas (búsqueda v516)';
                         stockOk = true;   // la planilla confirmó la venta: ya está registrada y con stock descontado
                     }
                 } catch (_eT) { /* se reintenta; si no, sigue sin ticket como antes */ }
@@ -16206,6 +16230,7 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
     }
 
     datosFiado.ticket = ticketNum;
+    _fiadoOrigenAnotar(datosFiado.idFiado, datosFiado.cliente, ticketNum, _ticketOrigen);
 
     // 2. Guardar en hoja FIADOS (con o sin ticket — si no hay ticket se actualiza después)
     try {
