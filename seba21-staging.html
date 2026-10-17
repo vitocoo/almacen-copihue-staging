@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v514</title>
+    <title>🛒 POS · Copihue v516</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -7830,7 +7830,17 @@ async function _autoVerificarVenta(cls, entrada) {
         let val = _pgpValidarRespuesta(resp, cls.idVenta, cls.idFiado || '');
         if (!val.ok) return false;
         if (resp.venta.estado !== 'REGISTRADA') return false;
-        const ev = _pgpEvaluarVenta(_pgpCalcLocal(entrada.items), resp.venta);
+        const _loc = _pgpCalcLocal(entrada.items);
+        let ev = _pgpEvaluarVenta(_loc, resp.venta);
+        // v515 — SOLO FIADO: el aviso EN_MAPA_PERO_NO_EN_PROCESADAS (venta vieja que el servidor ya no
+        // recuerda) es el ÚNICO aviso tolerado, y solo si sin él la venta daría 'ok' (filas, unidades y
+        // total coinciden). Cualquier otro aviso o diferencia sigue bloqueando. Después, más abajo, el
+        // FIADO debe existir con el MISMO ticket que la venta (coherencia OK) o no se quita nada.
+        if (ev.nivel !== 'ok' && cls.idFiado && Array.isArray(resp.venta.advertencias) &&
+            resp.venta.advertencias.length > 0 &&
+            resp.venta.advertencias.every(a => typeof a === 'string' && a.indexOf('EN_MAPA_PERO_NO_EN_PROCESADAS') === 0)) {
+            ev = _pgpEvaluarVenta(_loc, Object.assign({}, resp.venta, { advertencias: [] }));
+        }
         if (ev.nivel !== 'ok') return false;
         if (cls.idFiado) {   // v512: FIADO SOLO — también el FIADO con ticket y el MISMO ticket que la venta
             // v514 — ETAPA 2: venta REGISTRADA y verificada (ev ok) + FIADO existente SIN ticket →
@@ -16164,6 +16174,35 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
             _actualizarBadgePendientes();
             _autoProgramar();
         } catch (eQ) { console.warn('⚠️ No se pudo encolar fiado (respuesta fallida):', eQ); }
+    }
+
+    // v516 — TICKET DEL COMPROBANTE: si `vender` NO devolvió ticket (timeout/red) y NO hubo un rechazo
+    // explícito del servidor («ocupado»), la venta suele estar registrada igual en Ventas. Se consulta
+    // (SOLO LECTURA, consultarEstadoOperacion por idVenta) hasta 3 veces, esperando entre intentos.
+    // Se usa ese ticket SOLO si la planilla confirma ESA venta: mismo idVenta, una fila TOTAL y
+    // filas/unidades/total iguales a lo cobrado (mismos validadores que el panel de pendientes).
+    // Si no se confirma, todo sigue como antes (ticket vacío; v514 lo completa después).
+    if (!ticketNum && !_fiadoRespuestaFallida) {
+        try {
+            const _btnT = document.getElementById('btnOkConfirm');
+            if (_btnT) _btnT.textContent = '⏳ Buscando ticket...';
+            const _espera = (typeof window._FIADO_ESPERA_TICKET_MS === 'number') ? window._FIADO_ESPERA_TICKET_MS : 4000;
+            const _locT = _pgpCalcLocal(itemsSnapshot.map(i => ({ qty: i.qty, esPeso: i.esPeso || false, precioVenta: i.price })));
+            const _t0 = Date.now();
+            for (let _n = 0; _n < 3 && !ticketNum; _n++) {
+                await new Promise(r => setTimeout(r, _espera));
+                if (Date.now() - _t0 > 40000) break;
+                try {
+                    const _urlT = API_URL + '?action=consultarEstadoOperacion&data=' + encodeURIComponent(JSON.stringify({ idVenta: idVentaFiado }));
+                    const _rT = await _apiFetchUrl('consultarEstadoOperacion', _urlT);
+                    const _vT = _pgpValidarRespuesta(_rT, idVentaFiado, '');
+                    if (_vT.ok && _rT.venta.estado === 'REGISTRADA' && _pgpEvaluarVenta(_locT, _rT.venta).nivel === 'ok') {
+                        ticketNum = String(_rT.venta.ticket);
+                        stockOk = true;   // la planilla confirmó la venta: ya está registrada y con stock descontado
+                    }
+                } catch (_eT) { /* se reintenta; si no, sigue sin ticket como antes */ }
+            }
+        } catch (_eB) { console.warn('⚠️ Búsqueda de ticket fiado:', _eB); }
     }
 
     datosFiado.ticket = ticketNum;
