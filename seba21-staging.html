@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v518</title>
+    <title>🛒 POS · Copihue v519</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -7955,6 +7955,12 @@ function _pgpHtmlTarjeta(i, entrada, cls, rel) {
         h += '<div style="font-size:0.82rem;color:#333;margin-top:4px;">Cliente: <b>' + _pgpEsc(d.cliente || '—') + '</b> · Saldo a FIADO: <b>' + _pgpMoneda(Number(d.total)) + '</b></div>';
         h += '<div style="font-size:0.78rem;color:#666;">Ticket guardado en el pendiente: ' + _pgpEsc(d.ticket === null || d.ticket === undefined || d.ticket === '' ? 'ninguno' : d.ticket) + '</div>';
         h += '<div style="font-size:0.72rem;color:#888;font-family:monospace;word-break:break-all;">idFiado: ' + _pgpEsc(cls.idFiado) + '</div>';
+        if (entrada.bloqueado) {
+            h += '<div style="margin-top:8px;padding:8px 10px;background:#ffebee;border:2px solid #c62828;border-radius:8px;font-size:0.8rem;font-weight:800;color:#b71c1c;">⛔ BLOQUEADO: ' + _pgpEsc(entrada.bloqueado) + '. Hay más de una fila con este idFiado en FIADOS. No se reintenta y no se borró nada. Mostrale esta pantalla a Víctor.</div>';
+        } else {
+            h += '<div style="margin-top:8px;"><button data-pgp-guardar-fiado="' + _pgpEsc(cls.idFiado) + '" style="padding:8px 12px;border-radius:8px;border:none;background:#2e7d32;color:white;font-weight:800;cursor:pointer;">💾 Guardar este fiado en FIADOS</button>' +
+                 '<div style="font-size:0.72rem;color:#555;margin-top:4px;">Solo registra el fiado faltante, y solo si la planilla confirma que NO existe. No vuelve a vender, no toca stock, no crea ticket.</div></div>';
+        }
     } else if (cls.tipo === 'DESCONOCIDO') {
         h += '<div style="margin-top:6px;color:#c62828;font-weight:700;">Requiere revisión: la entrada no tiene el formato esperado. No se consulta.</div>';
     } else {
@@ -8164,7 +8170,7 @@ function _pgpDibujar() {
          '<div style="font-weight:900;font-size:1.1rem;color:#222;">Pagos pendientes (' + (s.total === null ? '?' : s.total) + ')</div>' +
          '<button id="pgpCerrar" style="padding:8px 14px;border-radius:8px;border:none;background:#424242;color:white;font-weight:700;cursor:pointer;">Cerrar</button></div>';
     h += '<div style="margin-top:8px;padding:8px 10px;background:#e3f2fd;border-radius:8px;font-size:0.8rem;color:#0d47a1;">' +
-         '<b>Solo consulta.</b> Este panel no reenvía, no cancela ni repara nada; solo ofrece «Quitar de pendientes» cuando la planilla ya confirmó la operación. Los pendientes son del navegador donde se crearon: acá solo ves los de este dispositivo.</div>';
+         '<b>Solo consulta.</b> Este panel no reenvía ventas, no cancela ni repara nada; solo ofrece «Quitar de pendientes» cuando la planilla ya confirmó la operación. Única excepción: «Guardar este fiado en FIADOS» registra el fiado faltante (nunca la venta ni el stock). Los pendientes son del navegador donde se crearon: acá solo ves los de este dispositivo.</div>';
     {
         const nNuevas = s.sinCompletar.filter(x => x.op).length;
         const nRevisar = s.sinCompletar.filter(x => !x.op).length;
@@ -8172,6 +8178,7 @@ function _pgpDibujar() {
              'Desglose: <b>' + (s.nViejos === null ? '?' : s.nViejos) + '</b> pendientes antiguos · <b>' + (s.o.ok ? nNuevas : '?') + '</b> operaciones nuevas sin completar · <b>' + (s.o.ok ? nRevisar : '?') + '</b> registros a revisar.</div>';
     }
     h += _fiadoOrigenHtml();
+    h += _fiadoComprobantesHtml();
     const idsViejos = new Set();
     clasif.forEach(c => { if (c.idVenta) idsViejos.add(c.idVenta); if (c.idFiado) idsViejos.add(c.idFiado); });
     const hayOpsConsultables = s.sinCompletar.some(x => x.op);
@@ -8253,6 +8260,32 @@ function _pgpDibujar() {
             } catch (e) { console.warn('Quitar pendiente:', e); }
             if (document.getElementById('pgpOverlay')) _pgpDibujar();
         };
+    });
+    overlay.querySelectorAll('[data-pgp-guardar-fiado]').forEach(b => {
+        b.onclick = async () => {
+            if (_PGP.ocupado) return;
+            _PGP.ocupado = true;
+            try {
+                b.disabled = true; b.textContent = 'Verificando y guardando…';
+                await _fiadoRecuperar(b.getAttribute('data-pgp-guardar-fiado'));
+            } catch (e) { console.warn('Guardar fiado desde panel:', e); mostrarToast('⚠️ No se pudo completar: el pendiente se conserva.', 'naranja'); }
+            finally {
+                _PGP.ocupado = false;
+                try { _pgpActualizarContador(); } catch (e) {}
+                if (document.getElementById('pgpOverlay')) _pgpDibujar();
+            }
+        };
+    });
+    overlay.querySelectorAll('[data-fcomp-enviar]').forEach(b => {
+        b.onclick = () => {
+            try {
+                const x = _fiadoCompLeer().find(y => y && y.idFiado === b.getAttribute('data-fcomp-enviar'));
+                if (x) _fiadoMostrarComprobante(Object.assign({}, x.df), x.snap, x.ticket);
+            } catch (e) { console.warn('Comprobante fiado:', e); }
+        };
+    });
+    overlay.querySelectorAll('[data-fcomp-quitar]').forEach(b => {
+        b.onclick = () => { _fiadoCompQuitar(b.getAttribute('data-fcomp-quitar')); if (document.getElementById('pgpOverlay')) _pgpDibujar(); };
     });
     overlay.querySelectorAll('[data-pgp-consultar]').forEach(b => {
         b.onclick = async () => {
@@ -8342,16 +8375,25 @@ async function _reenviarVentasPendientes() {
             // v443 — pago mixto: si esta cola trae un FIADO que falló al
             // guardarse (la venta en Ventas ya está OK, solo faltó FIADOS),
             // se reintenta acá con el mismo patrón de idempotencia que ya usa
-            // guardarFiado del lado del servidor (idFiado no cambia entre
-            // reintentos, así que no duplica el registro).
+            // guardarFiado (idFiado no cambia entre
+            // reintentos). OJO v519: el servidor NO deduplica guardarFiado (hace appendRow siempre), por eso el
+            // control de existencia lo hace el navegador con consultarEstadoOperacion antes de guardar.
             if (venta.tipo === 'fiadoPendiente') {
+                // v519 — mismo control que el botón del panel: consulta antes y después, nunca guarda a ciegas,
+                // bloquea si hay DUPLICADO_EN_HOJA y solo quita el pendiente con UNA fila confirmada en FIADOS.
                 try {
-                    const urlF = API_URL + '?action=guardarFiado&data=' + encodeURIComponent(JSON.stringify(venta.datosFiado));
-                    const respF = await _apiFetchUrl('guardarFiado', urlF);
-                    if (respF && respF.ok !== false) {
-                        console.log('✅ Fiado pendiente sincronizado:', venta.datosFiado.idFiado);
-                        mostrarToast('✅ Fiado sincronizado con la planilla', 'verde');
-                        if (venta.datosFiado && venta.datosFiado.idFiado) fiadosSincronizados.add(venta.datosFiado.idFiado);
+                    if (venta.bloqueado) { console.warn('⛔ Fiado bloqueado, no se reintenta:', venta.datosFiado && venta.datosFiado.idFiado); continue; }
+                    const rF = await _fiadoSincronizar(venta.datosFiado, venta.intentoTs);
+                    const idF = venta.datosFiado && venta.datosFiado.idFiado;
+                    if (rF.intentoTs && idF) _fiadoPendActualizar(idF, { intentoTs: rF.intentoTs });
+                    if (_fiadoEsConfirmado(rF)) {
+                        console.log('✅ Fiado pendiente confirmado en FIADOS:', idF);
+                        mostrarToast('✅ Fiado confirmado en la planilla', 'verde');
+                        if (idF) fiadosSincronizados.add(idF);
+                        if (venta.comprobante) { let tk = rF.ticket || ''; if (!tk) tk = await _fiadoTicketDeVenta(idF, venta.comprobante); _fiadoCompGuardar(venta.datosFiado, venta.comprobante, tk); }
+                    } else if (rF.resultado === 'DUPLICADO' && idF) {
+                        _fiadoPendActualizar(idF, { bloqueado: 'DUPLICADO_EN_HOJA' });
+                        mostrarToast('⛔ DUPLICADO en FIADOS: se bloqueó el reintento y no se borró nada. Avisá a Víctor.', 'rojo');
                     }
                 } catch (eF) { /* sigue pendiente */ }
                 continue;
@@ -15988,8 +16030,8 @@ async function confirmarFiado() {
     try {
         document.getElementById('modalFiado').style.display = 'none';
         _guardarClienteFiado(cliente, telefono);
-        await _procesarVentaFiado(datosFiado, itemsSnapshot);
-        setTimeout(() => _enviarFiadoWhatsApp(datosFiado, Math.round(total)), 300);
+        const _rf = await _procesarVentaFiado(datosFiado, itemsSnapshot);
+        setTimeout(() => _enviarFiadoWhatsApp(datosFiado, Math.round(total), _rf), 300);
         cerrarConfirm();
     } catch(e) {
         mostrarToast('❌ Error al registrar: ' + e.message, 'rojo');
@@ -16048,9 +16090,9 @@ async function _confirmarFiadoSinTel() {
     try {
         document.getElementById('modalFiado').style.display = 'none';
         _guardarClienteFiado(cliente, ''); // guarda en Clientes sin teléfono
-        await _procesarVentaFiado(datosFiado, itemsSnapshot);
+        const _rf = await _procesarVentaFiado(datosFiado, itemsSnapshot);
         // Sin teléfono → abrir modal WA igual para que el vendedor copie el texto
-        setTimeout(() => _enviarFiadoWhatsApp(datosFiado, Math.round(total)), 300);
+        setTimeout(() => _enviarFiadoWhatsApp(datosFiado, Math.round(total), _rf), 300);
         cerrarConfirm();
     } catch(e) {
         mostrarToast('❌ Error al registrar: ' + e.message, 'rojo');
@@ -16137,6 +16179,245 @@ function _fiadoOrigenHtml() {
             '<b>Últimos fiados (de dónde salió el ticket del comprobante):</b>' +
             arr.map(x => '<div>' + esc(new Date(x.ts).toLocaleString('es-AR')) + ' · ' + esc(x.cliente || x.idFiado) + ' · ticket <b>' + esc(x.ticket || '—') + '</b> · ' + esc(x.origen) + '</div>').join('') + '</div>';
     } catch (e) { return ''; }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// v519 — ETAPA 1 FIADOS: el fiado se CONFIRMA contra la planilla, no se pierde si falla y NO se duplica.
+// Reglas (acordadas con Víctor, 17/10/2026):
+//  • Antes de guardar y después de guardar se consulta FIADOS (consultarEstadoOperacion, solo lectura).
+//  • guardarFiado se llama SOLO si la planilla dice NO_EXISTE. Nunca a ciegas. Si la consulta falla: no se guarda.
+//  • Un fiado no confirmado se encola (fiadoPendiente) y NO sale comprobante «definitivo».
+//  • El pendiente se quita SOLO cuando el idFiado existe exactamente UNA vez en FIADOS.
+//  • DUPLICADO_EN_HOJA: se bloquea el pendiente y se avisa. No se borra ninguna fila.
+//  • Recuperar un fiado NUNCA vende, ni toca stock, ni crea ticket: solo guardarFiado (y, si falta, escribir el
+//    ticket ya conocido en la columna C, que el servidor solo completa si estaba vacía).
+// Protección total contra dos pedidos simultáneos = etapa 2 (backend). Esto reduce el riesgo, no lo elimina.
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+const _FIADO_ESPERA_REINTENTO_MS = 45000;      // tras un guardado de resultado incierto, no se vuelve a guardar antes de esto
+const _FIADO_COMPROBANTES_KEY = 'fiado_comprobantes_v1';
+const _FIADO_DEUDA_TOPE_MS = 8000;             // si la deuda acumulada tarda más, el comprobante sale sin ella
+const _fiadoGuardando = new Set();             // cerrojo en memoria por idFiado (misma pestaña)
+
+const _fiadoFmt = n => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
+function _fiadoNorm(x) { return String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim(); }
+function _fiadoMismoTel(a, b) {
+    const x = String(a || '').replace(/\D/g, ''), y = String(b || '').replace(/\D/g, '');
+    if (x.length < 6 || y.length < 6) return false;
+    if (x.length >= 10 && y.length >= 10) return x.slice(-10) === y.slice(-10);
+    return x === y;
+}
+
+// Foto de lo cobrado (mismas filas que se mandan a Ventas) para poder armar el comprobante más tarde.
+function _fiadoSnapshot(itemsSnapshot, total) {
+    const n = new Date();
+    let rows = [];
+    try {
+        rows = _itemsParaServidor(itemsSnapshot).map(r => ({
+            name: String(r.name || ''), qty: Number(r.qty) || 0, esPeso: !!r.esPeso, gramos: Number(r.gramos) || 0,
+            precioVenta: Number(r.precioVenta) || 0
+        }));
+    } catch (e) { console.warn('⚠️ _fiadoSnapshot:', e); }
+    return { v: 1, fecha: n.toLocaleDateString('es-AR'), hora: n.toTimeString().slice(0, 5), items: rows, total: Math.round(total) };
+}
+
+// Estado del idFiado en la hoja FIADOS. SOLO LECTURA. ok:false = no se pudo verificar (nunca se concluye nada).
+async function _fiadoEstadoServidor(idFiado) {
+    try {
+        const url = API_URL + '?action=consultarEstadoOperacion&data=' + encodeURIComponent(JSON.stringify({ idFiado: idFiado })) + '&t=' + Date.now();
+        const r = await _apiFetchUrl('consultarEstadoOperacion', url);
+        const val = _pgpValidarRespuesta(r, '', idFiado);
+        if (!val.ok) return { ok: false, motivo: val.motivo };
+        return { ok: true, estado: r.fiado.estado, ticket: r.fiado.ticket, filas: r.fiado.filas, reciente: !!r.fiado.reciente };
+    } catch (e) { return { ok: false, motivo: String(e && e.message || e) }; }
+}
+
+// Ticket de la VENTA ligada a este fiado (idVenta = idFiado + '_v'). Solo para MOSTRAR; best-effort.
+// Se acepta únicamente si la planilla confirma esa venta con filas/unidades/total iguales a lo cobrado.
+async function _fiadoTicketDeVenta(idFiado, snap) {
+    try {
+        const idVenta = idFiado + '_v';
+        const url = API_URL + '?action=consultarEstadoOperacion&data=' + encodeURIComponent(JSON.stringify({ idVenta: idVenta })) + '&t=' + Date.now();
+        const r = await _apiFetchUrl('consultarEstadoOperacion', url);
+        const val = _pgpValidarRespuesta(r, idVenta, '');
+        if (!val.ok || r.venta.estado !== 'REGISTRADA' || !snap || !Array.isArray(snap.items) || !snap.items.length) return '';
+        const ev = _pgpEvaluarVenta(_pgpCalcLocal(snap.items), r.venta);
+        return ev.nivel === 'ok' ? String(r.venta.ticket) : '';
+    } catch (e) { return ''; }
+}
+
+// Ya existe EXACTAMENTE una fila en FIADOS: deja el ticket vinculado si se puede, sin pisar nada.
+async function _fiadoCerrarConfirmado(df, est, resultado) {
+    let ticket = _pgpHayTicket(est.ticket) ? String(est.ticket).trim() : '';
+    if (!ticket && _pgpHayTicket(df.ticket)) {
+        try {
+            const url = API_URL + '?action=actualizarTicketFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: df.idFiado, ticket: String(df.ticket) }));
+            const r = await _apiFetchUrl('actualizarTicketFiado', url);
+            if (r && r.success === true) ticket = String(df.ticket);
+        } catch (e) { /* queda sin ticket vinculado; se informa */ }
+    }
+    return { resultado: resultado, ticket: ticket, sinTicket: !ticket };
+}
+
+// Núcleo: consulta → (solo si NO_EXISTE) guarda → consulta de nuevo. Nunca guarda a ciegas.
+// resultado: GUARDADO | YA_EXISTIA | DUPLICADO | NO_VERIFICABLE | SIN_CONFIRMAR | ESPERAR | EN_CURSO
+async function _fiadoSincronizar(df, intentoTsPrevio) {
+    const id = df && df.idFiado;
+    if (!id) return { resultado: 'NO_VERIFICABLE', motivo: 'falta idFiado' };
+    if (_fiadoGuardando.has(id)) return { resultado: 'EN_CURSO' };
+    _fiadoGuardando.add(id);
+    try {
+        const pre = await _fiadoEstadoServidor(id);
+        if (!pre.ok) return { resultado: 'NO_VERIFICABLE', motivo: pre.motivo };
+        if (pre.estado === 'DUPLICADO_EN_HOJA') return { resultado: 'DUPLICADO', filas: pre.filas };
+        if (pre.estado === 'EXISTE_CON_TICKET' || pre.estado === 'EXISTE_SIN_TICKET') return await _fiadoCerrarConfirmado(df, pre, 'YA_EXISTIA');
+        if (pre.estado !== 'NO_EXISTE') return { resultado: 'NO_VERIFICABLE', motivo: 'estado ' + pre.estado };
+        if (pre.reciente) return { resultado: 'ESPERAR', motivo: 'operación reciente: puede estar en curso' };
+        if (intentoTsPrevio && Date.now() - Number(intentoTsPrevio) < _FIADO_ESPERA_REINTENTO_MS) return { resultado: 'ESPERAR', motivo: 'hubo un guardado hace menos de 45 s' };
+        // La planilla confirma que NO existe: recién ahora se guarda (una sola vez).
+        const intentoTs = Date.now();
+        let errG = null;
+        try {
+            const url = API_URL + '?action=guardarFiado&data=' + encodeURIComponent(JSON.stringify(df));
+            await _apiFetchUrl('guardarFiado', url);
+        } catch (e) { errG = e; }
+        const post = await _fiadoEstadoServidor(id);
+        if (!post.ok) return { resultado: 'SIN_CONFIRMAR', intentoTs: intentoTs, motivo: 'no se pudo verificar después de guardar: ' + post.motivo };
+        if (post.estado === 'DUPLICADO_EN_HOJA') return { resultado: 'DUPLICADO', intentoTs: intentoTs, filas: post.filas };
+        if (post.estado === 'EXISTE_CON_TICKET' || post.estado === 'EXISTE_SIN_TICKET') {
+            const c = await _fiadoCerrarConfirmado(df, post, 'GUARDADO'); c.intentoTs = intentoTs; return c;
+        }
+        return { resultado: 'SIN_CONFIRMAR', intentoTs: intentoTs, motivo: errG ? 'el guardado no respondió' : 'la planilla no registró la fila' };
+    } finally { _fiadoGuardando.delete(id); }
+}
+const _fiadoEsConfirmado = r => !!r && (r.resultado === 'GUARDADO' || r.resultado === 'YA_EXISTIA');
+
+// ── Cola persistente (la misma ventas_pendientes del navegador) ──
+function _fiadoPendLeer() { try { return JSON.parse(localStorage.getItem('ventas_pendientes') || '[]'); } catch (e) { return []; } }
+function _fiadoPendEncolar(df, snap, extra) {
+    try {
+        const arr = _fiadoPendLeer();
+        const i = arr.findIndex(x => x && x.tipo === 'fiadoPendiente' && x.datosFiado && x.datosFiado.idFiado === df.idFiado);
+        if (i >= 0) { Object.assign(arr[i], extra || {}); }
+        else arr.push(Object.assign({ tipo: 'fiadoPendiente', datosFiado: df, comprobante: snap || null, ts: Date.now() }, extra || {}));
+        localStorage.setItem('ventas_pendientes', JSON.stringify(arr));
+        try { _actualizarBadgePendientes(); } catch (e) {}
+        return true;
+    } catch (e) { console.warn('⚠️ No se pudo encolar fiadoPendiente:', e); return false; }
+}
+function _fiadoPendActualizar(idFiado, cambios) {
+    try {
+        const arr = _fiadoPendLeer();
+        const x = arr.find(y => y && y.tipo === 'fiadoPendiente' && y.datosFiado && y.datosFiado.idFiado === idFiado);
+        if (!x) return;
+        Object.assign(x, cambios || {});
+        localStorage.setItem('ventas_pendientes', JSON.stringify(arr));
+    } catch (e) {}
+}
+function _fiadoPendQuitar(idFiado) {   // SOLO se llama con el fiado confirmado en la planilla (una fila)
+    try {
+        const arr = _fiadoPendLeer();
+        const resto = arr.filter(y => !(y && y.tipo === 'fiadoPendiente' && y.datosFiado && y.datosFiado.idFiado === idFiado));
+        if (resto.length !== arr.length) localStorage.setItem('ventas_pendientes', JSON.stringify(resto));
+        try { _actualizarBadgePendientes(); } catch (e) {}
+    } catch (e) {}
+}
+
+// ── Comprobantes de fiados RECUPERADOS, listos para enviar (no cuentan como pendientes) ──
+function _fiadoCompLeer() { try { return JSON.parse(localStorage.getItem(_FIADO_COMPROBANTES_KEY) || '[]'); } catch (e) { return []; } }
+function _fiadoCompGuardar(df, snap, ticket) {
+    try {
+        if (!snap) return;
+        const arr = _fiadoCompLeer().filter(x => x && x.idFiado !== df.idFiado);
+        arr.push({ idFiado: df.idFiado, df: { idFiado: df.idFiado, cliente: df.cliente, telefono: df.telefono || '', total: df.total, ticket: ticket || '' }, snap: snap, ticket: ticket || '', ts: Date.now() });
+        localStorage.setItem(_FIADO_COMPROBANTES_KEY, JSON.stringify(arr.slice(-20)));
+    } catch (e) {}
+}
+function _fiadoCompQuitar(idFiado) {
+    try { localStorage.setItem(_FIADO_COMPROBANTES_KEY, JSON.stringify(_fiadoCompLeer().filter(x => x && x.idFiado !== idFiado))); } catch (e) {}
+}
+function _fiadoComprobantesHtml() {
+    try {
+        const arr = _fiadoCompLeer();
+        if (!arr.length) return '';
+        const esc = x => String(x).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+        return '<div style="margin-top:10px;padding:10px;background:#e8f5e9;border:1px solid #2e7d32;border-radius:10px;">' +
+            '<div style="font-weight:800;color:#1b5e20;">📲 Fiados confirmados: comprobante listo para enviar</div>' +
+            '<div style="font-size:0.74rem;color:#444;margin-top:2px;">Estos fiados ya están registrados una sola vez en FIADOS. No cuentan como pendientes.</div>' +
+            arr.map(x => '<div style="margin-top:8px;padding:8px;background:white;border-radius:8px;">' +
+                '<div style="font-size:0.82rem;"><b>' + esc(x.df.cliente || '—') + '</b> · ' + _fiadoFmt(x.snap && x.snap.total) + ' · ticket ' + esc(x.ticket || '—') + '</div>' +
+                '<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">' +
+                '<button data-fcomp-enviar="' + esc(x.idFiado) + '" style="padding:8px 12px;border-radius:8px;border:none;background:#25D366;color:white;font-weight:800;cursor:pointer;">📲 Ver y enviar comprobante</button>' +
+                '<button data-fcomp-quitar="' + esc(x.idFiado) + '" style="padding:8px 12px;border-radius:8px;border:1px solid #757575;background:white;color:#424242;font-weight:700;cursor:pointer;">✔ Ya lo envié (quitar de esta lista)</button>' +
+                '</div></div>').join('') + '</div>';
+    } catch (e) { return ''; }
+}
+
+// ── Deuda acumulada: SOLO si es verificable y sin ambigüedad de identidad ──
+// Usa listarFiados (lectura de FIADOS con saldos reales ya descontados los abonos; los PAGADOS se excluyen).
+// ok:false → el comprobante sale solo con la compra, sin saldo acumulado.
+async function _fiadoDeudaAcumulada(df, totalCompra) {
+    try {
+        if (!df || String(df.telefono || '').replace(/\D/g, '').length < 6) return { ok: false, motivo: 'sin teléfono' };
+        const r = await _apiFetch('listarFiados');
+        if (!r || r.ok !== true || !Array.isArray(r.fiados)) return { ok: false, motivo: 'respuesta inválida de la planilla' };
+        const filas = r.fiados.filter(f => f && _fiadoMismoTel(f.telefono, df.telefono) && String(f.estado || '').toUpperCase() !== 'PAGADO');
+        const esta = filas.filter(f => String(f.idFiado) === String(df.idFiado));
+        if (esta.length !== 1) return { ok: false, motivo: 'esta compra no figura exactamente una vez en FIADOS' };
+        if (!(Math.abs(parseFloat(esta[0].total) - totalCompra) < 1)) return { ok: false, motivo: 'el saldo de esta compra en FIADOS no coincide con lo cobrado' };
+        const nom = _fiadoNorm(df.cliente);
+        const otros = filas.filter(f => String(f.idFiado) !== String(df.idFiado));
+        const otroNombre = otros.filter(f => _fiadoNorm(f.cliente) !== nom);
+        if (otroNombre.length) return { ok: false, ambiguo: true, nombres: Array.from(new Set(otroNombre.map(f => String(f.cliente || '?')))), motivo: 'hay fiados con este teléfono a nombre de otra persona' };
+        const previas = otros;
+        if (previas.some(f => !isFinite(parseFloat(f.total)))) return { ok: false, motivo: 'saldo ilegible en FIADOS' };
+        const previa = previas.reduce((a, f) => a + parseFloat(f.total), 0);
+        return { ok: true, previa: previa, total: previa + totalCompra, tickets: previas.map(f => (f.ticket && String(f.ticket).trim()) ? '#' + String(f.ticket).trim() : String(f.idFiado)) };
+    } catch (e) { return { ok: false, motivo: String(e && e.message || e) }; }
+}
+
+function _fiadoLineasProductos(snap) {
+    const out = []; let suma = 0;
+    (snap.items || []).forEach(i => {
+        if (i.esPeso) { out.push('• ' + i.name + '  ' + _fiadoFmt(i.precioVenta)); suma += i.precioVenta; }
+        else { const sub = i.precioVenta * i.qty; out.push('• ' + i.qty + '× ' + i.name + '  ' + _fiadoFmt(sub) + (i.qty > 1 ? '  (' + _fiadoFmt(i.precioVenta) + ' c/u)' : '')); suma += sub; }
+    });
+    const dif = Math.round(snap.total - suma);
+    if (out.length && dif !== 0) out.push('• Ajuste / redondeo  ' + (dif < 0 ? '-' : '') + _fiadoFmt(Math.abs(dif)));
+    return out;
+}
+
+// Abre el comprobante de un fiado YA CONFIRMADO (recuperado). No consulta ni escribe nada de la venta.
+function _fiadoMostrarComprobante(df, snap, ticket) {
+    _enviarFiadoWhatsApp(df, snap ? snap.total : Number(df.total), { fiadoConfirmado: true, snap: snap, ticket: ticket || df.ticket || '', fecha: snap && snap.fecha, hora: snap && snap.hora });
+}
+
+// Recuperación manual (botón del panel Pagos pendientes) y también usada por el reintento de la cola.
+// Registra ÚNICAMENTE el fiado faltante: no llama a vender, no toca stock, no crea ticket.
+async function _fiadoRecuperar(idFiado) {
+    const e = _fiadoPendLeer().find(x => x && x.tipo === 'fiadoPendiente' && x.datosFiado && x.datosFiado.idFiado === idFiado);
+    if (!e) { mostrarToast('❌ Ese fiado ya no está en pendientes', 'rojo'); return null; }
+    if (e.bloqueado) { mostrarToast('⛔ Fiado bloqueado: hay más de una fila con este idFiado. Mostrale esta pantalla a Víctor.', 'rojo'); return null; }
+    const r = await _fiadoSincronizar(e.datosFiado, e.intentoTs);
+    if (r.intentoTs) _fiadoPendActualizar(idFiado, { intentoTs: r.intentoTs });
+    if (_fiadoEsConfirmado(r)) {
+        let ticket = r.ticket || '';
+        if (!ticket && e.comprobante) ticket = await _fiadoTicketDeVenta(idFiado, e.comprobante);   // solo para mostrar
+        _fiadoPendQuitar(idFiado);                  // existe exactamente UNA vez → recién ahora se quita
+        if (e.comprobante) _fiadoCompGuardar(e.datosFiado, e.comprobante, ticket);
+        mostrarToast(r.sinTicket ? '✅ Fiado confirmado en FIADOS (una sola fila). Quedó SIN ticket vinculado: se completa al confirmarse la venta.' : '✅ Fiado confirmado en FIADOS (una sola fila).', r.sinTicket ? 'naranja' : 'verde');
+        if (e.comprobante) _fiadoMostrarComprobante(e.datosFiado, e.comprobante, ticket);
+    } else if (r.resultado === 'DUPLICADO') {
+        _fiadoPendActualizar(idFiado, { bloqueado: 'DUPLICADO_EN_HOJA' });
+        mostrarToast('⛔ DUPLICADO en FIADOS: hay más de una fila con este idFiado. Se bloqueó el reintento y NO se borró nada. Avisá a Víctor.', 'rojo');
+    } else if (r.resultado === 'ESPERAR' || r.resultado === 'EN_CURSO') {
+        mostrarToast('⏳ Hace muy poco se intentó guardar. Esperá un minuto y volvé a tocar el botón (se verifica antes de guardar).', 'naranja');
+    } else if (r.resultado === 'NO_VERIFICABLE') {
+        mostrarToast('⚠️ No se pudo verificar la planilla (' + (r.motivo || 'sin conexión') + '). No se guardó nada; el pendiente se conserva.', 'naranja');
+    } else {
+        mostrarToast('⚠️ El fiado sigue SIN confirmar (' + (r.motivo || 'sin respuesta') + '). Se conserva el pendiente; se verifica antes de cualquier nuevo guardado.', 'naranja');
+    }
+    try { _actualizarBadgePendientes(); } catch (e2) {}
+    return r;
 }
 
 async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
@@ -16248,11 +16529,19 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
     datosFiado.ticket = ticketNum;
     _fiadoOrigenAnotar(datosFiado.idFiado, datosFiado.cliente, ticketNum, _ticketOrigen);
 
-    // 2. Guardar en hoja FIADOS (con o sin ticket — si no hay ticket se actualiza después)
-    try {
-        const url2 = API_URL + '?action=guardarFiado&data=' + encodeURIComponent(JSON.stringify(datosFiado));
-        await _apiFetchUrl('guardarFiado', url2);
-    } catch(e) { console.warn('⚠️ Error guardar fiado:', e); }
+    // 2. v519 — FIADOS: consulta → guarda solo si NO existe → consulta de nuevo. Si no se confirma, se ENCOLA
+    //    (fiadoPendiente) con la foto del comprobante; nunca se pierde y nunca se guarda a ciegas.
+    const _snapComp = _fiadoSnapshot(itemsSnapshot, total);
+    const _sync = await _fiadoSincronizar(datosFiado, null);
+    const _fiadoConfirmado = _fiadoEsConfirmado(_sync);
+    if (!_fiadoConfirmado) {
+        _fiadoPendEncolar(datosFiado, _snapComp, Object.assign({ idVenta: idVentaFiado },
+            _sync.intentoTs ? { intentoTs: _sync.intentoTs } : {},
+            _sync.resultado === 'DUPLICADO' ? { bloqueado: 'DUPLICADO_EN_HOJA' } : {}));
+        console.warn('⚠️ Fiado NO confirmado (' + _sync.resultado + '): queda en pendientes', _sync.motivo || '');
+    } else if (_sync.sinTicket) {
+        console.warn('⚠️ Fiado confirmado SIN ticket vinculado:', datosFiado.idFiado);
+    }
 
     // 3. Guardar historial local (usando snapshot)
     guardarVentaDia({ items: itemsSnapshot, total, hora, stockRebajado: stockOk, metodoPago: 'FIADO', idVenta: idVentaFiado });
@@ -16266,7 +16555,11 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
     });
 
     // 5. Toast, cierre de modales y limpieza
-    if (stockOk) {
+    if (!_fiadoConfirmado) {
+        mostrarToast(_sync.resultado === 'DUPLICADO'
+            ? `⛔ DUPLICADO en FIADOS (${datosFiado.cliente}). NO se borró nada. Avisá a Víctor.`
+            : `⚠️ Fiado de ${datosFiado.cliente} SIN CONFIRMAR — $${Math.round(total).toLocaleString('es-AR')}. Quedó en «Pagos pendientes»: no se envía comprobante todavía.`, 'rojo');
+    } else if (stockOk) {
         mostrarToast(`✅ Fiado de ${datosFiado.cliente} registrado — $${Math.round(total).toLocaleString('es-AR')}`, 'naranja');
     } else {
         mostrarToast(`⚠️ Fiado de ${datosFiado.cliente} guardado — $${Math.round(total).toLocaleString('es-AR')}. La VENTA quedó por confirmar (ver «Pagos pendientes»)`, 'naranja');
@@ -16281,6 +16574,7 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
     // Restaurar botón Cobrar
     const btnOk = document.getElementById('btnOkConfirm');
     if (btnOk) { btnOk.textContent = '✅ Confirmar cobro'; btnOk.disabled = false; btnOk.onclick = confirmarVenta; }
+    return { fiadoConfirmado: _fiadoConfirmado, resultado: _sync.resultado, snap: _snapComp, ticket: ticketNum ? String(ticketNum) : '' };
 }
 
 // ── WhatsApp Business forzado — alias de abrirWABusiness ────────────────────
@@ -16312,8 +16606,55 @@ function _guardarClienteFiado(nombre, telefono) {
     } catch(e) { /* ignorar — el fiado ya se registró */ }
 }
 
-function _enviarFiadoWhatsApp(datosFiado, total) {
+async function _enviarFiadoWhatsApp(datosFiado, total, ctx) {
     const tel = (datosFiado.telefono || '').replace(/\D/g, '');
+
+    // v519 — con contexto (venta nueva o fiado recuperado): comprobante con productos, y deuda acumulada solo si es verificable.
+    if (ctx && typeof ctx === 'object') {
+        if (ctx.fiadoConfirmado !== true) {
+            // El fiado NO está confirmado en FIADOS: no sale comprobante definitivo (ya se avisó en pantalla).
+            console.warn('⚠️ Comprobante NO enviado: fiado sin confirmar', datosFiado.idFiado);
+            return;
+        }
+        const now = new Date();
+        const fecha = ctx.fecha || now.toLocaleDateString('es-AR');
+        const hora = ctx.hora || now.toTimeString().slice(0, 5);
+        const ticketN = ctx.ticket || datosFiado.ticket || '';
+        const snap = ctx.snap && Array.isArray(ctx.snap.items) && ctx.snap.items.length ? ctx.snap : null;
+        const totalCompra = Math.round(total);
+        let deuda = { ok: false, motivo: 'no consultada' };
+        try {
+            mostrarToast('⏳ Armando comprobante…', 'naranja');
+            deuda = await Promise.race([
+                _fiadoDeudaAcumulada(datosFiado, totalCompra),
+                new Promise(res => setTimeout(() => res({ ok: false, motivo: 'la planilla tardó más de ' + (_FIADO_DEUDA_TOPE_MS / 1000) + ' s' }), _FIADO_DEUDA_TOPE_MS))
+            ]);
+        } catch (e) { deuda = { ok: false, motivo: String(e && e.message || e) }; }
+        const lineas = [
+            `🧾 *COMPROBANTE DE FIADO — Almacén Copihue*`,
+            ``,
+            `📅 Fecha: ${fecha}  🕐 ${hora}`,
+            `👤 Cliente: ${datosFiado.cliente}`,
+            `🎫 Ticket: ${ticketN ? '#' + ticketN : '—'}`
+        ];
+        if (snap) { lineas.push('', '🛒 *Detalle de la compra:*'); _fiadoLineasProductos(snap).forEach(l => lineas.push(l)); }
+        lineas.push('', `💰 *Total de esta compra: ${_fiadoFmt(totalCompra)}*`);
+        if (deuda.ok && deuda.previa > 0) {
+            lineas.push('', `📌 *ESTADO ACTUAL DE TU DEUDA*`,
+                `Deuda anterior: ${_fiadoFmt(deuda.previa)}`,
+                `Esta compra: ${_fiadoFmt(totalCompra)}`,
+                `💰 *TOTAL PENDIENTE: ${_fiadoFmt(deuda.total)}*`,
+                `(Tickets pendientes: ${deuda.tickets.join(', ')} + esta compra)`);
+        } else if (!deuda.ok) {
+            // Solo el ticket de la compra. Aviso para quien vende (no para el cliente):
+            mostrarToast(deuda.ambiguo
+                ? '⚠️ Este teléfono tiene fiados a nombre de otra persona (' + deuda.nombres.join(', ') + '): el comprobante sale SIN deuda acumulada. Verificá.'
+                : '⚠️ No se pudo confirmar la deuda acumulada (' + deuda.motivo + '): el comprobante sale solo con esta compra.', 'naranja');
+        }
+        lineas.push('', `✅ Este mensaje es su comprobante de fiado.`, `📍 Almacén Copihue — Copihue 457`);
+        mostrarRecordatorio(lineas.join('\n'));
+        return;
+    }
 
     const now   = new Date();
     const fecha = now.toLocaleDateString('es-AR');
