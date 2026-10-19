@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>📒 Fiados · Copihue (STAGING)</title>
+<meta name="theme-color" content="#1b5e20">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --vd:#1b5e20;--vdp:#0a3d0f;--verde:#2e7d32;--vl:#e8f5e9;
+  --naranja:#f57c00;--nl:#fff3e0;
+  --rojo:#c62828;--rl:#ffebee;
+  --gris:#546e7a;--bg:#f1f8f1;--borde:#c8e6c9;--texto:#1a2e1c;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);min-height:100dvh;overscroll-behavior-y:contain}
+
+/* ── Header ── */
+.hdr{background:linear-gradient(135deg,var(--vdp),var(--vd),var(--verde));padding:12px 14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;box-shadow:0 2px 10px rgba(10,61,15,.35)}
+.hdr-t{color:#fff;font-size:.95rem;font-weight:900;flex:1}
+.hdr-s{color:rgba(255,255,255,.7);font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;margin-top:1px}
+.btn-back{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:20px;padding:5px 13px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center}
+.btn-icon{background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* ── Vistas ── */
+.vista{display:none;padding:12px}
+.vista.activa{display:block}
+#vistaFiados{padding-bottom:90px}
+#vistaDetalle{padding-bottom:30px}
+
+/* ── Loading / Empty ── */
+.ldg{text-align:center;padding:60px 20px;color:var(--gris)}
+.spin{width:32px;height:32px;border:3px solid var(--vl);border-top-color:var(--verde);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:50px 20px;color:var(--gris)}
+.empty .icon{font-size:3rem;margin-bottom:10px}
+
+/* ── Resumen global ── */
+.resumen{background:#fff;border-radius:16px;padding:14px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 6px rgba(46,125,50,.1);border:1px solid var(--borde)}
+.resumen .lbl{font-size:.78rem;color:var(--gris)}
+.resumen .monto{font-size:1.35rem;font-weight:900;color:var(--rojo)}
+.resumen .sub{font-size:.72rem;color:#aaa;margin-top:2px}
+
+/* ── Tarjeta cliente ── */
+.cli-card{background:#fff;border-radius:14px;padding:13px 15px;margin-bottom:9px;cursor:pointer;border:2px solid transparent;box-shadow:0 1px 5px rgba(46,125,50,.08);display:flex;justify-content:space-between;align-items:center;transition:transform .1s,border-color .15s;touch-action:pan-y}
+.cli-card:active{transform:scale(.98);border-color:var(--borde)}
+.cli-nombre{font-weight:900;font-size:.93rem}
+.cli-tel{font-size:.7rem;color:var(--gris);margin-top:2px}
+.cli-deuda{font-size:1.08rem;font-weight:900;color:var(--rojo);text-align:right}
+
+/* ── Badges ── */
+.bdg{font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:8px;display:inline-block;margin-top:3px}
+.bdg-r{background:var(--rl);color:var(--rojo)}
+.bdg-o{background:var(--nl);color:var(--naranja)}
+.bdg-g{background:#f5f5f5;color:#888}
+.bdg-v{background:var(--vl);color:var(--vd)}
+
+/* ── Header cliente ── */
+.cli-hdr{background:#fff;border-radius:14px;padding:13px 15px;margin-bottom:10px;box-shadow:0 1px 5px rgba(46,125,50,.08);display:flex;justify-content:space-between;align-items:center;border:1px solid var(--borde)}
+.cli-hdr-nom{font-weight:900;font-size:.97rem}
+.cli-hdr-tel{font-size:.72rem;color:var(--gris);margin-top:2px}
+.cli-hdr-total{font-size:1.2rem;font-weight:900;color:var(--rojo)}
+.cli-hdr-lbl{font-size:.68rem;color:var(--gris);text-align:right}
+
+/* ── Sección label ── */
+.sec-lbl{font-size:.68rem;font-weight:900;color:var(--gris);text-transform:uppercase;letter-spacing:1.2px;padding:10px 4px 6px;display:flex;align-items:center;gap:5px}
+.sec-lbl::before{content:'';display:block;width:3px;height:12px;background:var(--verde);border-radius:2px}
+
+/* ── Tarjeta fiado ── */
+.fc{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:8px;border:2px solid #ffe082;box-shadow:0 1px 4px rgba(0,0,0,.06);cursor:pointer;position:relative;user-select:none;transition:transform .1s,border-color .15s;touch-action:pan-y}
+.fc:active{transform:scale(.99)}
+.fc.venc{border-color:#ef9a9a;background:#fff8f8}
+.fc.pagado{border-color:var(--borde);background:#f9fbe7;cursor:default}
+.fc.sel{border:3px solid var(--verde);background:var(--vl)}
+.fc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px}
+.fc-fecha{font-size:.7rem;color:var(--gris)}
+.fc-id{font-size:.65rem;color:#bbb;margin-top:1px}
+.fc-monto{font-size:1.05rem;font-weight:900}
+.fc-desc{font-size:.74rem;color:#555;padding-top:6px;border-top:1px solid rgba(0,0,0,.07);margin-top:6px;line-height:1.4}
+.fc-pago{font-size:.7rem;color:var(--verde);margin-top:4px;font-weight:600}
+.fc-abono-row{padding:7px 0 2px;display:flex;justify-content:flex-end;gap:7px}
+.btn-abono-rapido{background:var(--vd);color:#fff;border:none;border-radius:10px;padding:7px 18px;font-size:.8rem;font-weight:900;cursor:pointer;font-family:inherit}
+.btn-abono-rapido:active{opacity:.82}
+.sel-dot{position:absolute;top:9px;right:9px;width:22px;height:22px;border-radius:50%;background:var(--verde);color:#fff;font-size:.72rem;font-weight:900;display:flex;align-items:center;justify-content:center}
+
+/* ── Barra flotante ── */
+.barra{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--vd);padding:10px 14px 18px;flex-direction:row;align-items:center;gap:8px;box-shadow:0 -3px 14px rgba(0,0,0,.2);z-index:200}
+.barra-txt{flex:1;color:#fff;font-weight:700;font-size:.82rem;line-height:1.3}
+.barra button{border:none;border-radius:10px;padding:9px 12px;font-weight:900;font-size:.8rem;cursor:pointer;font-family:inherit;white-space:nowrap}
+.btn-rec{background:#4caf50;color:#fff}
+.btn-cob{background:#fff;color:var(--vd)}
+
+/* ── Vista detalle ticket ── */
+.det-hdr{background:#fff;border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 5px rgba(46,125,50,.1);border:1px solid var(--borde)}
+.det-ticket{font-size:1.1rem;font-weight:900;color:var(--vd)}
+.det-sub{font-size:.78rem;color:var(--gris);margin-top:5px;line-height:1.6}
+.det-pagado{background:var(--vl);border-radius:10px;padding:9px 13px;margin-top:8px;font-size:.78rem;color:var(--vd);font-weight:700}
+
+.item-row{background:#fff;border-radius:10px;padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.item-nom{font-size:.85rem;font-weight:600;flex:1;padding-right:8px;line-height:1.3}
+.item-cant{font-size:.72rem;color:var(--gris);margin-right:8px;white-space:nowrap}
+.item-precio{font-size:.88rem;font-weight:900;color:var(--vd);white-space:nowrap}
+
+.total-row{background:var(--vd);color:#fff;border-radius:12px;padding:13px 16px;display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.total-row .tl{font-size:.88rem;font-weight:700}
+.total-row .tm{font-size:1.15rem;font-weight:900}
+
+.btn-enviar-ticket{width:100%;background:#25D366;color:#fff;border:none;border-radius:12px;padding:14px;font-size:1rem;font-weight:900;cursor:pointer;font-family:inherit;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-enviar-ticket:active{opacity:.85}
+
+/* ── Modales ── */
+.modal-ov{display:none;position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,.7);align-items:flex-end;justify-content:center}
+.modal-ov.open{display:flex}
+.modal-sh{background:#fff;border-radius:20px 20px 0 0;padding:20px 20px 36px;width:100%;max-width:500px}
+.modal-tit{font-size:.97rem;font-weight:900;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.modal-tit button{margin-left:auto;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#aaa}
+.modal-info{background:#f5f5f5;border-radius:10px;padding:12px;margin-bottom:14px;font-size:.83rem;line-height:1.7}
+.metodos{display:flex;gap:8px;margin-bottom:14px}
+.btn-met{flex:1;padding:10px 4px;border:2px solid #ddd;border-radius:10px;background:#fff;font-size:.78rem;font-weight:700;cursor:pointer;text-align:center;font-family:inherit;transition:border-color .15s}
+.btn-met.activo{border-color:var(--verde);background:var(--vl)}
+
+/* Campo monto (abono) */
+.monto-wrap{margin-bottom:14px}
+.monto-lbl{font-size:.78rem;font-weight:700;color:var(--gris);margin-bottom:6px}
+.monto-row{display:flex;gap:8px;align-items:center}
+.monto-input{flex:1;padding:11px 14px;border:2px solid #ddd;border-radius:10px;font-size:1rem;font-weight:700;font-family:inherit;outline:none;transition:border-color .15s}
+.monto-input:focus{border-color:var(--verde)}
+.btn-monto-full{padding:10px 14px;border:2px solid var(--verde);border-radius:10px;background:var(--vl);color:var(--vd);font-size:.75rem;font-weight:900;cursor:pointer;font-family:inherit;white-space:nowrap}
+.monto-hint{font-size:.7rem;color:var(--naranja);margin-top:5px;font-weight:600;display:none}
+
+.modal-acc{display:flex;gap:10px;margin-top:4px}
+.btn-cancel{flex:1;padding:12px;border:2px solid #ddd;border-radius:12px;background:#fff;color:#555;font-size:.9rem;cursor:pointer;font-family:inherit}
+.btn-confirm{flex:2;padding:12px;border:none;border-radius:12px;background:var(--verde);color:#fff;font-size:.9rem;font-weight:900;cursor:pointer;font-family:inherit}
+
+/* Modal recordatorio */
+.rec-pre{background:#f0f7f0;border-radius:12px;padding:12px;font-size:.73rem;color:var(--texto);max-height:210px;overflow-y:auto;white-space:pre-wrap;margin-bottom:14px;font-family:monospace;line-height:1.5;border:1px solid var(--borde)}
+.btn-compartir{width:100%;background:var(--vd);color:#fff;font-weight:900;font-size:1rem;padding:14px;border-radius:14px;border:none;cursor:pointer;font-family:inherit;margin-bottom:10px}
+.btn-copiar{width:100%;background:#f5f5f5;color:#333;font-weight:700;font-size:.9rem;padding:12px;border-radius:14px;border:none;cursor:pointer;font-family:inherit}
+.copiado{display:none;text-align:center;color:var(--verde);font-size:.8rem;margin-top:8px;font-weight:700}
+
+/* Toast */
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 18px;border-radius:20px;font-size:.85rem;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+#toast.v{background:var(--verde)}
+#toast.r{background:var(--rojo)}
+</style>
+</head>
+<body>
+<div style="background:#e65100;color:#fff;text-align:center;font-weight:800;font-size:.72rem;padding:4px">🚧 STAGING — NO ES EL SITIO REAL 🚧</div>
+
+<div class="hdr" id="hdr">
+  <span style="font-size:1.4rem">🌸</span>
+  <div style="flex:1"><div class="hdr-t">Copihue — Fiados <span class="ver-badge" id="verBadgeInit" style="font-size:.62rem;font-weight:400;opacity:.75"></span></div><div class="hdr-s" id="hdrSub">cargando</div></div>
+  <button class="btn-icon" onclick="cargar()">🔄</button>
+</div>
+
+<!-- Vista clientes -->
+<div class="vista activa" id="vistaClientes">
+  <div id="cuerpoClientes" class="ldg"><div class="spin"></div>Consultando planilla...</div>
+</div>
+
+<!-- Vista fiados de un cliente -->
+<div class="vista" id="vistaFiados">
+  <div id="clieHdr" class="cli-hdr"></div>
+  <div id="cuerpoFiados"></div>
+  <div class="barra" id="barra">
+    <div class="barra-txt" id="barraTxt"></div>
+    <button class="btn-rec" ontouchstart="void(0)" onclick="abrirRec()">📋 Recordatorio</button>
+    <button class="btn-cob" ontouchstart="void(0)" onclick="abrirCobrar()">✅ Cobrar</button>
+  </div>
+</div>
+
+<!-- Vista detalle ticket -->
+<div class="vista" id="vistaDetalle">
+  <div id="detContenido"></div>
+</div>
+
+<!-- Modal cobrar / abonar -->
+<div class="modal-ov" id="modalCob" onclick="if(event.target===this)cerrarCob()">
+  <div class="modal-sh">
+    <div class="modal-tit" id="cobTit">✅ Registrar pago <button onclick="cerrarCob()">✕</button></div>
+    <div class="modal-info" id="cobInfo"></div>
+    <div style="font-size:.78rem;font-weight:700;color:var(--gris);margin-bottom:8px">Método de pago</div>
+    <div class="metodos">
+      <button class="btn-met activo" id="mEf" onclick="selMet('EFECTIVO')">💵<br>Efectivo</button>
+      <button class="btn-met" id="mQR" onclick="selMet('QR')">📱<br>QR</button>
+      <button class="btn-met" id="mTr" onclick="selMet('TRANSFERENCIA')">🏦<br>Transf.</button>
+    </div>
+    <div class="monto-wrap">
+      <div class="monto-lbl">Monto a cobrar</div>
+      <div class="monto-row">
+        <input class="monto-input" id="montoInput" type="number" inputmode="numeric"
+               oninput="onMontoInput()" placeholder="0">
+        <button class="btn-monto-full" onclick="setMontoFull()">Total ↩</button>
+      </div>
+      <div class="monto-hint" id="montoHint">💲 Monto menor al total → <b>abono parcial</b> (queda pendiente con saldo reducido) · Monto exacto → <b>cobro total</b></div>
+    </div>
+    <div class="modal-acc">
+      <button class="btn-cancel" onclick="cerrarCob()">Cancelar</button>
+      <button class="btn-confirm" id="btnConf" onclick="confirmarCob()">✅ Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal recordatorio -->
+<div class="modal-ov" id="modalRec" onclick="if(event.target===this)cerrarRec()">
+  <div class="modal-sh">
+    <div class="modal-tit">📋 Recordatorio <button onclick="cerrarRec()">✕</button></div>
+    <div class="rec-pre" id="recPrev"></div>
+    <div id="recAvisoTel" style="display:none;margin:8px 0;padding:8px 10px;background:#ffebee;border:2px solid #c62828;border-radius:8px;font-size:.78rem;font-weight:700;color:#b71c1c"></div>
+    <button class="btn-compartir" id="btnRecWA" style="display:none;background:#25D366" onclick="enviarRecWA()">📲 Enviar por WhatsApp al cliente</button>
+    <button class="btn-compartir" onclick="compartir()">📤 Compartir</button>
+    <button class="btn-copiar" onclick="copiar()">📋 Copiar texto</button>
+    <div class="copiado" id="copMsg">✅ Copiado al portapapeles</div>
+  </div>
+</div>
+
+<!-- Modal editar cliente -->
+<div class="modal-ov" id="modalEditCli" onclick="if(event.target===this)cerrarEditCli()">
+  <div class="modal-sh">
+    <div class="modal-tit">✏️ Editar cliente <button onclick="cerrarEditCli()">✕</button></div>
+    <div style="padding:4px 0 12px">
+      <label style="font-size:.78rem;font-weight:700;color:var(--gris);display:block;margin-bottom:4px">Nombre</label>
+      <input id="editCliNom" type="text" style="width:100%;padding:9px 12px;border:1.5px solid var(--borde);border-radius:10px;font-size:.9rem;font-family:inherit;box-sizing:border-box">
+      <label style="font-size:.78rem;font-weight:700;color:var(--gris);display:block;margin:10px 0 4px">Teléfono</label>
+      <input id="editCliTel" type="tel" style="width:100%;padding:9px 12px;border:1.5px solid var(--borde);border-radius:10px;font-size:.9rem;font-family:inherit;box-sizing:border-box">
+      <input type="hidden" id="editCliOrig">
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-cancel" onclick="cerrarEditCli()">Cancelar</button>
+      <button class="btn-confirm" id="btnEditCli" onclick="confirmarEditCli()">✅ Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const APP_VERSION=40;
+const API_URL='https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
+
+// ── Estado ─────────────────────────────────────────
+let _todos=[], _cliNom='', _cliTel='', _cliData=[];
+let _sel=new Set(), _met='EFECTIVO', _recTxt='', _montoFull=0, _recIds=[];
+let _todosClientes=[]; // todos los clientes de hoja Clientes
+let _showSinDeuda=false; // toggle sección sin deuda
+let _busqCliente=''; // búsqueda unificada
+let _ordenClientes='monto'; // 'monto' | 'vencidos' | 'reciente'
+let _ordenAsc=false; // tocar el mismo criterio de nuevo invierte el orden
+
+// ── Helpers ────────────────────────────────────────
+const fmt=n=>'$'+Math.round(n).toLocaleString('es-AR');
+function safeEnc(s){try{return encodeURIComponent(s);}catch(e){return encodeURIComponent(String(s).replace(/[\uD800-\uDFFF]/g,'?'));}}
+function sanitizeWA(s){return(s||'').replace(/◆/g,'-').replace(/·/g,'-').replace(/[^\x20-\x7E\u00C0-\u024F\u00A0\n]/g,' ').replace(/\s{2,}/g,' ').trim();}
+function normTel(t){const d=String(t||'').replace(/\D/g,'');if(d.length===10)return'549'+d;if(d.length>=11)return d;return'';}
+
+function _normFecha(s){
+  if(!s)return'';const str=String(s).trim();
+  // YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}/.test(str))return str.slice(0,10);
+  // DD/MM/YYYY
+  if(/^\d{2}\/\d{2}\/\d{4}$/.test(str)){const[d,m,y]=str.split('/');return`${y}-${m}-${d}`;}
+  const ms={Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+  // "Fri May 15 2028 00:00:00 GMT..." — formato Date.toString()
+  const m2=str.match(/(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})\s+(\d{4})/);
+  if(m2)return`${m2[3]}-${String(ms[m2[1]]).padStart(2,'0')}-${m2[2].padStart(2,'0')}`;
+  // "15 May 2028"
+  const m1=str.match(/(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})/);
+  if(m1)return`${m1[3]}-${String(ms[m1[2]]).padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
+  // ISO string con T — usar solo la parte de fecha
+  if(str.includes('T'))return str.slice(0,10);
+  try{const d=new Date(str);if(!isNaN(d))return d.toISOString().slice(0,10);}catch(e){}
+  return str;
+}
+function _fmt(s){const n=_normFecha(s);if(/^\d{4}-\d{2}-\d{2}/.test(n)){const[y,m,d]=n.slice(0,10).split('-');return`${d}/${m}/${y}`;}return s||'—';}
+
+let _tt;
+function toast(msg,tipo=''){const t=document.getElementById('toast');t.textContent=msg;t.className=tipo;t.style.opacity='1';clearTimeout(_tt);_tt=setTimeout(()=>t.style.opacity='0',3200);}
+
+// ── API ────────────────────────────────────────────
+async function _api(action,data){
+  const url=API_URL+'?action='+action+(data?'&data='+encodeURIComponent(JSON.stringify(data)):'')+'&t='+Date.now();
+  const r=await fetch(url,{redirect:'follow',signal:AbortSignal.timeout(25000)});
+  if(!r.ok)throw new Error('Error servidor ('+r.status+')');
+  const txt=await r.text();if(!txt.trim())throw new Error('Respuesta vacía');
+  return JSON.parse(txt);
+}
+
+// ── CARGAR ──────────────────────────────────────────
+async function cargar(){
+  _sel.clear();_recTxt='';_busqCliente='';
+  ir('clientes');
+  document.getElementById('cuerpoClientes').innerHTML='<div class="ldg"><div class="spin"></div>Consultando planilla...</div>';
+  setHdrSub('cargando');
+  try{
+    const [dFia, dCli]=await Promise.all([
+      _api('listarFiados'),
+      _api('listarClientes')
+    ]);
+    if(!dFia.ok)throw new Error(dFia.error||'Error al cargar');
+    _todos=(dFia.fiados||[]).map(f=>({...f,fecha:_normFecha(f.fecha),fechaPago:_normFecha(f.fechaPago),fechaVencimiento:_normFecha(f.fechaVencimiento)}));
+    _todosClientes=(dCli.ok&&dCli.clientes)||[];
+    renderClientes();
+  }catch(e){
+    document.getElementById('cuerpoClientes').innerHTML=`<div class="empty"><div class="icon">❌</div>${e.message}</div>`;
+    setHdrSub('error');
+  }
+}
+
+// ── RENDER CLIENTES ────────────────────────────────
+// Agrupa fiados pendientes por cliente y calcula los campos usados para
+// ordenar: tot (deuda total), venc (cantidad de vencidos), ultFecha (fecha
+// del fiado más reciente, para "último que compró fiado").
+function _agruparClientes(pend){
+  const map={};
+  pend.forEach(f=>{
+    if(!map[f.cliente])map[f.cliente]={nom:f.cliente,tel:f.telefono||'',fiados:[],tot:0};
+    map[f.cliente].fiados.push(f);
+    map[f.cliente].tot+=parseFloat(f.total||0);
+  });
+  return Object.values(map).map(c=>{
+    c.venc=c.fiados.filter(f=>f.estado==='VENCIDO').length;
+    c.ultFecha=c.fiados.reduce((mx,f)=>{const fs=String(f.fecha||'').substring(0,10);return fs>mx?fs:mx;},'');
+    return c;
+  });
+}
+
+// Aplica el criterio de orden elegido (_ordenClientes / _ordenAsc) sobre un
+// array ya agrupado. No muta el array recibido.
+function _ordenarClientes(clis){
+  const dir=_ordenAsc?1:-1;
+  const arr=[...clis];
+  if(_ordenClientes==='vencidos'){
+    arr.sort((a,b)=>dir*((a.venc-b.venc)||(a.tot-b.tot)));
+  } else if(_ordenClientes==='reciente'){
+    arr.sort((a,b)=>dir*(a.ultFecha||'').localeCompare(b.ultFecha||''));
+  } else {
+    arr.sort((a,b)=>dir*(a.tot-b.tot));
+  }
+  return arr;
+}
+
+function _cambiarOrden(criterio){
+  if(_ordenClientes===criterio){_ordenAsc=!_ordenAsc;}
+  else{_ordenClientes=criterio;_ordenAsc=false;}
+  renderClientesLista();
+}
+
+function renderClientes(){
+  const pend=_todos.filter(f=>f.estado!=='PAGADO');
+  let clis=_ordenarClientes(_agruparClientes(pend));
+  const totG=clis.reduce((s,c)=>s+c.tot,0);
+
+  // Clientes sin deuda: están en _todosClientes pero no en clis (con deuda)
+  const nomConDeuda=new Set(clis.map(c=>c.nom.toUpperCase()));
+  let sinDeuda=_todosClientes.filter(c=>!nomConDeuda.has((c.nombre||'').toUpperCase()));
+
+  // Aplicar búsqueda a ambos grupos
+  const q=_busqCliente.toLowerCase().trim();
+  if(q){
+    clis=clis.filter(c=>c.nom.toLowerCase().includes(q)||(c.tel||'').includes(q));
+    sinDeuda=sinDeuda.filter(c=>(c.nombre||'').toLowerCase().includes(q)||(c.telefono||'').includes(q));
+  }
+
+  setHdrSub(clis.length+' con deuda · '+sinDeuda.length+' sin deuda · '+fmt(totG));
+
+  // ── Buscador: se crea UNA sola vez, nunca se destruye en renders posteriores ──
+  // Esto evita que el input pierda el foco al escribir (innerHTML lo recreaba en cada tecla).
+  const cont=document.getElementById('cuerpoClientes');
+  let busqInput=document.getElementById('inpBusqCliente');
+  if(!busqInput){
+    cont.innerHTML=
+      `<div style="padding:10px 12px 4px">
+        <input id="inpBusqCliente" type="text" placeholder="🔍 Buscar cliente..." value="${_busqCliente}"
+          style="width:100%;padding:9px 13px;border:1.5px solid var(--borde);border-radius:12px;font-size:.85rem;font-family:inherit;box-sizing:border-box">
+        <div id="ordenClientesBar" style="display:flex;gap:6px;margin-top:8px"></div>
+      </div>
+      <div id="listaClientesBody"></div>`;
+    busqInput=document.getElementById('inpBusqCliente');
+    busqInput.addEventListener('input',()=>{
+      _busqCliente=busqInput.value;
+      renderClientesLista(); // solo redibuja la lista, el input queda intacto
+    });
+  } else if(document.activeElement!==busqInput){
+    // Si el input existe pero no tiene foco (ej: volvimos de otra vista), sincronizamos su valor
+    busqInput.value=_busqCliente;
+  }
+
+  renderClientesLista(clis,sinDeuda,pend,totG,q);
+}
+
+// Redibuja SOLO la lista (resumen + tarjetas), nunca el input de búsqueda
+function renderClientesLista(clis,sinDeuda,pend,totG,q){
+  // Si se llama sin argumentos (desde el listener del input), recalculamos todo de nuevo
+  if(clis===undefined){
+    const pend2=_todos.filter(f=>f.estado!=='PAGADO');
+    clis=_ordenarClientes(_agruparClientes(pend2));
+    totG=clis.reduce((s,c)=>s+c.tot,0);
+    const nomConDeuda2=new Set(clis.map(c=>c.nom.toUpperCase()));
+    sinDeuda=_todosClientes.filter(c=>!nomConDeuda2.has((c.nombre||'').toUpperCase()));
+    q=_busqCliente.toLowerCase().trim();
+    if(q){
+      clis=clis.filter(c=>c.nom.toLowerCase().includes(q)||(c.tel||'').includes(q));
+      sinDeuda=sinDeuda.filter(c=>(c.nombre||'').toLowerCase().includes(q)||(c.telefono||'').includes(q));
+    }
+    pend=pend2;
+    setHdrSub(clis.length+' con deuda · '+sinDeuda.length+' sin deuda · '+fmt(totG));
+  }
+
+  const hoy=new Date();hoy.setHours(0,0,0,0);
+  let html='';
+
+  // Botones de orden — se repintan siempre (no guardan foco, a diferencia del buscador)
+  const ordenBar=document.getElementById('ordenClientesBar');
+  if(ordenBar){
+    const opciones=[['monto','💰 Monto'],['vencidos','🔴 Vencidos'],['reciente','🕓 Última compra']];
+    ordenBar.innerHTML=opciones.map(([crit,lbl])=>{
+      const activo=_ordenClientes===crit;
+      const flecha=activo?(_ordenAsc?' ↑':' ↓'):'';
+      return `<button onclick="_cambiarOrden('${crit}')" style="flex:1;padding:6px 4px;border-radius:9px;border:1.5px solid ${activo?'var(--verde)':'var(--borde)'};background:${activo?'var(--verde)':'#fff'};color:${activo?'#fff':'#555'};font-size:.72rem;font-weight:600;cursor:pointer">${lbl}${flecha}</button>`;
+    }).join('');
+  }
+
+  // Resumen
+  html+=`<div class="resumen"><div><div class="lbl">Total deuda general</div><div class="sub">${pend.length} fiado${pend.length!==1?'s':''} en ${clis.length} cliente${clis.length!==1?'s':''}</div></div><div class="monto">${fmt(totG)}</div></div>`;
+
+  // Sección CON DEUDA
+  if(clis.length){
+    html+=`<div class="sec-lbl" style="color:var(--rojo)">🔴 CON DEUDA (${clis.length})</div>`;
+    clis.forEach((c,idx)=>{
+      const venc=c.fiados.filter(f=>f.estado==='VENCIDO').length;
+      const prox=c.fiados.filter(f=>{if(!f.fechaVencimiento)return false;const d=new Date(f.fechaVencimiento+'T12:00:00');const dias=Math.round((d-hoy)/86400000);return dias>=0&&dias<=3;}).length;
+      const bdg=venc>0?`<span class="bdg bdg-r">🔴 ${venc} vencido${venc>1?'s':''}</span>`:prox>0?`<span class="bdg bdg-o">⏰ Vence pronto</span>`:`<span class="bdg bdg-v">${c.fiados.length} fiado${c.fiados.length>1?'s':''}</span>`;
+      const bordeCli=venc>0?'rgba(198,40,40,.4)':'rgba(46,125,50,.5)';
+      html+=`<div class="cli-card" data-idx="${idx}" style="border-color:${bordeCli}"><div><div class="cli-nombre">${c.nom}</div><div class="cli-tel">${c.tel?'📞 '+c.tel:'Sin teléfono'} <button onclick="event.stopPropagation();abrirEditCli('${safeEnc(c.nom)}','${c.tel||''}')" style="background:none;border:none;cursor:pointer;font-size:.8rem;padding:0 4px;color:var(--vd)">✏️</button></div><div style="margin-top:3px">${bdg}</div></div><div class="cli-deuda">${fmt(c.tot)}</div></div>`;
+    });
+  } else if(!q){
+    html+='<div class="empty"><div class="icon">✅</div>No hay fiados pendientes</div>';
+  } else {
+    html+='<div class="empty" style="font-size:.8rem">Sin resultados para "'+q+'"</div>';
+  }
+
+  // Sección SIN DEUDA — colapsable
+  html+=`<div class="sec-lbl" style="cursor:pointer;color:var(--verde)" onclick="_showSinDeuda=!_showSinDeuda;renderClientesLista()">
+    ${_showSinDeuda?'▲':'▼'} ✅ SIN DEUDA (${sinDeuda.length})
+  </div>`;
+  if(_showSinDeuda){
+    if(!sinDeuda.length){
+      html+='<div class="empty" style="font-size:.78rem">Sin clientes en este grupo</div>';
+    } else {
+      sinDeuda.forEach((c,idx)=>{
+        const nom=c.nombre||'';const tel=c.telefono||'';
+        html+=`<div class="cli-card" style="opacity:.75" data-sin="${idx}"><div><div class="cli-nombre">${nom}</div><div class="cli-tel">${tel?'📞 '+tel:'Sin teléfono'} <button onclick="event.stopPropagation();abrirEditCli('${safeEnc(nom)}','${tel}')" style="background:none;border:none;cursor:pointer;font-size:.8rem;padding:0 4px;color:var(--vd)">✏️</button></div></div><div style="font-size:.72rem;color:#aaa">Sin deuda</div></div>`;
+      });
+    }
+  }
+
+  document.getElementById('listaClientesBody').innerHTML=html;
+  // Event listeners — solo tarjetas con deuda abren fiados
+  document.querySelectorAll('.cli-card[data-idx]').forEach(el=>{
+    el.addEventListener('click',()=>abrirCli(clis[parseInt(el.dataset.idx)].nom));
+  });
+  // Tarjetas sin deuda no abren fiados (sin historial pendiente)
+}
+
+// ── ABRIR CLIENTE ──────────────────────────────────
+function abrirCli(nom){
+  _sel.clear();_recTxt='';
+  _cliNom=nom;
+  _cliData=_todos.filter(f=>f.cliente===nom);
+  _cliTel=_cliData[0]?.telefono||'';
+  renderFiados();
+  ir('fiados',nom);
+}
+
+function renderFiados(){
+  const pend=_cliData.filter(f=>f.estado!=='PAGADO').sort((a,b)=>{
+    const fa=String(a.fecha||'').substring(0,10);
+    const fb=String(b.fecha||'').substring(0,10);
+    if(fb>fa) return 1;
+    if(fb<fa) return -1;
+    // mismo día → ticket mayor primero (más reciente)
+    return parseInt(b.ticket||0)-parseInt(a.ticket||0);
+  });
+  const pagados=_cliData.filter(f=>f.estado==='PAGADO').sort((a,b)=>{
+    const fa=String(a.fechaPago||'').substring(0,10);
+    const fb=String(b.fechaPago||'').substring(0,10);
+    if(fb>fa) return 1;
+    if(fb<fa) return -1;
+    // mismo día de cobro → ticket mayor primero
+    return parseInt(b.ticket||0)-parseInt(a.ticket||0);
+  });
+  const totPend=pend.reduce((s,f)=>s+parseFloat(f.total||0),0);
+  const hoy=new Date();hoy.setHours(0,0,0,0);
+
+  document.getElementById('clieHdr').innerHTML=`
+    <div><div class="cli-hdr-nom">${_cliNom}</div><div class="cli-hdr-tel">${_cliTel?'📞 '+_cliTel:'Sin teléfono'}</div></div>
+    <div><div class="cli-hdr-lbl">Deuda total</div><div class="cli-hdr-total">${fmt(totPend)}</div></div>`;
+
+  function bdgEstado(f){
+    if(f.estado==='PAGADO')return`<span class="bdg bdg-v">✅ PAGADO</span>`;
+    if(f.estado==='VENCIDO')return`<span class="bdg bdg-r">🔴 VENCIDO</span>`;
+    if(f.fechaVencimiento){const d=new Date(f.fechaVencimiento+'T12:00:00');const dias=Math.round((d-hoy)/86400000);
+      if(dias<0)return`<span class="bdg bdg-r">🔴 Venció hace ${Math.abs(dias)}d</span>`;
+      if(dias===0)return`<span class="bdg bdg-o">🟠 Vence HOY</span>`;
+      if(dias<=3)return`<span class="bdg bdg-o">⚠️ Vence en ${dias}d</span>`;
+      return`<span class="bdg bdg-g">⏰ Vence ${_fmt(f.fechaVencimiento)}</span>`;}
+    return`<span class="bdg bdg-g">PENDIENTE</span>`;
+  }
+
+  function card(f){
+    const esPend=f.estado!=='PAGADO';
+    const selec=_sel.has(f.idFiado);
+    let cls='fc';
+    if(!esPend)cls+=' pagado';else if(f.estado==='VENCIDO')cls+=' venc';
+    if(selec)cls+=' sel';
+    const tkt=f.ticket&&f.ticket.trim()!=='';
+    const descLine=tkt
+      ?`<div class="fc-desc">🎫 Ticket #${f.ticket}</div>`
+      :(f.descripcion?`<div class="fc-desc">📦 ${f.descripcion}</div>`:'');
+    const pagoLine=!esPend?`<div class="fc-pago">✅ Cobrado el ${_fmt(f.fechaPago)}${f.metodoPago?' · '+f.metodoPago:''}</div>`:'';
+    const abonoLine=(esPend&&f.totalAbonado>0)
+      ?`<div class="fc-pago" style="color:var(--naranja)">💵 Abonado: ${fmt(f.totalAbonado)} · Saldo: ${fmt(f.total)}</div>`+
+        (f.abonos?`<div class="fc-pago" style="color:#000;font-size:.66rem;font-weight:400">🗓️ ${f.abonos}</div>`:'')
+      :'';
+    const dot=selec?`<div class="sel-dot">✓</div>`:'';
+    // v38 — reenviar comprobante en TODOS los estados (pendiente, abonado, pagado, con o sin ticket)
+    const _bs='flex:1;border-radius:10px;padding:10px 6px;font-size:.78rem;font-weight:800;cursor:pointer;font-family:inherit;border:2px solid var(--vd);';
+    const btnReenv=`<div style="display:flex;gap:8px;margin-top:10px">`+
+      (tkt?`<button data-det="1" data-tkt="${f.ticket}" data-id="${f.idFiado}" style="${_bs}background:#fff;color:var(--vd)">🎫 Ver venta</button>`:'')+
+      `<button data-rec="${f.idFiado}" style="${_bs}background:var(--vd);color:#fff">📲 Reenviar comprobante</button></div>`;
+    // Sin botones en la tarjeta — se usa el flujo original: seleccionar → botones del header
+    const btnAbono='';
+    return`<div class="${cls}" id="fc-${f.idFiado}" data-id="${f.idFiado}" data-tkt="${f.ticket||''}" data-espend="${esPend?'1':'0'}">${dot}
+      <div class="fc-top">
+        <div><div class="fc-fecha">📅 ${_fmt(f.fecha)}</div><div class="fc-id">${f.idFiado}</div></div>
+        <div style="text-align:right"><div class="fc-monto" style="color:${esPend?'var(--rojo)':'var(--verde)'}">${fmt(f.total)}</div>${bdgEstado(f)}</div>
+      </div>${descLine}${pagoLine}${abonoLine}${btnAbono}${btnReenv}</div>`;
+  }
+
+  let html='';
+  if(pend.length){
+    const todosSel=pend.every(f=>_sel.has(f.idFiado));
+    html+=`<div class="sec-lbl">Pendientes (${pend.length})<button onclick="toggleSelAll()" style="margin-left:auto;background:none;border:1px solid var(--vd);color:var(--vd);border-radius:8px;padding:3px 10px;font-size:.66rem;font-weight:700;cursor:pointer;font-family:inherit;text-transform:none;letter-spacing:normal">${todosSel?'✕ Deseleccionar todos':'☑️ Seleccionar todos'}</button></div>`;
+    pend.forEach(f=>html+=card(f));
+  }
+  if(pagados.length){
+    const MNOM=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const grupos={};
+    pagados.forEach(f=>{
+      const fp=String(f.fechaPago||'').substring(0,7); // YYYY-MM
+      if(!grupos[fp]) grupos[fp]=[];
+      grupos[fp].push(f);
+    });
+    Object.keys(grupos).sort((a,b)=>b.localeCompare(a)).forEach(mes=>{
+      const [y,m]=mes.split('-');
+      const label=mes?MNOM[parseInt(m)-1]+' '+y:'Sin fecha';
+      // Ordenar dentro del mes por fecha de venta descendente
+      grupos[mes].sort((a,b)=>String(b.fecha||'').substring(0,10).localeCompare(String(a.fecha||'').substring(0,10)));
+      html+=`<div class="sec-lbl">✅ ${label} (${grupos[mes].length})</div>`;
+      grupos[mes].forEach(f=>html+=card(f));
+    });
+  }
+  if(!html)html='<div class="empty"><div class="icon">✅</div>Sin fiados registrados</div>';
+  document.getElementById('cuerpoFiados').innerHTML=html;
+  // Event delegation — evita problemas con IDs especiales en onclick inline
+  document.querySelectorAll('#cuerpoFiados .fc').forEach(el=>{
+    el.addEventListener('click', e=>{
+      if(e.target.closest('[data-det]'))return;
+      // v38 — Reenviar comprobante (no selecciona la tarjeta)
+      if(e.target.closest('[data-rec]')){
+        e.stopPropagation();
+        reenviarComprobante(e.target.closest('[data-rec]').dataset.rec);
+        return;
+      }
+      // Botón abono rápido
+      if(e.target.closest('[data-abono]')){
+        e.stopPropagation();
+        const id=e.target.closest('[data-abono]').dataset.id;
+        _sel.clear();
+        _sel.add(id);
+        renderFiados();
+        abrirCobrar();
+        return;
+      }
+      const esPend=el.dataset.espend==='1';
+      const id=el.dataset.id;
+      const tkt=el.dataset.tkt;
+      if(esPend) toggleSel(id);
+      else if(tkt) abrirDet(tkt,id);
+    });
+  });
+  // Links "Ver venta →" dentro de cards pagados
+  document.querySelectorAll('#cuerpoFiados [data-det]').forEach(el=>{
+    el.addEventListener('click', e=>{
+      e.stopPropagation();
+      abrirDet(el.dataset.tkt, el.dataset.id);
+    });
+  });
+  actualizarBarra();
+}
+
+function toggleSel(id){if(_sel.has(id))_sel.delete(id);else _sel.add(id);renderFiados();}
+function toggleSelAll(){
+  const pendIds=_cliData.filter(f=>f.estado!=='PAGADO').map(f=>f.idFiado);
+  if(pendIds.length===0)return;
+  const todosSel=pendIds.every(id=>_sel.has(id));
+  if(todosSel)_sel.clear();
+  else pendIds.forEach(id=>_sel.add(id));
+  renderFiados();
+}
+
+function actualizarBarra(){
+  const b=document.getElementById('barra');
+  if(_sel.size===0){b.style.display='none';return;}
+  const tot=[..._sel].reduce((s,id)=>{const f=_cliData.find(x=>x.idFiado===id);return s+parseFloat(f?.total||0);},0);
+  document.getElementById('barraTxt').innerHTML=`<b>${_sel.size} fiado${_sel.size>1?'s':''}</b><br>${fmt(tot)}`;
+  b.style.display='flex';
+}
+
+// ── DETALLE TICKET ─────────────────────────────────
+async function abrirDet(ticket,idFiado){
+  ir('detalle','Ticket #'+ticket);
+  document.getElementById('detContenido').innerHTML='<div class="ldg"><div class="spin"></div>Cargando detalle...</div>';
+  try{
+    const d=await _api('getDetalleTicket',{ticket});
+    if(!d.ok)throw new Error(d.error||'No encontrado');
+    const fiad=_cliData.find(f=>f.idFiado===idFiado);
+    const pagoInfo=fiad&&fiad.estado==='PAGADO'
+      ?`<div class="det-pagado">✅ Cobrado el ${_fmt(fiad.fechaPago)}${fiad.metodoPago?' · '+fiad.metodoPago:''}</div>`:'';
+    const abonoInfo=fiad&&fiad.totalAbonado>0&&fiad.estado!=='PAGADO'
+      ?`<div class="det-pagado" style="background:#fff8e1;color:#e65100;border-color:#ffe082">💵 Abonado: ${fmt(fiad.totalAbonado)} · Saldo pendiente: ${fmt(fiad.total)}</div>`+
+        (fiad.abonos?`<div style="font-size:.7rem;color:#000;padding:2px 0 0 2px">🗓️ ${fiad.abonos}</div>`:'')
+      :'';
+    // Descuento multicompra: si el total de Ventas supera lo que se fio, la diferencia es el descuento
+    // que ese ticket no registro (ventas anteriores a seba21 v518). Solo se muestra; no se modifica nada.
+    const _totFiado=fiad?(parseFloat(fiad.totalOriginal)||0):0;
+    const _desc=(_totFiado>0&&(d.total-_totFiado)>=1)?Math.round(d.total-_totFiado):0;
+    const totalFinal=_desc?d.total-_desc:d.total;
+    let itemsHtml='';
+    (d.items||[]).forEach(it=>{
+      const cant=String(it.cantidad||'').replace(/\.0$/,'');
+      itemsHtml+=`<div class="item-row"><div class="item-nom">${it.nombre}</div><div class="item-cant">${cant}</div><div class="item-precio">${fmt(it.subtotal)}</div></div>`;
+    });
+    if(_desc)itemsHtml+=`<div class="item-row"><div class="item-nom">🏷️ Descuento multicompra</div><div class="item-cant"></div><div class="item-precio" style="color:#c62828">-${fmt(_desc)}</div></div>`;
+
+    // Armar mensaje WA igual que copihue-reportes
+    const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const fLabel = d.fecha ? _fmt(_normFecha(d.fecha)) : '—';
+    // ── Normalizar hora — soporta: "HH:MM", decimal Excel, Date string completo
+    // Si d.hora es un serial 1899 o falta, extraer hora de d.fecha directamente
+    function _normHora(h, fechaFallback){
+      function _extraer(s){
+        if(!s&&s!==0) return'';
+        s=String(s).trim();
+        if(/^\d{1,2}:\d{2}/.test(s)) return s.slice(0,5);
+        // Número decimal puro (fracción de día Excel)
+        const num=parseFloat(s);
+        if(!isNaN(num)&&num>=0&&num<1){
+          const mins=Math.round(num*1440);
+          return String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0');
+        }
+        // String Date completo — verificar que el año sea válido (no 1899)
+        const yearM=s.match(/\b(\d{4})\b/);
+        if(yearM&&parseInt(yearM[1])>=2000){
+          try{
+            const dd=new Date(s);
+            if(!isNaN(dd.getTime())){
+              const offM=s.match(/GMT([+-])(\d{2})(\d{2})/);
+              if(offM){
+                const sign=offM[1]==='+'?1:-1;
+                const offMin=sign*(parseInt(offM[2])*60+parseInt(offM[3]));
+                const local=new Date(dd.getTime()+offMin*60000);
+                return String(local.getUTCHours()).padStart(2,'0')+':'+String(local.getUTCMinutes()).padStart(2,'0');
+              }
+              return String(dd.getHours()).padStart(2,'0')+':'+String(dd.getMinutes()).padStart(2,'0');
+            }
+          }catch(e){}
+        }
+        // Fallback regex: primer HH:MM ignorando offset GMT
+        const cleaned=s.replace(/GMT[+-]\d{4}/,'');
+        const m=cleaned.match(/(\d{1,2}):(\d{2})(?::\d{2})?/);
+        if(m) return m[1].padStart(2,'0')+':'+m[2];
+        return'';
+      }
+      // Intentar con h primero; si produce vacío o año 1899 → usar fechaFallback
+      const fromH=_extraer(h);
+      if(fromH) return fromH;
+      return _extraer(fechaFallback);
+    }
+    const hLabel=_normHora(d.hora, d.fecha);
+    const waTxt=safeEnc(
+      '🛒 *Almacén Copihue* · #'+d.ticket+'\n'+
+      '📅 '+fLabel+(hLabel?' · '+hLabel+'hs':'')+'\n\n'+
+      (d.items||[]).map(p=>String(p.cantidad||'').replace(/\.0$/,'')+'× '+p.nombre.substring(0,22)+'  '+fmt(p.subtotal)).join('\n')+
+      '\n─────────────────\n'+
+      (_desc?'🏷️ Descuento multicompra  -'+fmt(_desc)+'\n':'')+
+      '*💰 Total: '+fmt(totalFinal)+'*\n'+
+      (d.metodoPago?sanitizeWA(d.metodoPago)+'\n':'')+
+      '👤 '+_cliNom+'\n\n'+
+      '¡Gracias por tu compra! 🙏'
+    );
+    const _telF=(fiad&&_tel10(fiad.telefono))?String(fiad.telefono).trim():'';   // v40: teléfono de ESTE fiado (no el de la primera fila)
+    const telNum=_telF?normTel(_telF):'';
+    const waHref=telNum
+      ?'whatsapp://send?phone='+telNum+'&text='+waTxt
+      :'whatsapp://send?text='+waTxt;
+
+    document.getElementById('detContenido').innerHTML=`
+      <div class="det-hdr">
+        <div class="det-ticket">🎫 Ticket #${d.ticket}</div>
+        <div class="det-sub">📅 ${fLabel}${hLabel?' · 🕐 '+hLabel+'hs':''}<br>👤 ${_cliNom}${_cliTel?' · 📞 '+_cliTel:''}<br>${d.metodoPago?'💳 '+d.metodoPago:''}${d.vendedor?' · 🧑 '+d.vendedor:''}</div>
+        ${pagoInfo}${abonoInfo}
+      </div>
+      ${itemsHtml}
+      <div class="total-row"><span class="tl">💰 Total</span><span class="tm">${fmt(totalFinal)}</span></div>
+      <button class="btn-enviar-ticket" onclick="window.location.href='${waHref}'">📲 Enviar copia ${telNum?'a '+_cliNom+' · '+_telF:'(elegir contacto)'}</button>
+      ${fiad&&(fiad.estado==='PAGADO'||fiad.totalAbonado>0)?`<button class="btn-enviar-ticket" style="background:#fff;color:var(--vd);border:2px solid var(--vd)" onclick="reenviarComprobante('${String(idFiado).replace(/'/g,"\\'")}')">💳 Reenviar comprobante de ${fiad.estado==='PAGADO'?'pago':'abono'}</button>`:''}`;
+  }catch(e){
+    document.getElementById('detContenido').innerHTML=`<div class="empty"><div class="icon">❌</div>${e.message}</div>`;
+  }
+}
+
+// ── COBRAR / ABONAR ────────────────────────────────
+// v26 — Idempotencia real contra pagos/abonos duplicados por mala conexión.
+// abonarFiado() restaba el abono del total CADA VEZ que se llamaba — un
+// reintento tras un timeout descontaba dos veces la plata del cliente.
+// Ahora idOperacion persiste entre reintentos (se genera al abrir el modal
+// de cobro, se reutiliza hasta éxito confirmado) y el servidor lo chequea
+// contra las observaciones de ese fiado antes de restar de nuevo.
+// cobrarFiado() sumó la misma protección de forma defensiva (ya era
+// idempotente para pago total, pero ahora también queda cubierto).
+// REQUIERE Code.gs v10.6+.
+let _idOpCobro = null;
+
+function abrirCobrar(){
+  if(_sel.size===0)return;
+  _idOpCobro = 'fia_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  const selF=[..._sel].map(id=>_cliData.find(f=>f.idFiado===id)).filter(Boolean);
+  _montoFull=selF.reduce((s,f)=>s+parseFloat(f.total||0),0);
+
+  let info=`<b>${_cliNom}</b><br>`;
+  selF.forEach(f=>{const ref=f.ticket&&f.ticket.trim()!==''?'Ticket #'+f.ticket:f.idFiado;info+=`🧾 ${ref} · ${fmt(f.total)}<br>`;});
+  info+=`<br>💰 <b>Total: ${fmt(_montoFull)}</b>`;
+  document.getElementById('cobInfo').innerHTML=info;
+  document.getElementById('cobTit').innerHTML='✅ Registrar pago <button onclick="cerrarCob()">✕</button>';
+  document.getElementById('montoInput').value=Math.round(_montoFull);
+  document.getElementById('montoHint').style.display='none';
+  document.getElementById('btnConf').textContent='✅ Confirmar';
+  selMet('EFECTIVO');
+  document.getElementById('modalCob').classList.add('open');
+}
+
+function cerrarCob(){document.getElementById('modalCob').classList.remove('open');}
+
+function selMet(m){
+  _met=m;
+  document.getElementById('mEf').classList.toggle('activo',m==='EFECTIVO');
+  document.getElementById('mQR').classList.toggle('activo',m==='QR');
+  document.getElementById('mTr').classList.toggle('activo',m==='TRANSFERENCIA');
+}
+
+function setMontoFull(){
+  document.getElementById('montoInput').value=Math.round(_montoFull);
+  document.getElementById('montoHint').style.display='none';
+}
+
+function onMontoInput(){
+  const v=parseFloat(document.getElementById('montoInput').value)||0;
+  const esAbono=v>0&&v<_montoFull-0.5;
+  document.getElementById('montoHint').style.display=esAbono?'block':'none';
+}
+
+async function confirmarCob(){
+  const montoIngresado=parseFloat(document.getElementById('montoInput').value)||0;
+  if(montoIngresado<=0){toast('⚠️ Ingresá un monto','r');return;}
+  const esAbono=montoIngresado<_montoFull-0.5;
+  const selArr=[..._sel];
+  _recIds=selArr.slice();   // v40: a qué fiados corresponde el comprobante (para elegir el teléfono correcto)
+  const btn=document.getElementById('btnConf');
+  btn.disabled=true;btn.textContent='⏳ Guardando...';
+
+  try{
+    if(esAbono&&selArr.length===1){
+      // Abono parcial — un solo fiado
+      const r=await _api('abonarFiado',{idFiado:selArr[0],abono:montoIngresado,metodoPago:_met,idOperacion:_idOpCobro});
+      if(!r.success)throw new Error(r.mensaje||'Error al abonar');
+      toast(r.yaExistia?'✅ Ese abono ya estaba registrado — no se descontó de nuevo':'✅ Abono registrado','v');
+      // Recordatorio de abono
+      const f=_cliData.find(x=>x.idFiado===selArr[0]);
+      const ref=f?.ticket&&f.ticket.trim()!==''?'Ticket #'+f.ticket:selArr[0];
+      const resta=Math.max(0,(f?.total||0)-montoIngresado);
+      _recTxt=['✅ *ABONO RECIBIDO — Almacén Copihue*','',
+        `📅 ${new Date().toLocaleDateString('es-AR')}  🕐 ${new Date().toTimeString().slice(0,5)}`,
+        `👤 Cliente: ${_cliNom}`,'',
+        `🧾 Ref: ${ref}`,
+        `💰 Abono: ${fmt(montoIngresado)}`,
+        resta>0?`📋 Saldo restante: ${fmt(resta)}`:'✅ Deuda saldada',
+        `💳 Método: ${_met}`,'','📍 Almacén Copihue'].join('\n');
+    }else if(esAbono&&selArr.length>1){
+      // Abono parcial repartido entre varios fiados seleccionados:
+      // se van marcando pagados en orden mientras el monto alcance, y el
+      // que no llega a cubrirse completo queda como abono parcial (con su
+      // saldo restante) — el resto de los seleccionados que no alcanzan a
+      // tocarse quedan tal cual estaban, pendientes.
+      let resta=montoIngresado;
+      let err=0;
+      const lineas=[];
+      const selF=selArr.map(id=>_cliData.find(f=>f.idFiado===id)).filter(Boolean);
+      for(const f of selF){
+        if(resta<=0.5)break;
+        const ref=f.ticket&&f.ticket.trim()!==''?'Ticket #'+f.ticket:f.idFiado;
+        if(resta>=f.total-0.5){
+          const r=await _api('cobrarFiado',{idFiado:f.idFiado,metodoPago:_met,idOperacion:_idOpCobro});
+          if(!r.success){err++;toast('❌ '+(r.mensaje||'Error'),'r');continue;}
+          lineas.push(`  🧾 ${ref} · ${fmt(f.total)} ✅ Pagado`);
+          resta-=f.total;
+        }else{
+          const abono=resta;
+          const r=await _api('abonarFiado',{idFiado:f.idFiado,abono,metodoPago:_met,idOperacion:_idOpCobro});
+          if(!r.success){err++;toast('❌ '+(r.mensaje||'Error'),'r');continue;}
+          lineas.push(`  🧾 ${ref} · ${fmt(abono)} de ${fmt(f.total)} 📋 Abonado (resta ${fmt(f.total-abono)})`);
+          resta=0;
+        }
+      }
+      if(err>0)throw new Error('Algunos cobros/abonos fallaron');
+      toast('✅ Pago registrado','v');
+      _recTxt=['✅ *PAGO RECIBIDO — Almacén Copihue*','',
+        `📅 ${new Date().toLocaleDateString('es-AR')}  🕐 ${new Date().toTimeString().slice(0,5)}`,
+        `👤 Cliente: ${_cliNom}`,'',lineas.join('\n'),'',
+        `💰 *Total pagado: ${fmt(montoIngresado)}*`,
+        `💳 Método: ${_met}`,'','📍 Almacén Copihue'].join('\n');
+    }else{
+      // Cobro total de todos los seleccionados
+      let err=0;
+      for(const id of selArr){
+        const r=await _api('cobrarFiado',{idFiado:id,metodoPago:_met,idOperacion:_idOpCobro});
+        if(!r.success){err++;toast('❌ '+(r.mensaje||'Error'),'r');}
+      }
+      if(err>0)throw new Error('Algunos cobros fallaron');
+      toast('✅ Cobro registrado','v');
+      // Recordatorio de cobro
+      const selF=selArr.map(id=>_cliData.find(f=>f.idFiado===id)).filter(Boolean);
+      const lineas=selF.map(f=>{const ref=f.ticket&&f.ticket.trim()!==''?'Ticket #'+f.ticket:f.idFiado;return`  🧾 ${ref} · ${fmt(f.total)}`;}).join('\n');
+      _recTxt=['✅ *PAGO RECIBIDO — Almacén Copihue*','',
+        `📅 ${new Date().toLocaleDateString('es-AR')}  🕐 ${new Date().toTimeString().slice(0,5)}`,
+        `👤 Cliente: ${_cliNom}`,'',lineas,'',
+        `💰 *Total cobrado: ${fmt(_montoFull)}*`,
+        `💳 Método: ${_met}`,'','✅ ¡Gracias por saldar tu deuda! 🙌','📍 Almacén Copihue'].join('\n');
+    }
+    cerrarCob();
+    // Recargar fiados y abrir recordatorio
+    const data=await _api('listarFiados');
+    if(data.ok){
+      _todos=(data.fiados||[]).map(f=>({...f,fecha:_normFecha(f.fecha),fechaPago:_normFecha(f.fechaPago),fechaVencimiento:_normFecha(f.fechaVencimiento)}));
+      _cliData=_todos.filter(f=>f.cliente===_cliNom);
+      _sel.clear();renderFiados();
+    }
+    if(esAbono){
+      // Abono: mostrar recordatorio de texto para compartir
+      abrirRec();
+    } else {
+      // Cobro total: mostrar comprobante de pago (no el ticket de compra)
+      abrirRec();
+    }
+  }catch(e){
+    toast('❌ '+e.message+' — podés tocar Confirmar de nuevo, no se va a descontar dos veces','r');
+  }finally{
+    btn.disabled=false;btn.textContent='✅ Confirmar';
+  }
+}
+
+// ── v38 — REENVIAR COMPROBANTE ─────────────────────
+// Reconstruye el texto SOLO con datos ya guardados en la planilla (fecha real de
+// pago, método, importes y detalle de abonos de la columna N). No inventa saldos
+// históricos ni usa la fecha de hoy para representar un pago pasado.
+function _txtComprobante(f){
+  const ref=f.ticket&&String(f.ticket).trim()!==''?'Ticket #'+f.ticket:f.idFiado;
+  const orig=parseFloat(f.totalOriginal)||parseFloat(f.total)||0;
+  const abonosTxt=String(f.abonos||'').replace(/\s*\[[^\]]*\]/g,'').split('|').map(x=>x.trim()).filter(Boolean);
+  const detAb=abonosTxt.length?['','🗓️ Pagos registrados:'].concat(abonosTxt.map(x=>'  • '+x)):[];
+  if(f.estado==='PAGADO'){
+    return ['✅ *PAGO RECIBIDO — Almacén Copihue* (copia)','',
+      `📅 Fecha de pago: ${_fmt(f.fechaPago)}`,
+      `👤 Cliente: ${_cliNom}`,'',
+      `  🧾 ${ref} · ${fmt(orig)} ✅ Pagado`].concat(detAb,['',
+      `💰 *Total de la compra: ${fmt(orig)}*`,
+      f.metodoPago?`💳 Método: ${f.metodoPago}`:'',
+      '','✅ ¡Gracias por saldar tu deuda! 🙌','📍 Almacén Copihue']).filter((l,i,a)=>l!==''||a[i-1]!=='').join('\n');
+  }
+  if(parseFloat(f.totalAbonado)>0){
+    return ['📋 *ABONO RECIBIDO — Almacén Copihue* (copia)','',
+      `👤 Cliente: ${_cliNom}`,'',
+      `  🧾 ${ref} · compra ${fmt(orig)}`].concat(detAb,['',
+      `💵 Abonado hasta ahora: ${fmt(f.totalAbonado)}`,
+      `💰 *Saldo pendiente: ${fmt(f.total)}*`,
+      '','📍 Almacén Copihue']).join('\n');
+  }
+  return ['🧾 *COMPROBANTE DE FIADO — Almacén Copihue* (copia)','',
+    `📅 Fecha: ${_fmt(f.fecha)}`,
+    `👤 Cliente: ${_cliNom}`,
+    `🎫 ${ref}`,
+    f.descripcion?`📦 ${f.descripcion}`:'',
+    `💰 *Total fiado: ${fmt(f.total)}*`,
+    f.fechaVencimiento?`⏰ Vence: ${_fmt(f.fechaVencimiento)}`:'',
+    '','📍 Almacén Copihue'].filter(l=>l!=='').join('\n');
+}
+function reenviarComprobante(idFiado){
+  const f=_cliData.find(x=>String(x.idFiado)===String(idFiado));
+  if(!f){toast('❌ No se encontró el fiado','r');return;}
+  _recTxt=_txtComprobante(f);
+  _recIds=[String(f.idFiado)];
+  abrirRec();
+}
+// v40 — DESTINO DEL WHATSAPP: ya no se usa el teléfono de la primera fila del cliente (_cliTel).
+// Se toma el teléfono de los fiados A LOS QUE CORRESPONDE este comprobante, y solo se ofrece el envío directo
+// si hay UN solo teléfono (tanto en esos fiados como en todos los del cliente). Si no, queda solo «Compartir».
+function _tel10(t){const d=String(t||'').replace(/\D/g,'');return d.length>=6?d.slice(-10):'';}
+function _recDestino(){
+  const ids=(_recIds||[]).map(String);
+  const fil=_cliData.filter(f=>ids.includes(String(f.idFiado)));
+  if(!fil.length)return{ok:false,motivo:'no se sabe a qué fiado corresponde este comprobante'};
+  const kSel=[...new Set(fil.map(f=>_tel10(f.telefono)).filter(Boolean))];
+  const kAll=[...new Set(_cliData.map(f=>_tel10(f.telefono)).filter(Boolean))];
+  if(!kSel.length)return{ok:false,motivo:'estos fiados no tienen teléfono'};
+  if(kSel.length>1||kAll.length>1){
+    const vis=[...new Set(_cliData.map(f=>String(f.telefono||'').trim()).filter(Boolean))];
+    return{ok:false,multi:true,motivo:'este cliente tiene más de un teléfono en FIADOS ('+vis.join(' / ')+')'};
+  }
+  const raw=String(fil.find(f=>_tel10(f.telefono)===kSel[0]).telefono).trim();
+  const tel=normTel(raw);
+  return tel?{ok:true,tel:tel,visible:raw}:{ok:false,motivo:'teléfono incompleto ('+raw+')'};
+}
+function enviarRecWA(){
+  if(!_recTxt)return;
+  const d=_recDestino();
+  if(!d.ok){toast('⚠️ No se envía directo: '+d.motivo+'. Usá «Compartir» y elegí el contacto.','r');return;}
+  window.location.href='whatsapp://send?phone='+d.tel+'&text='+safeEnc(_recTxt);
+}
+
+// ── RECORDATORIO ───────────────────────────────────
+function abrirRec(){
+  if(!_recTxt&&_sel.size===0)return;
+  if(!_recTxt){
+    _recIds=[..._sel].map(String);
+    const selF=[..._sel].map(id=>_cliData.find(f=>f.idFiado===id)).filter(Boolean);
+    const tot=selF.reduce((s,f)=>s+parseFloat(f.total||0),0);
+    // Mismo enfoque que cobrar — usa descripcion guardada, funciona para todos los fiados
+    const bloques=selF.map(f=>{
+      const ref=f.ticket&&f.ticket.trim()!==''?'Ticket #'+f.ticket:f.idFiado;
+      const detalle=f.descripcion?`\n    📦 ${f.descripcion}`:'';
+      return`🧾 ${ref} — ${fmt(f.total)}\n   📅 Vence: ${_fmt(f.fechaVencimiento)||'—'}${detalle}`;
+    });
+    _recTxt=['📋 *RECORDATORIO DE DEUDA — Almacén Copihue*','',
+      `👤 Cliente: ${_cliNom}`,'',
+      bloques.join('\n\n'),'',
+      `💰 *Total pendiente: ${fmt(tot)}*`,'',
+      'Por favor acercate a regularizar tu cuenta.','📍 Almacén Copihue'].join('\n');
+  }
+  document.getElementById('recPrev').textContent=_recTxt;
+  { const bw=document.getElementById('btnRecWA'), av=document.getElementById('recAvisoTel'), d=_recDestino();
+    if(bw){ bw.style.display=d.ok?'block':'none'; if(d.ok) bw.textContent='📲 Enviar a '+_cliNom+' · '+d.visible; }
+    if(av){ av.style.display=d.multi?'block':'none'; if(d.multi) av.textContent='⚠️ '+d.motivo+'. No se ofrece el envío directo: usá «Compartir» y elegí el contacto.'; } }
+  document.getElementById('copMsg').style.display='none';
+  document.getElementById('modalRec').classList.add('open');
+}
+function cerrarRec(){document.getElementById('modalRec').classList.remove('open');_recTxt='';_recIds=[];}
+function compartir(){if(!_recTxt)return;if(navigator.share)navigator.share({text:_recTxt}).catch(()=>{});else{copiar();toast('📋 Texto copiado','v');}}
+function copiar(){
+  if(!_recTxt)return;
+  const msg=document.getElementById('copMsg');
+  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(_recTxt).then(()=>{msg.style.display='block';setTimeout(()=>msg.style.display='none',2500);});
+  else{const ta=document.createElement('textarea');ta.value=_recTxt;ta.style.cssText='position:fixed;top:-9999px';document.body.appendChild(ta);ta.focus();ta.select();try{document.execCommand('copy');msg.style.display='block';setTimeout(()=>msg.style.display='none',2500);}catch(e){}document.body.removeChild(ta);}
+}
+
+// ── NAVEGACIÓN ─────────────────────────────────────
+function ir(vista,titulo){
+  ['vistaClientes','vistaFiados','vistaDetalle'].forEach(id=>{
+    document.getElementById(id).classList.toggle('activa',id==='vista'+vista.charAt(0).toUpperCase()+vista.slice(1));
+  });
+  const hdr=document.getElementById('hdr');
+  if(vista==='clientes'){
+    hdr.innerHTML=`<div style="flex:1"><div class="hdr-t">Copihue — Fiados <span class="ver-badge" style="font-size:.62rem;font-weight:400;opacity:.75">v${APP_VERSION}</span></div><div class="hdr-s" id="hdrSub">—</div></div><button class="btn-icon" onclick="cargar()">🔄</button><button class="btn-back" onclick="if(confirm('¿Salir de Fiados?'))window.location.href='seba21.html'">← Volver</button>`;
+  }else if(vista==='fiados'){
+    hdr.innerHTML=`<button class="btn-back" onclick="volverClis()">← Volver</button><div style="flex:1;margin-left:8px"><div class="hdr-t">${titulo||''}</div><div class="hdr-s" id="hdrSub">fiados</div></div><button class="btn-icon" onclick="recargarCli()">🔄</button>`;
+    const pend=_cliData.filter(f=>f.estado!=='PAGADO').length;
+    setTimeout(()=>{const s=document.getElementById('hdrSub');if(s)s.textContent=pend+' pendiente'+(pend!==1?'s':'');},0);
+  }else if(vista==='detalle'){
+    hdr.innerHTML=`<button class="btn-back" onclick="volverFiados()">← Volver</button><div style="flex:1;margin-left:8px"><div class="hdr-t">${titulo||'Detalle'}</div></div>`;
+  }
+}
+function setHdrSub(txt){const s=document.getElementById('hdrSub');if(s)s.textContent=txt;}
+function abrirEditCli(nomEnc,tel){
+  document.getElementById('editCliOrig').value=decodeURIComponent(nomEnc);
+  document.getElementById('editCliNom').value=decodeURIComponent(nomEnc);
+  document.getElementById('editCliTel').value=tel||'';
+  const btn=document.getElementById('btnEditCli');
+  btn.disabled=false; btn.textContent='✅ Guardar';
+  document.getElementById('modalEditCli').classList.add('open');
+}
+function cerrarEditCli(){
+  document.getElementById('modalEditCli').classList.remove('open');
+}
+async function confirmarEditCli(){
+  const nomOrig=document.getElementById('editCliOrig').value.trim();
+  const nomNuevo=document.getElementById('editCliNom').value.trim();
+  const telNuevo=document.getElementById('editCliTel').value.trim();
+  if(!nomNuevo){alert('El nombre no puede estar vacío');return;}
+  const btn=document.getElementById('btnEditCli');
+  btn.disabled=true; btn.textContent='⏳ Guardando...';
+  try{
+    const r=await _api('actualizarCliente',{
+      nombreOriginal:nomOrig,
+      nombreNuevo:nomNuevo,
+      telefonoNuevo:telNuevo
+    });
+    if(r.success){
+      cerrarEditCli();
+      // Forzar recarga fresca ignorando caché del service worker
+      _todos=[];
+      await recargarCli();
+      renderClientes();
+    } else {
+      alert('❌ '+(r.mensaje||'Error al guardar'));
+      btn.disabled=false; btn.textContent='✅ Guardar';
+    }
+  }catch(e){
+    alert('❌ Sin conexión');
+    btn.disabled=false; btn.textContent='✅ Guardar';
+  }
+}
+
+function volverClis(){_sel.clear();renderClientes();ir('clientes');}
+function volverFiados(){ir('fiados',_cliNom);}
+async function recargarCli(){
+  try{
+    const [dFia,dCli]=await Promise.all([_api('listarFiados'),_api('listarClientes')]);
+    if(!dFia.ok)throw new Error(dFia.error);
+    _todos=(dFia.fiados||[]).map(f=>({...f,fecha:_normFecha(f.fecha),fechaPago:_normFecha(f.fechaPago),fechaVencimiento:_normFecha(f.fechaVencimiento)}));
+    _todosClientes=(dCli.ok&&dCli.clientes)||[];
+    _cliData=_todos.filter(f=>f.cliente===_cliNom);
+    _sel.clear();
+    const enClientes=document.getElementById('vistaClientes')?.classList.contains('activa');
+    if(enClientes) renderClientes(); else renderFiados();
+    toast('✅ Actualizado','v');
+  }catch(e){toast('❌ '+e.message,'r');}
+}
+
+document.title='📒 Fiados · Copihue v'+APP_VERSION;
+const _vbInit=document.getElementById('verBadgeInit');if(_vbInit)_vbInit.textContent='v'+APP_VERSION;
+
+// ── Regla 3: protección de salida ─────────────────
+// Empuja un estado al historial para interceptar el botón Atrás del navegador/teléfono
+history.pushState({pag:'fiados'},'','');
+window.addEventListener('popstate',e=>{
+  // Si hay una vista interna activa (fiados de un cliente o detalle de ticket), volver a ella
+  const enFiados=document.getElementById('vistaFiados')?.classList.contains('activa');
+  const enDetalle=document.getElementById('vistaDetalle')?.classList.contains('activa');
+  if(enDetalle){
+    // volver a fiados del cliente sin recargar
+    history.pushState({pag:'fiados'},'','');
+    ir('fiados',_cliNom);
+    return;
+  }
+  if(enFiados){
+    // volver a la lista de clientes sin recargar
+    history.pushState({pag:'fiados'},'','');
+    volverClis();
+    return;
+  }
+  // Estamos en lista de clientes: confirmar salida
+  const salir=confirm('¿Salir de Fiados?');
+  if(salir){
+    history.back(); // dejar que el navegador salga
+  } else {
+    history.pushState({pag:'fiados'},'',''); // re-push para seguir protegido
+  }
+});
+// beforeunload para desktop y recarga de página
+window.addEventListener('beforeunload',e=>{
+  e.preventDefault();
+  e.returnValue='';
+});
+
+cargar();
+</script>
+</body>
+</html>
