@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v519</title>
+    <title>🛒 POS · Copihue v520</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -5295,7 +5295,37 @@ function _aplicarEstadoFabColapso() {
     toggle.textContent = plegado ? '▸' : '▾';
 }
 
+// v520 — SEÑAL AL VACIAR EL CARRITO: antes el botón parecía no hacer nada hasta que el redibujado terminaba.
+// Ahora, al tocar, el/los botón(es) 🗑 pasan a ⏳ y sale un cartel; recién en el cuadro siguiente corre el MISMO
+// vaciado de siempre (_limpiarVentaAhora, sin cambios). Siempre se restaura el botón, aunque algo falle.
+let _limpiandoVenta = false;
 function limpiarVenta() {
+    if (ventaActual.length === 0) return;
+    if (_limpiandoVenta) return;            // doble toque mientras trabaja: se ignora
+    _limpiandoVenta = true;
+    const btns = Array.from(document.querySelectorAll('button[onclick*="limpiarVenta"]'));
+    const orig = btns.map(b => ({ b: b, t: b.textContent, o: b.style.opacity, p: b.style.pointerEvents }));
+    btns.forEach(b => { b.textContent = '⏳'; b.style.opacity = '0.6'; b.style.pointerEvents = 'none'; });
+    try { mostrarToast('🗑️ Vaciando carrito…', 'naranja'); } catch (e) {}
+    const t0 = performance.now();
+    const restaurar = () => { orig.forEach(x => { x.b.textContent = x.t; x.b.style.opacity = x.o; x.b.style.pointerEvents = x.p; }); _limpiandoVenta = false; };
+    const trabajar = () => {
+        try {
+            _limpiarVentaAhora();
+            try { mostrarToast('✅ Carrito vaciado'); } catch (e) {}
+        } catch (e) {
+            console.warn('⚠️ limpiarVenta:', e);
+            try { mostrarToast('⚠️ No se pudo vaciar el carrito. Probá de nuevo.', 'rojo'); } catch (e2) {}
+        } finally {
+            restaurar();
+            try { console.info('🗑️ Vaciar carrito: ' + Math.round(performance.now() - t0) + ' ms'); } catch (e) {}
+        }
+    };
+    try { requestAnimationFrame(() => setTimeout(trabajar, 0)); }   // deja pintar la señal antes del trabajo pesado
+    catch (e) { setTimeout(trabajar, 0); }
+}
+
+function _limpiarVentaAhora() {
     if (ventaActual.length === 0) return;
     ventaActual = [];
     guardarCarritoPendiente();
