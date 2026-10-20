@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v520</title>
+    <title>🛒 POS · Copihue v521</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -5299,6 +5299,16 @@ function _aplicarEstadoFabColapso() {
 // Ahora, al tocar, el/los botón(es) 🗑 pasan a ⏳ y sale un cartel; recién en el cuadro siguiente corre el MISMO
 // vaciado de siempre (_limpiarVentaAhora, sin cambios). Siempre se restaura el botón, aunque algo falle.
 let _limpiandoVenta = false;
+// v521 — Abre la página de reportes de retiros de caja (copihue-retiros-de-caja.html).
+// Si hay una venta en curso, pregunta antes de salir para no perder el carrito.
+function abrirRetirosDeCaja() {
+    try {
+        if (Array.isArray(ventaActual) && ventaActual.length > 0 &&
+            !confirm('Tenés una venta en curso. Si salís ahora, el carrito se pierde.\n\n¿Salir igual?')) return;
+    } catch (e) {}
+    location.href = 'copihue-retiros-de-caja.html';
+}
+
 function limpiarVenta() {
     if (ventaActual.length === 0) return;
     if (_limpiandoVenta) return;            // doble toque mientras trabaja: se ignora
@@ -17045,7 +17055,11 @@ async function cargarHistorialRetiros() {
         <div class="modal-handle"></div>
         <div class="modal-header" style="flex-shrink:0;">
             <span class="modal-titulo">💸 Caja — Egresos</span>
-            <button class="modal-cerrar" onclick="cerrarRetiroCaja()">✕</button>
+            <!-- v521 — Acceso a la página de reportes de retiros de caja (solo navega; no toca el registro de retiros) -->
+            <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+                <button onclick="abrirRetirosDeCaja()" title="Reportes de retiros de caja y Excel" style="background:#e3f2fd;border:1.5px solid #1565c0;color:#0d47a1;border-radius:10px;padding:6px 9px;font-size:0.74rem;font-weight:800;cursor:pointer;white-space:nowrap;font-family:inherit;">📊 Reportes</button>
+                <button class="modal-cerrar" onclick="cerrarRetiroCaja()">✕</button>
+            </div>
         </div>
 
         <!-- Scroll area -->
