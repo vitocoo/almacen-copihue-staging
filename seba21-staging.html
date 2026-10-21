@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v522</title>
+    <title>🛒 POS · Copihue v524</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -4407,7 +4407,7 @@ async function _recargaSilenciosa() {
         if (!arr || arr.length === 0) return;
         const map = {};
         arr.forEach(p => { map[p.id] = p; });
-        productos = productos.map(p => { const f=map[p.id]; return f ? {...p,stock:parseInt(f.stock)||0,price:parseInt(f.price)||p.price} : p; });
+        productos = productos.map(p => { const f=map[p.id]; return f ? {...p,stock:_stockLeido(p,f.stock),price:parseInt(f.price)||p.price} : p; });
         const ind = document.getElementById('indicadorCarga');
         if (ind) { ind.classList.remove('cargando'); ind.classList.add('ok'); }
     } catch(e) { console.warn('Recarga silenciosa:', e.message); }
@@ -4431,7 +4431,7 @@ async function cargarProductos(intento = 1) {
                 id: p.id,
                 name: String(p.name).trim(),
                 price: parseInt(p.price) || 0,
-                stock: parseInt(p.stock) || 0,
+                stock: _stockLeido({ name: String(p.name).trim(), category: String(p.category || 'ALMACEN').trim().toUpperCase() }, p.stock),
                 image: `imagenes-productos/${simplificarNombre(String(p.name).trim())}.jpg`,
                 category: String(p.category || 'ALMACEN').trim().toUpperCase(),
                 rotacion: parseInt(p.rotacion) || 3,
@@ -4707,8 +4707,8 @@ function renderResultados(results, term = '') {
         const stockColor = sinStock ? '#bbb' : stockBajo ? '#f57c00' : '#aaa';
         const stockLabel = sinStock
             ? '<span style="background:#e0e0e0;color:#999;padding:1px 6px;border-radius:8px;font-size:0.6rem;font-weight:700;">SIN STOCK</span>'
-            : stockBajo ? `<span style="color:#f57c00;">${p.stock} u. (poco)</span>`
-            : `stock: ${p.stock}`;
+            : stockBajo ? `<span style="color:#f57c00;">${esPorPeso(p) ? _stockKgTexto(p.stock) + ' kg' : p.stock + ' u.'} (poco)</span>`
+            : `stock: ${esPorPeso(p) ? _stockKgTexto(p.stock) + ' kg' : p.stock}`;
 
         return `
         <div class="resultado-item ${sinStock ? 'sin-stock' : ''} ${qty > 0 ? 'en-carrito' : ''}"
@@ -4906,6 +4906,22 @@ function esPorPeso(producto) {
     const cat = (producto.category || '').toUpperCase();
     return /\bKG\b/.test(nombre) || 
            (cat.includes('FRUTA') || cat.includes('VERDURA')) && nombre.includes('KG');
+}
+
+// v524 — stock de productos por kilo con decimales. Antes SIEMPRE se leía con
+// parseInt, así que 1,479 kg se veía como "1 u." y menos de 1 kg como "SIN STOCK".
+// Los productos que NO son por kilo siguen leyéndose exactamente igual (parseInt).
+function _stockLeido(prod, raw) {
+    try {
+        if (esPorPeso(prod)) {
+            const n = parseFloat(String(raw).replace(',', '.'));
+            if (isFinite(n)) return Math.round(n * 1000) / 1000;
+        }
+    } catch(e) {}
+    return parseInt(raw) || 0;
+}
+function _stockKgTexto(n) {
+    return (Math.round(n * 100) / 100).toLocaleString('es-AR', { maximumFractionDigits: 2 });
 }
 
 function _refreshResultadosBadges(idActualizado) {
@@ -6389,6 +6405,7 @@ function _confirmarCobroDispatch() {
 async function togglePagoMixto() {
     const panel = document.getElementById('panelPagoMixto');
     const abrir = panel.style.display === 'none';
+    if (!abrir) { _pmLimpiarTodo(); return; } // v523 — "✕ cerrar" descarta lo cargado
     panel.style.display = abrir ? 'block' : 'none';
     document.getElementById('pmToggleFlecha').textContent = abrir ? '⌄' : '›';
     _pagoMixtoActivo = abrir;
@@ -6410,6 +6427,23 @@ const PM_PENDIENTE_KEY = 'copihue_pago_mixto_pendiente'; // v453
 // modal para agregar más productos (ej. dar caramelos en vez de vuelto) e
 // incluso a un refresh de página, igual que ya hace el carrito. Solo se
 // borra con "Vaciar carrito" o al confirmar el cobro con éxito.
+// v523 — limpieza TOTAL del pago mixto en curso (variables + panel + localStorage).
+// Se llama cuando una venta ya quedó cobrada y el carrito vaciado, y al cerrar
+// el panel con "✕ cerrar". Nunca lanza error.
+function _pmLimpiarTodo() {
+    try {
+        _pagosMixtos = [];
+        _pagoMixtoActivo = false;
+        localStorage.removeItem(PM_PENDIENTE_KEY);
+        const panel = document.getElementById('panelPagoMixto');
+        if (panel) panel.style.display = 'none';
+        const fl = document.getElementById('pmToggleFlecha');
+        if (fl) fl.textContent = '›';
+        const er = document.getElementById('pmErrorMsg');
+        if (er) er.style.display = 'none';
+    } catch(e) { console.warn('⚠️ _pmLimpiarTodo:', e); }
+}
+
 function _pmGuardarEstadoPendiente() {
     if (!_pagosMixtos.length) { localStorage.removeItem(PM_PENDIENTE_KEY); return; }
     try {
@@ -6859,6 +6893,7 @@ async function confirmarVentaMixta() {
         ventaActual = [];
         renderVenta();
         localStorage.removeItem(CARRITO_KEY);
+        _pmLimpiarTodo(); // v523 — la venta ya quedó guardada: nada de mixto residual aunque falle algo después
 
         try {
         itemsSnapshot.forEach(item => {
@@ -7012,6 +7047,7 @@ async function confirmarVenta() {
     ventaActual = [];
     renderVenta();
     localStorage.removeItem(CARRITO_KEY);
+    _pmLimpiarTodo(); // v523 — un cobro normal tampoco debe dejar restos de un mixto anterior
 
     try {
         // Actualizar stock local para no vender más de lo que hay
