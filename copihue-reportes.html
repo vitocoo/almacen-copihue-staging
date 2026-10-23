@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>🧪 STAGING ver.36 · Copihue · Reportes</title>
+<title>🧪 STAGING · ver.36 · Copihue · Reportes</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -347,14 +347,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 </style>
 </head>
 <body>
-
+<div style="background:#ff9800;color:#000;text-align:center;font-weight:900;font-size:.75rem;padding:4px">🧪 STAGING — datos de prueba</div>
 <div class="hdr">
   <div class="hdr-icon">🏪</div>
   <div><div class="hdr-t">Copihue</div><div class="hdr-s">Reportes</div></div>
-  <a href="seba21.html" class="btn-back">← Volver</a>
+  <button class="btn-back" id="btnExcelHdr" onclick="excelDesdeCabecera()" style="margin-left:auto" title="Descargar informe Excel del período elegido">📥 Excel</button>
+  <a href="seba21-staging.html" class="btn-back" style="margin-left:0">← Volver</a>
 </div>
 
-<div style="background:#ff9800;color:#000;text-align:center;font-weight:900;font-size:.75rem;padding:4px">🧪 STAGING — datos de prueba</div>
 <div id="app"><div class="ldg"><div class="spin"></div>Cargando reportes...</div></div>
 
 <script>
@@ -378,6 +378,10 @@ let vendActivos=new Set(['TODOS']);
 let topOrden='venta'; // 'venta' | 'ganancia'
 let showVenc=false, showDiaSem=false, showHoras=false, showPDias=false, showGanDias=false, showMetodos=false, showVendedores=false, showTopProd=false, showMejDias=false, showCompMeses=false;
 let prodSelIdx=-1; // índice del producto seleccionado en el top (-1 = ninguno)
+// v36 — top: ver todos los productos y ordenar
+let topTodos=false;      // false = top 15 | true = todos los productos del período
+let topSort='venta';     // 'venta' | 'unidades' | 'tickets' (solo en Top por venta)
+const fmtQ=n=>(Math.round(n*10)/10).toLocaleString('es-AR');
 // ===== COMPRA SUGERIDA INTELIGENTE — estado =====
 let showCSI=false, csiFiltroPeriodo='todos';
 let showRecienLlegados=false;
@@ -487,7 +491,9 @@ async function init(){
   }
   try{ renderApp(); }catch(e){
     document.getElementById('app').innerHTML='<div class="ldg" style="color:#c62828">❌ Error al mostrar datos: '+e.message+'</div>';
+    return;
   }
+  _excelAutoDesdeURL();
 }
 
 // ====== FILTRAR ======
@@ -554,10 +560,14 @@ function calcStats(its,tots){
     prods[i.nombre].ganReal+=i.tieneCosto?(i.gananciaReal||0):0;
     prods[i.nombre].ganAprox+=i.gananciaAprox||0;
     if(i.tieneCosto)prods[i.nombre].conCosto=true;
+    if(!prods[i.nombre].tks)prods[i.nombre].tks=new Set();
+    prods[i.nombre].tks.add(i.ticket);
   });
-  const top=Object.entries(prods).sort((a,b)=>b[1].total-a[1].total).slice(0,15)
-    .map(([n,d])=>({nombre:n,qty:Math.round(d.qty),total:d.total,ganReal:d.ganReal,ganAprox:d.ganAprox,conCosto:d.conCosto}));
-  return{venta,ganReal,ganAprox,itemsConCosto,itemsSinCosto,metodos,vendedores,top,nTks:tots.length};
+  // v36 — todos los productos (mismo cálculo que el Excel); top = los 15 primeros por venta
+  const todos=Object.entries(prods).sort((a,b)=>b[1].total-a[1].total)
+    .map(([n,d])=>({nombre:n,qty:Math.round(d.qty*10)/10,total:d.total,ganReal:d.ganReal,ganAprox:d.ganAprox,conCosto:d.conCosto,tickets:d.tks?d.tks.size:0}));
+  const top=todos.slice(0,15);
+  return{venta,ganReal,ganAprox,itemsConCosto,itemsSinCosto,metodos,vendedores,top,todos,nTks:tots.length};
 }
 
 // ====== HELPERS ======
@@ -706,9 +716,17 @@ function renderApp(){
                                ['#e8f5e9','#2e7d32','📦 '+s+' und'];
     return '<span style="font-size:.6rem;font-weight:700;background:'+bg+';color:'+txt+';padding:1px 7px;border-radius:20px;margin-left:4px">'+lbl+'</span>';
   }
-  const maxV=stats.top.length?stats.top[0].total:1;
-  const maxG=Math.max(...stats.top.map(p=>p.conCosto?Math.max(p.ganReal,0):p.ganAprox),1);
-  _topNombres = stats.top.map(p=>p.nombre);
+  // v36 — base del top: los 15 de siempre o todos; el Top por venta se puede ordenar
+  const _baseV=[...stats.todos].sort((a,b)=>
+    topSort==='unidades'?(b.qty-a.qty)||(b.total-a.total):
+    topSort==='tickets' ?(b.tickets-a.tickets)||(b.total-a.total):
+    (b.total-a.total));
+  const listaV=topTodos?_baseV:_baseV.slice(0,15);
+  const totalVentaPer=stats.venta||1;
+  const extraLinea=p=>'<div style="font-size:.6rem;color:var(--gris);margin:1px 0 2px">🎫 '+p.tickets+' ticket'+(p.tickets===1?'':'s')+' · '+(Math.round(p.total/totalVentaPer*1000)/10).toLocaleString('es-AR')+'% del total</div>';
+  const maxV=listaV.length?Math.max(...listaV.map(p=>p.total),1):1;
+  const maxG=Math.max(...listaV.map(p=>p.conCosto?Math.max(p.ganReal,0):p.ganAprox),1);
+  _topNombres = listaV.map(p=>p.nombre);
 
   // Función helper: 30 días de un producto expandido
   function prod30H(nombre){
@@ -739,7 +757,7 @@ function renderApp(){
     '</div>';
   }
 
-  const topsH=stats.top.length?stats.top.map((p,i)=>{
+  const topsH=listaV.length?listaV.map((p,i)=>{
     const pctV=Math.round(p.total/maxV*100);
     const gan=p.conCosto?p.ganReal:p.ganAprox;
     const ganPos=Math.max(gan,0);
@@ -751,8 +769,8 @@ function renderApp(){
     const sel=prodSelIdx===i&&topOrden==='venta';
     return'<div style="border-radius:10px;padding:6px;margin-bottom:4px;background:'+(sel?'var(--vl)':'transparent')+';border:1px solid '+(sel?'var(--verde)':'transparent')+'">'+
       '<button onclick="prodSelIdx='+(sel?-1:i)+';renderApp()" style="width:100%;background:none;border:none;padding:0;cursor:pointer;font-family:inherit;text-align:left">'+
-        '<div class="prod-hdr"><span class="prod-n">'+medal+' '+p.nombre.substring(0,28)+'</span><span class="prod-d">'+p.qty+' u</span></div>'+
-        stockBadge(p.nombre)+
+        '<div class="prod-hdr"><span class="prod-n">'+medal+' '+p.nombre.substring(0,28)+'</span><span class="prod-d">'+fmtQ(p.qty)+' u</span></div>'+
+        stockBadge(p.nombre)+extraLinea(p)+
         '<div style="display:flex;gap:3px;align-items:center;margin-bottom:2px;"><div class="barra-bg" style="flex:1"><div class="barra-f bar-v" style="width:'+pctV+'%"></div></div><span style="font-size:.68rem;font-weight:700;color:var(--vd);min-width:60px;text-align:right">'+fmt(p.total)+'</span></div>'+
         '<div style="display:flex;gap:3px;align-items:center;"><div class="barra-bg" style="flex:1"><div class="barra-f '+barGCls+'" style="width:'+pctG+'%"></div></div><span class="'+ganCls+'" style="font-size:.65rem;min-width:60px;text-align:right">'+etiqueta+'</span></div>'+
       '</button>'+
@@ -761,10 +779,11 @@ function renderApp(){
   }).join(''):'<div class="empty">Sin datos para la selección</div>';
 
   // Top por GANANCIA
-  const topGananciaArr=[...stats.top]
+  const _ganTodos=[...stats.todos]
     .map(p=>({...p,ganancia:p.conCosto?p.ganReal:p.ganAprox}))
     .filter(p=>p.ganancia>0)
     .sort((a,b)=>b.ganancia-a.ganancia);
+  const topGananciaArr=topTodos?_ganTodos:_ganTodos.slice(0,15);
   _topGanNombres = topGananciaArr.map(p=>p.nombre);
   const maxGanRank=topGananciaArr.length?topGananciaArr[0].ganancia:1;
   const topGanH=topGananciaArr.length?topGananciaArr.map((p,i)=>{
@@ -779,8 +798,8 @@ function renderApp(){
         stockBadge(p.nombre)+
         '<div style="display:flex;gap:3px;align-items:center;">'+
           '<div class="barra-bg" style="flex:1"><div class="barra-f" style="width:'+pct+'%;background:'+(esReal?'var(--naranja)':'#a5d6a7')+'"></div></div>'+
-          '<span style="font-size:.65rem;color:var(--gris);min-width:60px;text-align:right">'+p.qty+' u · '+fmt(p.total)+'</span>'+
-        '</div>'+
+          '<span style="font-size:.65rem;color:var(--gris);min-width:60px;text-align:right">'+fmtQ(p.qty)+' u · '+fmt(p.total)+'</span>'+
+        '</div>'+extraLinea(p)+
       '</button>'+
       (sel?prod30H(p.nombre):'')+
     '</div>';
@@ -1110,8 +1129,6 @@ function renderApp(){
       (stats.venta>0?
         '<button onclick="descargarExcel()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px;background:linear-gradient(135deg,#1b5e20,#2e7d32);border:none;border-radius:14px;color:#fff;font-size:.85rem;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:12px;box-shadow:0 2px 8px rgba(46,125,50,.3)">📥 Descargar informe Excel</button>'
         :'')+
-      // Botón Excel de salidas de dinero (ver.36)
-      '<button onclick="abrirSalidasExcel()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px;background:linear-gradient(135deg,#e65100,#f57c00);border:none;border-radius:14px;color:#fff;font-size:.85rem;font-weight:900;cursor:pointer;font-family:inherit;margin-bottom:12px;box-shadow:0 2px 8px rgba(230,81,0,.3)">📊 Excel de salidas de dinero</button>'+
       // Resumen
       cardsH+
       // ── Separador ──
@@ -1141,7 +1158,14 @@ function renderApp(){
               '<button onclick="topOrden=\'ganancia\';prodSelIdx=-1;renderApp()" style="padding:3px 10px;border-radius:20px;border:1px solid '+(topOrden==='ganancia'?'var(--naranja)':'var(--borde)')+';background:'+(topOrden==='ganancia'?'var(--nl)':'#fff')+';color:'+(topOrden==='ganancia'?'#e65100':'var(--gris)')+';font-size:.65rem;font-weight:700;cursor:pointer;">🟧 Ganancia</button>'+
             '</div>'+
           '</div>'+
+          (topOrden==='venta'?
+            '<div style="display:flex;align-items:center;gap:4px;margin:2px 0 8px;flex-wrap:wrap"><span style="font-size:.62rem;color:var(--gris);font-weight:700">Ordenar:</span>'+
+              [['venta','💲 Venta'],['unidades','📦 Unidades'],['tickets','🎫 Tickets']].map(([k,l])=>
+                '<button onclick="topSort=\''+k+'\';prodSelIdx=-1;renderApp()" style="padding:3px 9px;border-radius:20px;border:1px solid '+(topSort===k?'var(--verde)':'var(--borde)')+';background:'+(topSort===k?'var(--vl)':'#fff')+';color:'+(topSort===k?'var(--vd)':'var(--gris)')+';font-size:.64rem;font-weight:700;cursor:pointer;font-family:inherit">'+l+'</button>').join('')+
+            '</div>':'')+
           (topOrden==='venta'?topsH:topGanH)+
+          (function(){const n=topOrden==='venta'?stats.todos.length:_ganTodos.length; if(n<=15) return '';
+            return '<button onclick="topTodos=!topTodos;prodSelIdx=-1;renderApp()" style="width:100%;margin-top:6px;padding:8px;border-radius:10px;border:1px dashed var(--borde);background:#fff;color:var(--vd);font-size:.72rem;font-weight:800;cursor:pointer;font-family:inherit">'+(topTodos?'▲ Ver solo el top 15':'▼ Ver todos los productos ('+n+')')+'</button>';})()+
         '</div>'
       :'')+
       // Mejores días (colapsable)
@@ -2320,6 +2344,22 @@ function renderRecienLlegados(rl) {
 // ====== FIN RECIÉN LLEGADOS ======
 
 // ====== EXPORTAR EXCEL ======
+// v36 — botón "📥 Excel" de la cabecera (siempre visible) y descarga directa desde el POS
+function excelDesdeCabecera(){
+  if(!raw||!diasSel.size){ alert('Todavía no hay datos o no hay un período elegido.'); return; }
+  descargarExcel();
+}
+function _excelAutoDesdeURL(){
+  try{
+    if(new URLSearchParams(location.search).get('excel')!=='mes') return;
+    const h=new Date(); mes=h.getMonth(); anio=h.getFullYear();
+    diasSel.clear(); getDiasMes().forEach(d=>diasSel.add(d));
+    renderApp();
+    setTimeout(()=>{ try{ descargarExcel(); }catch(e){ console.warn('Excel automático:',e); } },500);
+    // para que recargar la página no vuelva a descargar
+    try{ history.replaceState(null,'',location.pathname+location.search.replace(/[?&]excel=mes/,'').replace(/^&/,'?')); }catch(e){}
+  }catch(e){ console.warn('excel auto:',e); }
+}
 function descargarExcel(){
   if(!raw||!diasSel.size) return;
   const diasArr=Array.from(diasSel).sort();
@@ -2473,166 +2513,6 @@ function descargarExcel(){
 
   XLSX.writeFile(wb,nombre);
 }
-// ====== EXCEL DE SALIDAS DE DINERO (ver.36) ======
-// Solo LEE (getCajaEgresos). No escribe nada en las hojas.
-const _SAL_PERSONALES=['RETIRO DUENO','FAMILIA','PERSONAL','FAMILIA CHILE'];
-let _salArchivo=null; // {blob,nombre}
-const _salNormCat=c=>{
-  const t=(c||'').toString().replace(/\s+/g,' ').trim().toUpperCase();
-  return t||'SIN CATEGORÍA';
-};
-const _salEsPersonal=c=>_SAL_PERSONALES.indexOf(c.normalize('NFD').replace(/[̀-ͯ]/g,''))>=0;
-const _salMedio=m=>{const t=(m||'').toString().replace(/\s+/g,' ').trim().toUpperCase();return t||'SIN DATO';};
-function _salOpcionesMeses(){
-  const o=[];const h=new Date();
-  for(let k=0;k<24;k++){
-    const d=new Date(h.getFullYear(),h.getMonth()-k,1);
-    const v=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-    o.push('<option value="'+v+'">'+MESES[d.getMonth()]+' '+d.getFullYear()+'</option>');
-  }
-  return o.join('');
-}
-function abrirSalidasExcel(){
-  cerrarSalidasExcel();
-  _salArchivo=null;
-  const ov=document.createElement('div');
-  ov.id='salOverlay';
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
-  ov.onclick=e=>{if(e.target===ov)cerrarSalidasExcel();};
-  ov.innerHTML='<div style="background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:18px 16px 22px;font-family:inherit">'+
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-weight:900;font-size:1rem">📊 Excel de salidas de dinero</div><button onclick="cerrarSalidasExcel()" style="background:none;border:none;font-size:1.3rem;cursor:pointer">✕</button></div>'+
-    '<div style="font-size:.78rem;color:#666;margin-bottom:10px">Retiros y gastos registrados en caja (EGRESOS). No incluye mercadería de merma/consumo.</div>'+
-    '<select id="salMes" onchange="_salReset()" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:12px;font-size:.95rem;font-family:inherit;margin-bottom:10px">'+_salOpcionesMeses()+'</select>'+
-    '<div id="salEstado" style="min-height:20px;font-size:.82rem;margin-bottom:10px;color:#444"></div>'+
-    '<button id="salBtnGen" onclick="generarSalidasExcel()" style="width:100%;padding:12px;background:#e65100;border:none;border-radius:14px;color:#fff;font-weight:900;font-size:.9rem;cursor:pointer;font-family:inherit">Generar Excel</button>'+
-    '<div id="salAcciones" style="display:none;gap:8px;margin-top:8px"></div>'+
-  '</div>';
-  document.body.appendChild(ov);
-}
-function cerrarSalidasExcel(){const o=document.getElementById('salOverlay');if(o)o.remove();}
-function _salReset(){
-  _salArchivo=null;
-  const a=document.getElementById('salAcciones');if(a){a.style.display='none';a.innerHTML='';}
-  const e=document.getElementById('salEstado');if(e)e.textContent='';
-}
-async function _salTraer(){
-  const url=API_URL+'?action=getCajaEgresos&data='+encodeURIComponent(JSON.stringify({limite:20000}))+'&t='+Date.now();
-  const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),30000);
-  try{
-    const r=await fetch(url,{signal:ctl.signal});
-    const j=await r.json();
-    if(!j||j.ok!==true||!Array.isArray(j.registros)) throw new Error((j&&j.error)||'Respuesta inesperada del servidor');
-    return j.registros;
-  }finally{clearTimeout(to);}
-}
-function _salConstruirWb(regs,mesKey){
-  const [Y,M]=mesKey.split('-').map(Number);
-  const etiqueta=MESES[M-1]+' '+Y;
-  const rows=regs.slice().sort((a,b)=>(a.fecha+' '+a.hora)<(b.fecha+' '+b.hora)?-1:1)
-    .map(r=>({fecha:r.fecha,hora:r.hora||'',motivo:r.motivo||'',cat:_salNormCat(r.categoria),medio:_salMedio(r.medio),monto:Math.round((parseFloat(r.monto)||0)*100)/100,obs:r.obs||''}));
-  const N=rows.length;
-  const totalGeneral=rows.reduce((a,r)=>a+r.monto,0);
-  const wb=XLSX.utils.book_new();
-  const num=(v,f)=>{const c={t:'n',v:v,z:'#,##0'};if(f)c.f=f;return c;};
-  // Hoja Detalle: fila1 título, fila2 vacía, fila3 encabezados, datos desde fila 4
-  const det=[['SALIDAS DE DINERO — '+etiqueta.toUpperCase()],[],['Fecha','Hora','Motivo','Categoría','Medio de pago','Monto $','Observación']];
-  rows.forEach(r=>det.push([r.fecha,r.hora,r.motivo,r.cat,r.medio,num(r.monto),r.obs]));
-  const i1=4,iN=3+N;
-  det.push([]);
-  det.push(['TOTAL','','','','',num(totalGeneral,N?('SUM(F'+i1+':F'+iN+')'):null),'']);
-  const wsD=XLSX.utils.aoa_to_sheet(det);
-  wsD['!cols']=[{wch:12},{wch:8},{wch:34},{wch:20},{wch:16},{wch:14},{wch:34}];
-  XLSX.utils.book_append_sheet(wb,wsD,'Detalle');
-  const rngCat=N?'Detalle!$D$'+i1+':$D$'+iN:null, rngMed=N?'Detalle!$E$'+i1+':$E$'+iN:null, rngMon=N?'Detalle!$F$'+i1+':$F$'+iN:null;
-  const agrupar=k=>{const m={};rows.forEach(r=>{const x=m[r[k]]||(m[r[k]]={n:0,t:0});x.n++;x.t+=r.monto;});return m;};
-  // Hoja Por categoría
-  const mc=agrupar('cat');
-  const cats=Object.keys(mc);
-  const negocio=cats.filter(c=>!_salEsPersonal(c)).sort((a,b)=>mc[b].t-mc[a].t);
-  const personal=cats.filter(c=>_salEsPersonal(c)).sort((a,b)=>mc[b].t-mc[a].t);
-  const cat=[['SALIDAS POR CATEGORÍA — '+etiqueta.toUpperCase()],[],['Categoría','Cantidad','Total $','% del total']];
-  let fila=4;
-  const filasGrupo=(lista)=>{
-    const ini=fila;
-    lista.forEach(c=>{
-      cat.push([c,{t:'n',v:mc[c].n,f:'COUNTIF('+rngCat+',A'+fila+')'},num(mc[c].t,'SUMIF('+rngCat+',A'+fila+','+rngMon+')'),{t:'n',v:totalGeneral?mc[c].t/totalGeneral:0,z:'0.0%',f:'IF($C$__TOT__=0,0,C'+fila+'/$C$__TOT__)'}]);
-      fila++;
-    });
-    return [ini,fila-1];
-  };
-  cat.push(['GASTOS DEL NEGOCIO','','','']);fila++;
-  const [n1,n2]=filasGrupo(negocio);
-  const subN=negocio.reduce((a,c)=>a+mc[c].t,0), cntN=negocio.reduce((a,c)=>a+mc[c].n,0);
-  const filaSubN=fila;
-  cat.push(['Subtotal negocio',{t:'n',v:cntN,f:negocio.length?'SUM(B'+n1+':B'+n2+')':null},num(subN,negocio.length?'SUM(C'+n1+':C'+n2+')':null),{t:'n',v:totalGeneral?subN/totalGeneral:0,z:'0.0%',f:'IF($C$__TOT__=0,0,C'+filaSubN+'/$C$__TOT__)'}]);fila++;
-  cat.push([]);fila++;
-  cat.push(['RETIROS PERSONALES / FAMILIA','','','']);fila++;
-  const [p1,p2]=filasGrupo(personal);
-  const subP=personal.reduce((a,c)=>a+mc[c].t,0), cntP=personal.reduce((a,c)=>a+mc[c].n,0);
-  const filaSubP=fila;
-  cat.push(['Subtotal personal / familia',{t:'n',v:cntP,f:personal.length?'SUM(B'+p1+':B'+p2+')':null},num(subP,personal.length?'SUM(C'+p1+':C'+p2+')':null),{t:'n',v:totalGeneral?subP/totalGeneral:0,z:'0.0%',f:'IF($C$__TOT__=0,0,C'+filaSubP+'/$C$__TOT__)'}]);fila++;
-  cat.push([]);fila++;
-  const filaTot=fila;
-  cat.push(['TOTAL GENERAL',{t:'n',v:cntN+cntP,f:'B'+filaSubN+'+B'+filaSubP},num(totalGeneral,'C'+filaSubN+'+C'+filaSubP),'']);
-  cat.forEach(r=>r.forEach((c,i)=>{if(c&&c.f)c.f=c.f.replace(/__TOT__/g,String(filaTot));}));
-  // quitar f null
-  cat.forEach(r=>r.forEach((c,i)=>{if(c&&typeof c==='object'&&c.f===null)delete c.f;}));
-  const wsC=XLSX.utils.aoa_to_sheet(cat);
-  wsC['!cols']=[{wch:32},{wch:10},{wch:16},{wch:12}];
-  XLSX.utils.book_append_sheet(wb,wsC,'Por categoría');
-  // Hoja Por medio de pago
-  const mm=agrupar('medio');
-  const meds=Object.keys(mm).sort((a,b)=>mm[b].t-mm[a].t);
-  const med=[['SALIDAS POR MEDIO DE PAGO — '+etiqueta.toUpperCase()],[],['Medio de pago','Cantidad','Total $','% del total']];
-  meds.forEach((m,i)=>{const fr=4+i;med.push([m,{t:'n',v:mm[m].n,f:'COUNTIF('+rngMed+',A'+fr+')'},num(mm[m].t,'SUMIF('+rngMed+',A'+fr+','+rngMon+')'),{t:'n',v:totalGeneral?mm[m].t/totalGeneral:0,z:'0.0%',f:'IF($C$'+(4+meds.length)+'=0,0,C'+fr+'/$C$'+(4+meds.length)+')'}]);});
-  med.push(['TOTAL',meds.length?{t:'n',v:N,f:'SUM(B4:B'+(3+meds.length)+')'}:{t:'n',v:0},num(totalGeneral,meds.length?'SUM(C4:C'+(3+meds.length)+')':null),'']);
-  med.forEach(r=>r.forEach(c=>{if(c&&typeof c==='object'&&c.f===null)delete c.f;}));
-  const wsM=XLSX.utils.aoa_to_sheet(med);
-  wsM['!cols']=[{wch:24},{wch:10},{wch:16},{wch:12}];
-  XLSX.utils.book_append_sheet(wb,wsM,'Por medio de pago');
-  return {wb,N,total:totalGeneral,etiqueta};
-}
-async function generarSalidasExcel(){
-  const sel=document.getElementById('salMes');if(!sel) return;
-  const mesKey=sel.value;
-  const est=document.getElementById('salEstado'),btn=document.getElementById('salBtnGen');
-  _salReset();
-  btn.disabled=true;btn.textContent='⏳ Trayendo datos…';
-  try{
-    if(typeof XLSX==='undefined') throw new Error('No cargó la librería de Excel. Revisá la conexión y recargá.');
-    const todos=await _salTraer();
-    const delMes=todos.filter(r=>r.fecha&&r.fecha.startsWith(mesKey));
-    if(!delMes.length){est.innerHTML='<span style="color:#c62828">No hay salidas de dinero registradas en ese mes.</span>';return;}
-    const {wb,N,total,etiqueta}=_salConstruirWb(delMes,mesKey);
-    const nombre='salidas-'+mesKey+'.xlsx';
-    const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
-    const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-    _salArchivo={blob,nombre};
-    est.innerHTML='<b>'+etiqueta+'</b>: '+N+' salidas · total <b>$'+Math.round(total).toLocaleString('es-AR')+'</b>';
-    const acc=document.getElementById('salAcciones');
-    let h='<button onclick="_salDescargar()" style="flex:1;padding:12px;background:#1b5e20;border:none;border-radius:14px;color:#fff;font-weight:900;font-size:.88rem;cursor:pointer;font-family:inherit">⬇️ Descargar</button>';
-    try{
-      const f=new File([blob],nombre,{type:blob.type});
-      if(navigator.canShare&&navigator.canShare({files:[f]})) h+='<button onclick="_salCompartir()" style="flex:1;padding:12px;background:#1565c0;border:none;border-radius:14px;color:#fff;font-weight:900;font-size:.88rem;cursor:pointer;font-family:inherit">📤 Compartir</button>';
-    }catch(e){}
-    acc.innerHTML=h;acc.style.display='flex';
-  }catch(e){
-    est.innerHTML='<span style="color:#c62828">❌ No se pudo generar: '+String((e&&e.name==='AbortError')?'el servidor tardó demasiado':(e&&e.message)||e)+'</span>';
-  }finally{btn.disabled=false;btn.textContent='Generar Excel';}
-}
-function _salDescargar(){
-  if(!_salArchivo) return;
-  const a=document.createElement('a');a.href=URL.createObjectURL(_salArchivo.blob);a.download=_salArchivo.nombre;
-  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
-}
-async function _salCompartir(){
-  if(!_salArchivo) return;
-  try{
-    const f=new File([_salArchivo.blob],_salArchivo.nombre,{type:_salArchivo.blob.type});
-    await navigator.share({files:[f],title:'Salidas de dinero '+_salArchivo.nombre});
-  }catch(e){ if(e&&e.name!=='AbortError') _salDescargar(); }
-}
-// ====== FIN EXCEL DE SALIDAS ======
 // ====== FIN EXPORTAR EXCEL ======
 
 init();

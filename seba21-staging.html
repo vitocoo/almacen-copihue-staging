@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v524</title>
+    <title>🛒 POS · Copihue v525</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3649,6 +3649,11 @@
         <div class="resumen-card" id="resumenCard"><!-- se llena dinámico --></div>
         <div class="resumen-ventas-lista" id="resumenLista"><!-- se llena dinámico --></div>
         <button class="btn-resumen" onclick="verVentasRealesPlanilla(this)" style="width:100%;margin:8px 0;background:#1976D2;color:#fff;border:none;border-radius:10px;padding:10px;font-weight:700;">📋 Ver ventas reales (planilla)</button>
+        <!-- v525 — informes a mano: Excel del mes y Reportes completos -->
+        <div id="resumenAccesosInforme" style="display:flex;gap:8px;margin:0 0 8px;">
+            <a href="copihue-reportes.html?v=123&excel=mes" style="flex:1;text-align:center;text-decoration:none;background:#2e7d32;color:#fff;border-radius:10px;padding:10px;font-weight:700;font-size:.85rem;">📥 Excel del mes</a>
+            <a href="copihue-reportes.html?v=123" style="flex:1;text-align:center;text-decoration:none;background:rgba(156,39,176,0.9);color:#fff;border-radius:10px;padding:10px;font-weight:700;font-size:.85rem;">📈 Reportes</a>
+        </div>
         <div id="resumenReal"></div>
         <button class="btn-cerrar-dia" onclick="cerrarDia()">🔒 Cerrar día y resetear</button>
     </div>
