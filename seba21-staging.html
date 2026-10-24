@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v525</title>
+    <title>🛒 POS · Copihue v526</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -9112,6 +9112,7 @@ function actualizarDisplayPeso() {
     document.getElementById('pesoOkBtn').disabled = totalPesos <= 0;
 }
 
+const PESO_MARGEN_STOCK = 0.30; // v526 — margen de tolerancia sobre el stock en productos por kilo
 function confirmarPeso() {
     let gramos, totalPesos, oferta, tieneOferta;
 
@@ -9134,6 +9135,24 @@ function confirmarPeso() {
         const precioPorKg = tieneOferta ? oferta.precioUnitario : pesoProductoActual.price;
         gramos = precioPorKg > 0 ? Math.round((totalPesos / precioPorKg) * 1000) : 0;
     }
+
+    // v526 — AVISO de stock en productos por kilo (antes no se controlaba nada).
+    // Margen de tolerancia: hasta 130% del stock registrado carga sin preguntar,
+    // porque el stock de lo que se pesa suele estar un poco desactualizado.
+    // Pasado el margen se pregunta; NO bloquea ("Cargar igual" sigue como siempre).
+    try {
+        const stockKg = Number(pesoProductoActual.stock) || 0;
+        const yaGr = (ventaActual.find(i => i.esPeso && i.idOriginal === pesoProductoActual.id) || {}).gramos || 0;
+        const totalGr = yaGr + gramos;
+        if (totalGr > stockKg * 1000 * (1 + PESO_MARGEN_STOCK)) {
+            const kgTxt = n => (Math.round(n * 100) / 100).toLocaleString('es-AR', { maximumFractionDigits: 2 });
+            const msg = (stockKg > 0
+                ? '⚠️ Stock registrado: ' + kgTxt(stockKg) + ' kg.\nVas a tener ' + kgTxt(totalGr / 1000) + ' kg de este producto en el carrito (pasa el margen del ' + Math.round(PESO_MARGEN_STOCK * 100) + '%).'
+                : '⚠️ Este producto figura SIN STOCK registrado.\nVas a cargar ' + kgTxt(totalGr / 1000) + ' kg.')
+                + '\n\n¿Cargar igual?';
+            if (!confirm(msg)) return;
+        }
+    } catch (eAv) { console.warn('aviso stock peso:', eAv); }
 
     const costoPorKg = pesoProductoActual.precioCosto || 0;
     const costoCalculado = costoPorKg > 0 ? Math.round((costoPorKg / 1000) * gramos) : 0;
