@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v526</title>
+    <title>🛒 POS · Copihue v527</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -9420,6 +9420,35 @@ function cerrarModalIngreso(e) {
     // if (e.target === document.getElementById('modalIngreso')) cerrarIngreso();
 }
 
+
+// v527 — BÚSQUEDA POR PALABRAS (ingreso, salida, fotos): sin tildes ni mayúsculas, cada palabra
+// escrita tiene que estar en el nombre (en cualquier orden y aunque sea a medias). Ordena por relevancia.
+function _bpNorm(s) {
+    return String(s == null ? '' : s).toLowerCase().split('').map(function (ch) {
+        return ch.normalize('NFD').replace(/[̀-ͯ]/g, '');
+    }).join('').replace(/[^a-z0-9\s]/g, ' ');
+}
+function _buscarPalabras(items, q, getName, limite) {
+    var words = _bpNorm(q).split(/\s+/).filter(Boolean);
+    if (!words.length) return [];
+    var frase = words.join(' '), out = [];
+    for (var i = 0; i < items.length; i++) {
+        var n = _bpNorm(getName(items[i]));
+        var nw = n.split(/\s+/), score = 0, ok = true;
+        for (var k = 0; k < words.length; k++) {
+            var w = words[k];
+            if (n.indexOf(w) === -1) { ok = false; break; }
+            score += nw.indexOf(w) !== -1 ? 50 : (nw.some(function (x) { return x.indexOf(w) === 0; }) ? 35 : 20);
+        }
+        if (!ok) continue;
+        if (n.replace(/^\s+/, '').indexOf(words[0]) === 0) score += 30;
+        if (n.indexOf(frase) !== -1) score += 25;
+        out.push({ it: items[i], s: score, n: n });
+    }
+    out.sort(function (a, b) { return (b.s - a.s) || (a.n < b.n ? -1 : a.n > b.n ? 1 : 0); });
+    return out.slice(0, limite).map(function (x) { return x.it; });
+}
+
 function buscarProductoIngreso() {
     const q = document.getElementById('ingProducto').value.toUpperCase().trim();
     const resultadosDiv = document.getElementById('ingResultados');
@@ -9429,7 +9458,7 @@ function buscarProductoIngreso() {
 
     if (q.length < 2) { resultadosDiv.style.display = 'none'; return; }
 
-    const matches = productos.filter(p => p.name.includes(q)).slice(0, 8);
+    const matches = _buscarPalabras(productos, q, p => p.name, 15);   // v527: por palabras
 
     if (matches.length === 0) {
         resultadosDiv.style.display = 'none';
@@ -14378,7 +14407,7 @@ function buscarProductoFotos() {
     var div = document.getElementById('fotosResultados');
     ['fotosPanel','fotosGrid','fotosPreviewWrap','ghStatus'].forEach(function(id){ document.getElementById(id).style.display='none'; });
     if (q.length < 2) { div.style.display = 'none'; return; }
-    var matches = productos.filter(function(p){ return p.name && p.name.toUpperCase().includes(q); }).slice(0,12);
+    var matches = _buscarPalabras(productos.filter(function(p){ return p.name; }), q, function(p){ return p.name; }, 12);   // v527
     if (!matches.length) { div.innerHTML = '<div style="padding:14px;color:#888;">Sin resultados</div>'; div.style.display='block'; return; }
     div.innerHTML = matches.map(function(p) {
         var slug = simplificarNombre(p.name);
@@ -15630,9 +15659,7 @@ function salidaBuscar() {
     if (q.length === 0) { salidaMostrarTodos(); return; }
     if (q.length < 1) return;
 
-    const matches = productos
-        .filter(p => p.stock > 0 && p.name.toLowerCase().includes(q))
-        .slice(0, 20);
+    const matches = _buscarPalabras(productos.filter(p => p.stock > 0), q, p => p.name, 20);   // v527: por palabras
 
     if (!matches.length) {
         div.innerHTML = '<div style="padding:10px;color:#aaa;font-size:0.85rem;">Sin resultados</div>';

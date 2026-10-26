@@ -768,7 +768,7 @@
 //       guiones y puntos ("maxi", "maxiconsumo" y "maxi consumo" encuentran lo
 //       mismo), los que EMPIEZAN igual van primero y se muestran hasta 8. El
 //       clic en una sugerencia ya no se rompe con nombres con apóstrofo.
-const APP_VERSION = 'v27';
+const APP_VERSION = 'v28';
 document.title = '📥 Ingreso · Copihue ' + APP_VERSION + ' (STAGING)';
 document.getElementById('versionBadge').textContent = APP_VERSION;
 
@@ -1354,6 +1354,45 @@ function setCategoriaByValue(val) {
   }
 }
 
+// v28 — BÚSQUEDA POR PALABRAS: sin tildes ni mayúsculas; cada palabra escrita tiene que estar en
+// el nombre (en cualquier orden y aunque sea a medias). Ordena por relevancia.
+function _bpNorm(s) {
+  return String(s == null ? '' : s).toLowerCase().split('').map(function (ch) {
+    return ch.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }).join('').replace(/[^a-z0-9\s]/g, ' ');
+}
+function _buscarPalabras(items, q, getName, limite) {
+  var words = _bpNorm(q).split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  var frase = words.join(' '), out = [];
+  for (var i = 0; i < items.length; i++) {
+    var n = _bpNorm(getName(items[i]));
+    var nw = n.split(/\s+/), score = 0, ok = true;
+    for (var k = 0; k < words.length; k++) {
+      var w = words[k];
+      if (n.indexOf(w) === -1) { ok = false; break; }
+      score += nw.indexOf(w) !== -1 ? 50 : (nw.some(function (x) { return x.indexOf(w) === 0; }) ? 35 : 20);
+    }
+    if (!ok) continue;
+    if (n.replace(/^\s+/, '').indexOf(words[0]) === 0) score += 30;
+    if (n.indexOf(frase) !== -1) score += 25;
+    out.push({ it: items[i], s: score, n: n });
+  }
+  out.sort(function (a, b) { return (b.s - a.s) || (a.n < b.n ? -1 : a.n > b.n ? 1 : 0); });
+  return out.slice(0, limite).map(function (x) { return x.it; });
+}
+// Marca en el nombre las palabras buscadas (mismo largo que el original: no corre posiciones).
+function _resaltarPalabras(nombre, q) {
+  var pn = _bpNorm(nombre), words = _bpNorm(q).split(/\s+/).filter(Boolean), r = [];
+  words.forEach(function (w) { var i = pn.indexOf(w); if (i !== -1) r.push([i, i + w.length]); });
+  r.sort(function (a, b) { return a[0] - b[0]; });
+  var m = [];
+  r.forEach(function (x) { var l = m[m.length - 1]; if (l && x[0] <= l[1]) l[1] = Math.max(l[1], x[1]); else m.push([x[0], x[1]]); });
+  var out = '', pos = 0;
+  m.forEach(function (x) { out += nombre.substring(pos, x[0]) + '<span class="match">' + nombre.substring(x[0], x[1]) + '</span>'; pos = x[1]; });
+  return out + nombre.substring(pos);
+}
+
 // ── AUTOCOMPLETE PRODUCTO ──────────────────────────────────────────────────────
 function onProductoInput() {
   const val  = normalizarInput(document.getElementById('producto')).trim();
@@ -1374,19 +1413,15 @@ function onProductoInput() {
   }
 
   const valUp  = val.toUpperCase();
-  const matches = _productos.filter(p => p.toUpperCase().includes(valUp)).slice(0, 15);
+  const matches = _buscarPalabras(_productos, val, p => p, 15);   // v28: por palabras
 
   if (!matches.length) {
     list.classList.remove('open');
   } else {
     list.innerHTML = matches.map(p => {
-      const idx    = p.toUpperCase().indexOf(valUp);
-      const before = p.substring(0, idx);
-      const match  = p.substring(idx, idx + val.length);
-      const after  = p.substring(idx + val.length);
       return `<div class="autocomplete-item" onclick="seleccionarProducto('${p.replace(/'/g,"\\'")}')">
         <img class="autocomplete-thumb" src="${urlFoto(p)}" onerror="this.style.display='none'" loading="lazy">
-        <span class="item-texto">${before}<span class="match">${match}</span>${after}</span>
+        <span class="item-texto">${_resaltarPalabras(p, val)}</span>
       </div>`;
     }).join('');
     list.classList.add('open');
