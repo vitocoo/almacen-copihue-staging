@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v529</title>
+    <title>🛒 POS · Copihue v530</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -9462,6 +9462,14 @@ function _buscarPalabras(items, q, getName, limite) {
     return out.slice(0, limite).map(function (x) { return x.it; });
 }
 
+// v530 — en las listas de búsqueda (ingreso, fotos) los productos CON stock van primero y los
+// "Sin stock" al final. Mantiene el orden por coincidencia dentro de cada grupo. Solo ordena.
+function _stockPrimero(lista, limite) {
+    var con = [], sin = [];
+    lista.forEach(function (p) { (Number(p.stock) > 0 ? con : sin).push(p); });
+    return con.concat(sin).slice(0, limite);
+}
+
 function buscarProductoIngreso() {
     const q = document.getElementById('ingProducto').value.toUpperCase().trim();
     const resultadosDiv = document.getElementById('ingResultados');
@@ -9471,7 +9479,7 @@ function buscarProductoIngreso() {
 
     if (q.length < 2) { resultadosDiv.style.display = 'none'; return; }
 
-    const matches = _buscarPalabras(productos, q, p => p.name, 15);   // v527: por palabras
+    const matches = _stockPrimero(_buscarPalabras(productos, q, p => p.name, 99999), 15);   // v527 por palabras; v530 stock primero
 
     if (matches.length === 0) {
         resultadosDiv.style.display = 'none';
@@ -14420,7 +14428,7 @@ function buscarProductoFotos() {
     var div = document.getElementById('fotosResultados');
     ['fotosPanel','fotosGrid','fotosPreviewWrap','ghStatus'].forEach(function(id){ document.getElementById(id).style.display='none'; });
     if (q.length < 2) { div.style.display = 'none'; return; }
-    var matches = _buscarPalabras(productos.filter(function(p){ return p.name; }), q, function(p){ return p.name; }, 12);   // v527
+    var matches = _stockPrimero(_buscarPalabras(productos.filter(function(p){ return p.name; }), q, function(p){ return p.name; }, 99999), 12);   // v527; v530 stock primero
     if (!matches.length) { div.innerHTML = '<div style="padding:14px;color:#888;">Sin resultados</div>'; div.style.display='block'; return; }
     div.innerHTML = matches.map(function(p) {
         var slug = simplificarNombre(p.name);
