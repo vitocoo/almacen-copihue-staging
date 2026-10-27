@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v536</title>
+    <title>🛒 POS · Copihue v537</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -7360,7 +7360,7 @@ function cerrarConfirm() {
     if (btnTicket) btnTicket.style.display = 'none';
     const _dbgEl = document.getElementById('dbgTicketMixto'); if (_dbgEl) _dbgEl.remove(); // v535
     const btnOk = document.getElementById('btnOkConfirm');
-    if (btnOk) { btnOk.textContent = '✅ Confirmar cobro'; btnOk.disabled = false; btnOk.onclick = confirmarVenta; }
+    if (btnOk) { btnOk.textContent = '✅ Confirmar cobro'; btnOk.disabled = false; btnOk.onclick = _confirmarCobroDispatch; } // v537: antes apuntaba directo a confirmarVenta y salteaba el pago mixto
     const btnCancelar = document.querySelector('.btn-cancelar-confirm');
     if (btnCancelar) { btnCancelar.textContent = 'Cancelar'; btnCancelar.onclick = cerrarConfirm; }
     // Resetear cliente
@@ -16816,7 +16816,7 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
     actualizarTotalConRedondeo();
     // Restaurar botón Cobrar
     const btnOk = document.getElementById('btnOkConfirm');
-    if (btnOk) { btnOk.textContent = '✅ Confirmar cobro'; btnOk.disabled = false; btnOk.onclick = confirmarVenta; }
+    if (btnOk) { btnOk.textContent = '✅ Confirmar cobro'; btnOk.disabled = false; btnOk.onclick = _confirmarCobroDispatch; } // v537: antes apuntaba directo a confirmarVenta y salteaba el pago mixto
     return { fiadoConfirmado: _fiadoConfirmado, resultado: _sync.resultado, snap: _snapComp, ticket: ticketNum ? String(ticketNum) : '' };
 }
 
