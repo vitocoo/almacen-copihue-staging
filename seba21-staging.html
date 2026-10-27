@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v532</title>
+    <title>🛒 POS · Copihue v533</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6932,6 +6932,7 @@ async function confirmarVentaMixta() {
         // FIADO parcial — SOLO el saldo, nunca el total de la venta. Si falla,
         // encola con reintento idempotente (spec punto 6: nunca fallar en
         // silencio como sí puede pasar hoy en el fiado puro).
+        let _fiadoMixtoGuardado = false, _datosFiadoMixto = null; // v533
         if (pagoFiado) {
             const idFiado = 'f_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
             const datosFiado = {
@@ -6944,6 +6945,7 @@ async function confirmarVentaMixta() {
                 cantItems: itemsSnapshot.length,
                 vencimiento: ''
             };
+            _datosFiadoMixto = datosFiado; // v533
             try {
                 const urlF = API_URL + '?action=guardarFiado&data=' + encodeURIComponent(JSON.stringify(datosFiado));
                 const respF = await _apiFetchUrl('guardarFiado', urlF);
@@ -6951,6 +6953,7 @@ async function confirmarVentaMixta() {
                 // en silencio. Ahora cualquier respuesta sin success:true cae al mismo camino que una falla de red:
                 // queda en pendientes (reintento seguro: consulta antes de guardar, no duplica) y avisa.
                 if (!respF || respF.success !== true) throw new Error('guardarFiado sin success: ' + ((respF && respF.mensaje) || 'respuesta inesperada'));
+                _fiadoMixtoGuardado = true; // v533
             } catch(eF) {
                 console.warn('⚠️ Error guardando fiado parcial (se reintentará):', eF);
                 try {
@@ -6966,6 +6969,26 @@ async function confirmarVentaMixta() {
         }
 
         window._ultimaVenta = { items: itemsSnapshot, total, totalOriginal: totalV, descuentoRedondeo: window._descuentoRedondeo || 0, hora, metodo: metodoPagoTexto, detallePagos };
+
+        // v533 — venta mixta CON fiado: se calcula (en segundo plano) la deuda total del cliente para el ticket.
+        // Solo lectura de la planilla; si no se puede confirmar, el ticket sale sin ese bloque (nunca inventa números).
+        if (_datosFiadoMixto) {
+            const _vRef = window._ultimaVenta;
+            _vRef.fiadoMixto = { datos: _datosFiadoMixto, monto: Math.round(_datosFiadoMixto.total), estado: 'calculando', deuda: null };
+            (async () => {
+                let d;
+                if (!_fiadoMixtoGuardado) d = { ok: false, motivo: 'el fiado quedó pendiente de sincronizar' };
+                else {
+                    try {
+                        d = await Promise.race([
+                            _fiadoDeudaAcumulada(_datosFiadoMixto, Math.round(_datosFiadoMixto.total)),
+                            new Promise(res => setTimeout(() => res({ ok: false, motivo: 'la planilla tardó más de ' + (_FIADO_DEUDA_TOPE_MS / 1000) + ' s' }), _FIADO_DEUDA_TOPE_MS))
+                        ]);
+                    } catch (e) { d = { ok: false, motivo: String(e && e.message || e) }; }
+                }
+                _vRef.fiadoMixto.deuda = d; _vRef.fiadoMixto.estado = 'listo';
+            })();
+        }
 
         // Resetear panel mixto y volver el selector simple a Efectivo
         _pagoMixtoActivo = false;
@@ -7237,6 +7260,24 @@ function enviarTicketWA() {
     var lineaRedondeo = (v.descuentoRedondeo && v.descuentoRedondeo > 0)
         ? '\n↓ Redondeo −$' + v.descuentoRedondeo.toLocaleString('es-AR')
         : '';
+    // v533 — venta mixta con fiado: agregar el estado de la deuda del cliente (solo si se pudo confirmar).
+    var bloqueDeuda = '';
+    if (v.fiadoMixto) {
+        var fm = v.fiadoMixto;
+        if (fm.estado !== 'listo') { mostrarToast('⏳ Calculando la deuda del cliente… tocá de nuevo en unos segundos', 'naranja'); return; }
+        var dd = fm.deuda;
+        if (dd && dd.ok) {
+            bloqueDeuda = '\n\n📌 *ESTADO DE TU DEUDA*\n' +
+                (dd.previa > 0 ? 'Deuda anterior: ' + _fiadoFmt(dd.previa) + '\n' : '') +
+                'Fiado de esta compra: ' + _fiadoFmt(fm.monto) + '\n' +
+                '💰 *TOTAL PENDIENTE: ' + _fiadoFmt(dd.total) + '*' +
+                (dd.previa > 0 && dd.tickets && dd.tickets.length ? '\n(Tickets pendientes: ' + dd.tickets.join(', ') + ' + esta compra)' : '');
+        } else {
+            mostrarToast(dd && dd.ambiguo
+                ? '⚠️ Este teléfono tiene fiados a nombre de otra persona (' + dd.nombres.join(', ') + '): el ticket sale SIN deuda total. Verificá.'
+                : '⚠️ No se pudo confirmar la deuda total (' + ((dd && dd.motivo) || 'sin dato') + '): el ticket sale sin ese dato.', 'naranja');
+        }
+    }
     var nroTicket = v.nroTicket ? ' · #' + v.nroTicket : '';
     var saludo = _clienteActual ? '\n¡Hasta pronto, ' + _clienteActual.nombre.split(' ')[0] + '! 👋' : '\n¡Gracias por tu compra! 🙏';
     var mensaje = '🛒 *Almacén Copihue*' + nroTicket + '\n' +
@@ -7245,7 +7286,7 @@ function enviarTicketWA() {
         lineaRedondeo + '\n' +
         '─────────────────\n' +
         '*💰 Total: $' + v.total.toLocaleString('es-AR') + '*\n' +
-        metodoLabel + saludo;
+        metodoLabel + bloqueDeuda + saludo;
 
     // Si hay cliente seleccionado → abrir WA Business con su número
     if (_clienteActual && _clienteActual.telefono) {
