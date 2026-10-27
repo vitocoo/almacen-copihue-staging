@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v530</title>
+    <title>🛒 POS · Copihue v532</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3797,7 +3797,7 @@
         <div id="pmToggleWrap" onclick="togglePagoMixto()" style="margin:8px 20px 4px;background:linear-gradient(135deg,#5e35b1,#7e57c2);border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;box-shadow:0 2px 8px rgba(94,53,177,0.3);">
             <span style="font-size:1.5rem;">💱</span>
             <div style="flex:1;">
-                <div id="pmToggleLink" style="font-size:0.85rem;font-weight:900;color:white;">PAGO MIXTO (MIX MONEDAS, MODOS, ABONOS)</div>
+                <div id="pmToggleLink" style="font-size:0.85rem;font-weight:900;color:white;">PAGO MIXTO • ABONO + FIADO + $CL + $US ETC</div>
             </div>
             <span id="pmToggleFlecha" style="font-size:1.1rem;color:rgba(255,255,255,0.6);">›</span>
         </div>
@@ -6413,6 +6413,14 @@ async function _cargarCotizaciones() {
 }
 
 function _confirmarCobroDispatch() {
+    // v532 — con el panel mixto abierto el cobro NUNCA vuelve al camino normal (era lo que abría "Registrar
+    // Fiado" por el total entero): si no hay ningún pago cargado, avisa y no hace nada.
+    const _pmPanelAbierto = (document.getElementById('panelPagoMixto') || { style: {} }).style.display === 'block';
+    if (_pmPanelAbierto && !(_pagoMixtoActivo && _pagosMixtos.length > 0)) {
+        const er = document.getElementById('pmErrorMsg');
+        if (er) { er.textContent = '⚠️ Cargá al menos un pago (efectivo, tarjeta, transferencia, fiado…) o tocá "cerrar" para cobrar normal.'; er.style.display = 'block'; }
+        return;
+    }
     if (_pagoMixtoActivo && _pagosMixtos.length > 0) {
         confirmarVentaMixta();
     } else {
@@ -6938,7 +6946,11 @@ async function confirmarVentaMixta() {
             };
             try {
                 const urlF = API_URL + '?action=guardarFiado&data=' + encodeURIComponent(JSON.stringify(datosFiado));
-                await _apiFetchUrl('guardarFiado', urlF);
+                const respF = await _apiFetchUrl('guardarFiado', urlF);
+                // v531 — antes el POS no miraba si la planilla había dicho "success:false": el fiado se perdía
+                // en silencio. Ahora cualquier respuesta sin success:true cae al mismo camino que una falla de red:
+                // queda en pendientes (reintento seguro: consulta antes de guardar, no duplica) y avisa.
+                if (!respF || respF.success !== true) throw new Error('guardarFiado sin success: ' + ((respF && respF.mensaje) || 'respuesta inesperada'));
             } catch(eF) {
                 console.warn('⚠️ Error guardando fiado parcial (se reintentará):', eF);
                 try {
@@ -18641,5 +18653,39 @@ document.addEventListener('DOMContentLoaded', function () { try { _cotizRefresca
 try { _cotizRefrescar(); } catch (e) {}
 </script>
 
+<script>
+// v532 — mientras el PAGO MIXTO está abierto, los 4 métodos normales (Efectivo/Posnet/Transferencia/Fiado)
+// quedan apagados y sin selección; al cerrarlo vuelven, con Efectivo elegido. Se engancha al cambio de
+// visibilidad del panel (así cubre TODAS las formas de abrir/cerrar sin tocar cada función). No toca la lógica de cobro.
+(function () {
+    var IDS = ['btnEfectivo', 'btnPosnet', 'btnTransf', 'btnFiado'];
+    var ultimo = null;
+    function sincronizar() {
+        var panel = document.getElementById('panelPagoMixto');
+        if (!panel) return;
+        var abierto = panel.style.display === 'block';
+        if (abierto === ultimo) return;
+        ultimo = abierto;
+        IDS.forEach(function (id) {
+            var b = document.getElementById(id); if (!b) return;
+            b.disabled = abierto;
+            b.style.opacity = abierto ? '0.35' : '';
+            b.style.pointerEvents = abierto ? 'none' : '';
+            b.style.cursor = abierto ? 'not-allowed' : '';
+        });
+        try {
+            seleccionarMetodo('efectivo');      // cierra QR y deja el método interno en efectivo (nunca queda "fiado" colgado)
+            if (abierto) IDS.forEach(function (id) { var b = document.getElementById(id); if (b) b.classList.remove('seleccionado'); });
+        } catch (e) {}
+    }
+    function iniciar() {
+        var panel = document.getElementById('panelPagoMixto');
+        if (!panel) return;
+        new MutationObserver(sincronizar).observe(panel, { attributes: true, attributeFilter: ['style'] });
+        sincronizar();
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();
+})();
+</script>
 </body>
 </html>
