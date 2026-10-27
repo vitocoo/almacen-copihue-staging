@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v533</title>
+    <title>🛒 POS · Copihue v534</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6942,6 +6942,8 @@ async function confirmarVentaMixta() {
                 total: pagoFiado.equivalenteARS,
                 ticket: ticketNum,
                 items: itemsSnapshot.map(i => i.name + ' x' + i.qty).join(', '),
+                // v534 — mismo formato que el fiado normal (antes la planilla ponía "TICKET COMPLETO")
+                descripcion: itemsSnapshot.slice(0,3).map(i => (i.esPeso ? i.gramos + 'gr' : i.qty + 'x') + ' ' + i.name.substring(0,15)).join(' · ') + (itemsSnapshot.length > 3 ? ' (+' + (itemsSnapshot.length-3) + ')' : ''),
                 cantItems: itemsSnapshot.length,
                 vencimiento: ''
             };
@@ -6979,6 +6981,21 @@ async function confirmarVentaMixta() {
                 let d;
                 if (!_fiadoMixtoGuardado) d = { ok: false, motivo: 'el fiado quedó pendiente de sincronizar' };
                 else {
+                    // v534 — si 'vender' no devolvió el N° de ticket, se busca por idVenta y se completa SOLO si la columna está vacía
+                    if (!ticketNum && stockOk) {
+                        try {
+                            let tk = '';
+                            for (let n = 0; n < 3 && !tk; n++) {
+                                if (n) await new Promise(r => setTimeout(r, 1500));
+                                const rT = await _apiFetchUrl('consultarEstadoOperacion', API_URL + '?action=consultarEstadoOperacion&data=' + encodeURIComponent(JSON.stringify({ idVenta: idVenta })) + '&t=' + Date.now());
+                                if (rT && rT.venta && String(rT.venta.estado || '').toUpperCase() === 'REGISTRADA' && rT.venta.ticket) tk = String(rT.venta.ticket);
+                            }
+                            if (tk) {
+                                _datosFiadoMixto.ticket = tk;
+                                await _apiFetchUrl('actualizarTicketFiado', API_URL + '?action=actualizarTicketFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: _datosFiadoMixto.idFiado, ticket: tk })) + '&t=' + Date.now());
+                            }
+                        } catch (eTk) { console.warn('⚠️ v534 no se pudo completar el ticket del fiado (queda vacío, no se pisa nada):', eTk); }
+                    }
                     try {
                         d = await Promise.race([
                             _fiadoDeudaAcumulada(_datosFiadoMixto, Math.round(_datosFiadoMixto.total)),
@@ -7001,7 +7018,7 @@ async function confirmarVentaMixta() {
         actualizarRanking();
 
         const btnTicket = document.getElementById('btnTicketWA');
-        if (btnTicket) btnTicket.style.display = 'block';
+        if (btnTicket) { btnTicket.style.display = 'block'; setTimeout(() => { try { btnTicket.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e) {} }, 200); } // v534
         if (btn) { btn.textContent = '✅ Cobro confirmado'; btn.disabled = true; }
         const btnCancelar = document.querySelector('.btn-cancelar-confirm');
         if (btnCancelar) { btnCancelar.textContent = 'Cerrar'; btnCancelar.onclick = () => { cerrarConfirm(); }; }
@@ -7130,7 +7147,7 @@ async function confirmarVenta() {
 
         // Mostrar botón ticket en el modal antes de cerrarlo
         const btnTicket = document.getElementById('btnTicketWA');
-        if (btnTicket) btnTicket.style.display = 'block';
+        if (btnTicket) { btnTicket.style.display = 'block'; setTimeout(() => { try { btnTicket.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e) {} }, 200); } // v534
         const btnOk = document.getElementById('btnOkConfirm');
         if (btnOk) { btnOk.textContent = '✅ Cobro confirmado'; btnOk.disabled = true; }
         const btnCancelar = document.querySelector('.btn-cancelar-confirm');
@@ -7271,7 +7288,7 @@ function enviarTicketWA() {
                 (dd.previa > 0 ? 'Deuda anterior: ' + _fiadoFmt(dd.previa) + '\n' : '') +
                 'Fiado de esta compra: ' + _fiadoFmt(fm.monto) + '\n' +
                 '💰 *TOTAL PENDIENTE: ' + _fiadoFmt(dd.total) + '*' +
-                (dd.previa > 0 && dd.tickets && dd.tickets.length ? '\n(Tickets pendientes: ' + dd.tickets.join(', ') + ' + esta compra)' : '');
+                (dd.previa > 0 && dd.tickets && dd.tickets.length ? '\n(' + dd.tickets.length + (dd.tickets.length === 1 ? ' compra pendiente' : ' compras pendientes') + ' + esta compra)' : '');
         } else {
             mostrarToast(dd && dd.ambiguo
                 ? '⚠️ Este teléfono tiene fiados a nombre de otra persona (' + dd.nombres.join(', ') + '): el ticket sale SIN deuda total. Verificá.'
@@ -16845,7 +16862,7 @@ async function _enviarFiadoWhatsApp(datosFiado, total, ctx) {
                 `Deuda anterior: ${_fiadoFmt(deuda.previa)}`,
                 `Esta compra: ${_fiadoFmt(totalCompra)}`,
                 `💰 *TOTAL PENDIENTE: ${_fiadoFmt(deuda.total)}*`,
-                `(Tickets pendientes: ${deuda.tickets.join(', ')} + esta compra)`);
+                `(${deuda.tickets.length} ${deuda.tickets.length === 1 ? 'compra pendiente' : 'compras pendientes'} + esta compra)`);
         } else if (!deuda.ok) {
             // Solo el ticket de la compra. Aviso para quien vende (no para el cliente):
             mostrarToast(deuda.ambiguo
