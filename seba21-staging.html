@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v537</title>
+    <title>🛒 POS · Copihue v538</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3826,6 +3826,21 @@
                         <div id="pmFaltaLabel" style="font-size:0.6rem;color:#c62828;text-transform:uppercase;font-weight:800;">Falta</div>
                         <div id="pmFaltaValor" style="font-size:1.15rem;font-weight:900;color:#c62828;">$0</div>
                     </div>
+                </div>
+            </div>
+
+            <!-- v538 — VUELTO → DEUDA: solo aparece si hay vuelto y no hay fiado en esta venta -->
+            <div id="pmVueltoDeuda" style="display:none;margin-bottom:8px;">
+                <button type="button" id="pmVdBtn" onclick="_vdAbrir()" style="width:100%;padding:11px 14px;border:1.5px solid #e65100;background:#fff3e0;color:#e65100;font-weight:800;font-size:0.9rem;border-radius:12px;cursor:pointer;text-align:left;">💳 Aplicar vuelto a deuda</button>
+                <div id="pmVdPanel" style="display:none;margin-top:8px;padding:10px;border:1.5px solid #ffcc80;border-radius:12px;background:#fffaf3;">
+                    <div style="position:relative;">
+                        <input id="pmVdCliente" type="text" placeholder="👤 Cliente con deuda (nombre o teléfono)" autocomplete="off" oninput="_vdFiltrar(this.value)" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #ddd;border-radius:10px;font-size:0.95rem;">
+                        <div id="pmVdDrop" style="display:none;position:absolute;left:0;right:0;top:100%;background:white;border:1.5px solid #ddd;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:100;max-height:180px;overflow-y:auto;margin-top:2px;"></div>
+                    </div>
+                    <div id="pmVdMsg" style="font-size:0.8rem;color:#666;margin-top:6px;"></div>
+                    <div id="pmVdLista" style="margin-top:6px;"></div>
+                    <div id="pmVdResumen" style="font-size:0.85rem;font-weight:700;color:#e65100;margin-top:6px;"></div>
+                    <button type="button" onclick="_vdReset(true)" style="margin-top:8px;padding:6px 10px;border:1px solid #bbb;background:#fff;color:#555;border-radius:8px;font-size:0.8rem;cursor:pointer;">✕ No aplicar a deuda</button>
                 </div>
             </div>
 
@@ -6467,6 +6482,8 @@ function _pmLimpiarTodo() {
         if (fl) fl.textContent = '›';
         const er = document.getElementById('pmErrorMsg');
         if (er) er.style.display = 'none';
+        if (typeof _vdReset === 'function') _vdReset(true); // v538
+        const cvd = document.getElementById('pmVueltoDeuda'); if (cvd) cvd.style.display = 'none';
     } catch(e) { console.warn('⚠️ _pmLimpiarTodo:', e); }
 }
 
@@ -6790,6 +6807,198 @@ function _pmActualizarEstadoMedio(idx) {
     estadoEl.classList.add('pm-cargado');
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// v538 — VUELTO APLICADO A DEUDA (venta mixta)
+// El vuelto (o parte) se descuenta de fiados pendientes del cliente con abonarFiado (misma función que usa
+// la pantalla Fiados, con idOperacion: repetir la llamada NUNCA descuenta dos veces). Reparto automático
+// desde el fiado más viejo; se puede editar. Lo que sobre del vuelto se devuelve en efectivo.
+// ══════════════════════════════════════════════════════════════════════════
+let _vd = null; // { cliente, telefono, fiados:[{idFiado,ticket,saldo,desc,ts,monto}] }
+function _vdTs(f) {
+    let m = /^f_(\d{13})_/.exec(String(f.idFiado || ''));
+    if (m) return parseInt(m[1], 10);
+    m = /^FIADO-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/.exec(String(f.idFiado || ''));
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime();
+    const t = Date.parse(String(f.fecha || ''));
+    return isNaN(t) ? 0 : t;
+}
+function _vdVuelto() {
+    const totalV = _totalCarritoConDescuentosGrupales();
+    const total = window._totalConRedondeo || totalV;
+    const pagado = _pagosMixtos.reduce((s, p) => s + p.equivalenteARS, 0);
+    return Math.max(0, Math.round(pagado - total));
+}
+function _vdReset(ocultarPanel) {
+    _vd = null;
+    try {
+        const l = document.getElementById('pmVdLista'); if (l) l.innerHTML = '';
+        const r = document.getElementById('pmVdResumen'); if (r) r.textContent = '';
+        const m = document.getElementById('pmVdMsg'); if (m) m.textContent = '';
+        const c = document.getElementById('pmVdCliente'); if (c) c.value = '';
+        const d = document.getElementById('pmVdDrop'); if (d) d.style.display = 'none';
+        if (ocultarPanel) { const pn = document.getElementById('pmVdPanel'); if (pn) pn.style.display = 'none'; }
+        const b = document.getElementById('pmVdBtn'); if (b) b.textContent = '💳 Aplicar vuelto a deuda';
+    } catch (e) {}
+}
+function _vdActualizar() {
+    const cont = document.getElementById('pmVueltoDeuda'); if (!cont) return;
+    const vuelto = _vdVuelto();
+    const hayFiado = _pagosMixtos.some(p => p.metodo === 'FIADO');
+    if (vuelto <= 0 || hayFiado) { cont.style.display = 'none'; if (_vd) _vdReset(true); return; }
+    cont.style.display = 'block';
+    if (_vd) { _vdRepartir(); _vdRender(); }
+}
+function _vdAbrir() {
+    const pn = document.getElementById('pmVdPanel'); if (!pn) return;
+    pn.style.display = pn.style.display === 'none' ? 'block' : 'none';
+    if (pn.style.display === 'block') { const c = document.getElementById('pmVdCliente'); if (c) c.focus(); }
+}
+function _vdFiltrar(q) {
+    const drop = document.getElementById('pmVdDrop');
+    const lista = _fiadoClientesCache || [];
+    q = (q || '').trim();
+    if (!q || lista.length === 0) { drop.style.display = 'none'; return; }
+    const terminos = _normalizarBusqueda(q).split(' ').filter(Boolean);
+    const qTel = q.replace(/\D/g, '');
+    const matches = lista.filter(c => {
+        const tel = (c.telefono || '').replace(/\D/g, '');
+        if (qTel.length >= 4 && tel.includes(qTel)) return true;
+        const n = _normalizarBusqueda(c.nombre);
+        return terminos.every(t => n.includes(t));
+    }).slice(0, 8);
+    if (!matches.length) { drop.style.display = 'none'; return; }
+    drop.innerHTML = '';
+    matches.forEach(c => {
+        const d = document.createElement('div');
+        d.style.cssText = 'padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;';
+        d.innerHTML = '<span style="font-weight:600;font-size:0.95rem;"></span><span style="color:#888;font-size:0.78rem;"></span>';
+        d.children[0].textContent = c.nombre; d.children[1].textContent = c.telefono || '—';
+        d.onclick = () => _vdElegir(c.nombre, c.telefono || '');
+        drop.appendChild(d);
+    });
+    drop.style.display = 'block';
+}
+async function _vdElegir(nombre, telefono) {
+    const msg = document.getElementById('pmVdMsg');
+    document.getElementById('pmVdCliente').value = nombre;
+    document.getElementById('pmVdDrop').style.display = 'none';
+    document.getElementById('pmVdLista').innerHTML = '';
+    document.getElementById('pmVdResumen').textContent = '';
+    msg.textContent = '⏳ Buscando deudas de ' + nombre + '…';
+    _vd = null;
+    try {
+        const r = await _apiFetch('listarFiados');
+        if (!r || r.ok !== true || !Array.isArray(r.fiados)) throw new Error('respuesta inválida de la planilla');
+        const tel6 = String(telefono || '').replace(/\D/g, '').length >= 6;
+        const nom = _fiadoNorm(nombre);
+        const pend = r.fiados.filter(f => f && String(f.estado || '').toUpperCase() !== 'PAGADO' && (parseFloat(f.total) || 0) > 0 &&
+            (tel6 ? _fiadoMismoTel(f.telefono, telefono) : _fiadoNorm(f.cliente) === nom));
+        if (!pend.length) { msg.textContent = 'ℹ️ ' + nombre + ' no tiene deuda pendiente. El vuelto se devuelve en efectivo.'; return; }
+        const otros = Array.from(new Set(pend.filter(f => _fiadoNorm(f.cliente) !== nom).map(f => String(f.cliente || '?'))));
+        pend.sort((a, b) => _vdTs(a) - _vdTs(b));
+        _vd = { cliente: nombre, telefono: telefono, fiados: pend.map(f => ({
+            idFiado: String(f.idFiado), ticket: (f.ticket && String(f.ticket).trim()) ? String(f.ticket).trim() : '', saldo: Math.round(parseFloat(f.total) || 0),
+            desc: String(f.descripcion || ''), ts: _vdTs(f), monto: 0 })) };
+        msg.textContent = otros.length ? '⚠️ Este teléfono también tiene fiados a nombre de: ' + otros.join(', ') + '. Revisá antes de aplicar.' : '';
+        _vdRepartir(); _vdRender();
+    } catch (e) {
+        _vd = null;
+        msg.textContent = '⚠️ No se pudo consultar la deuda (' + (e && e.message || e) + '). No se aplica nada; el vuelto se devuelve en efectivo.';
+    }
+}
+function _vdRepartir() {
+    if (!_vd) return;
+    let rem = _vdVuelto();
+    _vd.fiados.forEach(f => { const m = Math.min(f.saldo, rem); f.monto = m; rem -= m; });
+}
+function _vdEditar(i, v) {
+    if (!_vd || !_vd.fiados[i]) return;
+    const f = _vd.fiados[i];
+    let m = Math.round(parseFloat(v) || 0); if (m < 0) m = 0;
+    const otros = _vd.fiados.reduce((a, x, j) => a + (j === i ? 0 : x.monto), 0);
+    m = Math.min(m, f.saldo, Math.max(0, _vdVuelto() - otros));
+    f.monto = m;
+    _vdRenderResumen();
+}
+function _vdTotales() {
+    const aplicado = _vd ? _vd.fiados.reduce((a, f) => a + f.monto, 0) : 0;
+    const deuda = _vd ? _vd.fiados.reduce((a, f) => a + f.saldo, 0) : 0;
+    return { aplicado, deuda, restante: deuda - aplicado, efectivo: _vdVuelto() - aplicado };
+}
+function _vdRenderResumen() {
+    const el = document.getElementById('pmVdResumen'); if (!el) return;
+    const b = document.getElementById('pmVdBtn');
+    if (!_vd) { el.textContent = ''; if (b) b.textContent = '💳 Aplicar vuelto a deuda'; return; }
+    const t = _vdTotales();
+    el.textContent = 'Se aplican ' + _fiadoFmt(t.aplicado) + ' a la deuda · Vuelto en efectivo: ' + _fiadoFmt(t.efectivo) + ' · Deuda que queda: ' + _fiadoFmt(t.restante);
+    if (b) b.textContent = t.aplicado > 0 ? '💳 Vuelto → deuda de ' + _vd.cliente + ': ' + _fiadoFmt(t.aplicado) : '💳 Aplicar vuelto a deuda';
+}
+function _vdRender() {
+    const cont = document.getElementById('pmVdLista'); if (!cont) return;
+    cont.innerHTML = '';
+    if (!_vd) { _vdRenderResumen(); return; }
+    _vd.fiados.forEach((f, i) => {
+        const fila = document.createElement('div');
+        fila.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f3e3c9;font-size:0.82rem;';
+        const txt = document.createElement('div'); txt.style.cssText = 'flex:1;min-width:0;';
+        const fecha = f.ts ? new Date(f.ts).toLocaleDateString('es-AR') : '';
+        txt.innerHTML = '<div style="font-weight:700;"></div><div style="color:#888;font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>';
+        txt.children[0].textContent = (f.ticket ? 'Ticket #' + f.ticket : 'Fiado ' + (fecha || f.idFiado.slice(-6))) + ' · debe ' + _fiadoFmt(f.saldo);
+        txt.children[1].textContent = (fecha ? fecha + ' · ' : '') + (f.desc || '');
+        const inp = document.createElement('input'); inp.type = 'number'; inp.inputMode = 'numeric'; inp.value = f.monto; inp.min = 0; inp.max = f.saldo;
+        inp.style.cssText = 'width:92px;padding:7px 8px;border:1.5px solid #ddd;border-radius:8px;font-size:0.9rem;text-align:right;';
+        inp.oninput = () => _vdEditar(i, inp.value);
+        inp.onblur = () => { inp.value = f.monto; };
+        fila.appendChild(txt); fila.appendChild(inp); cont.appendChild(fila);
+    });
+    _vdRenderResumen();
+}
+// Aplica los abonos DESPUÉS de registrar la venta. Cada abono lleva idOperacion: si la planilla tarda o el
+// POS reintenta, abonarFiado responde "ya estaba registrado" y no descuenta de nuevo.
+async function _vdAplicar(snap, idVenta, vRef) {
+    const res = { estado: 'aplicando', cliente: snap.cliente, aplicado: 0, fallos: [], deudaRestante: null, efectivo: snap.efectivo };
+    vRef.vueltoDeuda = res;
+    try {
+        for (const a of snap.asignaciones) {
+            const idOp = 'vd_' + idVenta + '_' + a.idFiado;
+            let hecho = false, definitivo = false;
+            for (let n = 0; n < 3 && !hecho && !definitivo; n++) {
+                if (n) await new Promise(r => setTimeout(r, n * 4000));
+                try {
+                    const r = await _apiFetchUrl('abonarFiado', API_URL + '?action=abonarFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: a.idFiado, abono: a.monto, metodoPago: 'EFECTIVO', idOperacion: idOp })) + '&t=' + Date.now());
+                    if (r && r.success === true) { hecho = true; res.aplicado += a.monto; }
+                    else definitivo = true; // la planilla contestó que no (no existe, monto inválido…): no se reintenta
+                } catch (e) { /* sin respuesta: se reintenta con el MISMO idOperacion (seguro) */ }
+            }
+            if (!hecho) {
+                res.fallos.push(a);
+                try {
+                    const arr = JSON.parse(localStorage.getItem('abonos_vuelto_sin_confirmar') || '[]');
+                    arr.push({ idOperacion: idOp, idFiado: a.idFiado, monto: a.monto, cliente: snap.cliente, ts: Date.now() });
+                    localStorage.setItem('abonos_vuelto_sin_confirmar', JSON.stringify(arr));
+                } catch (e) {}
+            }
+        }
+        if (res.aplicado > 0) {
+            try {
+                const r2 = await _apiFetch('listarFiados');
+                if (r2 && r2.ok === true && Array.isArray(r2.fiados)) {
+                    const tel6 = String(snap.telefono || '').replace(/\D/g, '').length >= 6, nom = _fiadoNorm(snap.cliente);
+                    res.deudaRestante = Math.round(r2.fiados.filter(f => f && String(f.estado || '').toUpperCase() !== 'PAGADO' && (parseFloat(f.total) || 0) > 0 &&
+                        (tel6 ? _fiadoMismoTel(f.telefono, snap.telefono) : _fiadoNorm(f.cliente) === nom)).reduce((x, f) => x + (parseFloat(f.total) || 0), 0));
+                }
+            } catch (e) {}
+            if (res.deudaRestante === null) res.deudaRestante = Math.max(0, snap.deudaTotal - res.aplicado);
+        }
+    } catch (e) { console.warn('⚠️ _vdAplicar:', e); }
+    res.estado = 'listo';
+    if (res.fallos.length) {
+        mostrarToast('⚠️ NO se pudo confirmar el abono de ' + _fiadoFmt(res.fallos.reduce((x, a) => x + a.monto, 0)) + ' a la deuda de ' + snap.cliente + '. Revisá en Fiados ANTES de repetirlo (si ya figura, no lo cargues otra vez).', 'naranja');
+    } else if (res.aplicado > 0) {
+        mostrarToast('✅ ' + _fiadoFmt(res.aplicado) + ' descontados de la deuda de ' + snap.cliente, 'verde');
+    }
+}
+
 function _pmRenderResumen() {
     const totalV = _totalCarritoConDescuentosGrupales();
     const total = window._totalConRedondeo || totalV;
@@ -6825,6 +7034,7 @@ function _pmRenderResumen() {
         faltaValor.style.color = '#c62828';
         faltaValor.textContent = '$' + falta.toLocaleString('es-AR');
     }
+    try { _vdActualizar(); } catch (e) {} // v538
 }
 
 // La venta se procesa UNA SOLA VEZ acá (spec punto 16) — no hay una llamada
@@ -6854,6 +7064,13 @@ async function confirmarVentaMixta() {
     try {
         const itemsSnapshot = [...ventaActual];
         const pagoFiado = _pagosMixtos.find(p => p.metodo === 'FIADO');
+        // v538 — vuelto aplicado a deuda: se congela lo elegido antes de que se limpie el panel
+        let _vdSnap = null;
+        if (_vd && !pagoFiado && vueltoARS > 0) {
+            const asign = _vd.fiados.filter(f => f.monto > 0).map(f => ({ idFiado: f.idFiado, monto: f.monto, ticket: f.ticket }));
+            const ap = asign.reduce((a, x) => a + x.monto, 0);
+            if (ap > 0 && ap <= vueltoARS) _vdSnap = { cliente: _vd.cliente, telefono: _vd.telefono, asignaciones: asign, aplicado: ap, efectivo: vueltoARS - ap, deudaTotal: _vd.fiados.reduce((a, f) => a + f.saldo, 0) };
+        }
         // Columna F (compatibilidad): un solo pago no-ARS usa su etiqueta,
         // más de uno usa "MIXTO" — la hoja Ventas sigue viendo texto legible
         // como siempre, el detalle real vive en detallePagos (columna I).
@@ -6871,6 +7088,7 @@ async function confirmarVentaMixta() {
             pagos: _pagosMixtos.map(p => ({ metodo: p.metodo, moneda: p.moneda, recibido: p.recibido, cotizacion: p.cotizacion, equivalenteARS: p.equivalenteARS })),
             vueltoARS
         };
+        if (_vdSnap) detallePagos.vueltoAplicadoDeuda = { cliente: _vdSnap.cliente, monto: _vdSnap.aplicado }; // v538 (auditoría)
 
         let stockOk = false, ticketNum = null;
         const ventaData = _itemsParaServidor(itemsSnapshot);
@@ -6974,6 +7192,9 @@ async function confirmarVentaMixta() {
 
         window._ultimaVenta = { items: itemsSnapshot, total, totalOriginal: totalV, descuentoRedondeo: window._descuentoRedondeo || 0, hora, metodo: metodoPagoTexto, detallePagos };
 
+        // v538 — aplicar el vuelto a la deuda (en segundo plano, con idOperacion)
+        if (_vdSnap) _vdAplicar(_vdSnap, idVenta, window._ultimaVenta);
+
         // v533 — venta mixta CON fiado: se calcula (en segundo plano) la deuda total del cliente para el ticket.
         // Solo lectura de la planilla; si no se puede confirmar, el ticket sale sin ese bloque (nunca inventa números).
         if (_datosFiadoMixto) {
@@ -7036,6 +7257,7 @@ async function confirmarVentaMixta() {
         _pagosMixtos = [];
         localStorage.removeItem(PM_PENDIENTE_KEY); // v453
         document.getElementById('panelPagoMixto').style.display = 'none';
+        _vdReset(true); { const _cvd = document.getElementById('pmVueltoDeuda'); if (_cvd) _cvd.style.display = 'none'; } // v538
         document.getElementById('pmToggleFlecha').textContent = '›';
         seleccionarMetodo('efectivo');
 
@@ -7317,6 +7539,17 @@ function enviarTicketWA() {
             mostrarToast(dd && dd.ambiguo
                 ? '⚠️ Este teléfono tiene fiados a nombre de otra persona (' + dd.nombres.join(', ') + '): el ticket sale SIN deuda total. Verificá.'
                 : '⚠️ No se pudo confirmar la deuda total (' + ((dd && dd.motivo) || 'sin dato') + '): el ticket sale sin ese dato.', 'naranja');
+        }
+    }
+    // v538 — vuelto aplicado a deuda
+    if (v.vueltoDeuda) {
+        var vdd = v.vueltoDeuda;
+        if (vdd.estado !== 'listo') { mostrarToast('⏳ Aplicando el abono a la deuda… tocá de nuevo en unos segundos', 'naranja'); return; }
+        if (vdd.aplicado > 0) {
+            bloqueDeuda += '\n\n📌 *VUELTO APLICADO A TU DEUDA*\n' +
+                'Abonaste: ' + _fiadoFmt(vdd.aplicado) + '\n' +
+                (vdd.efectivo > 0 ? 'Vuelto en efectivo: ' + _fiadoFmt(vdd.efectivo) + '\n' : '') +
+                '💰 *DEUDA QUE QUEDA: ' + _fiadoFmt(vdd.deudaRestante || 0) + '*';
         }
     }
     var nroTicket = v.nroTicket ? ' · #' + v.nroTicket : '';
