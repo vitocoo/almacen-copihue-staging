@@ -238,7 +238,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 <div id="toast"></div>
 
 <script>
-const APP_VERSION=40;
+const APP_VERSION=41;
 const API_URL='https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 
 // ── Estado ─────────────────────────────────────────
@@ -452,7 +452,7 @@ function renderClientesLista(clis,sinDeuda,pend,totG,q){
     } else {
       sinDeuda.forEach((c,idx)=>{
         const nom=c.nombre||'';const tel=c.telefono||'';
-        html+=`<div class="cli-card" style="opacity:.75" data-sin="${idx}"><div><div class="cli-nombre">${nom}</div><div class="cli-tel">${tel?'📞 '+tel:'Sin teléfono'} <button onclick="event.stopPropagation();abrirEditCli('${safeEnc(nom)}','${tel}')" style="background:none;border:none;cursor:pointer;font-size:.8rem;padding:0 4px;color:var(--vd)">✏️</button></div></div><div style="font-size:.72rem;color:#aaa">Sin deuda</div></div>`;
+        html+=`<div class="cli-card" style="opacity:.9;cursor:pointer" data-sin="${idx}"><div><div class="cli-nombre">${nom}</div><div class="cli-tel">${tel?'📞 '+tel:'Sin teléfono'} <button onclick="event.stopPropagation();abrirEditCli('${safeEnc(nom)}','${tel}')" style="background:none;border:none;cursor:pointer;font-size:.8rem;padding:0 4px;color:var(--vd)">✏️</button></div></div><div style="font-size:.72rem;color:#aaa;text-align:right">Sin deuda<div style="color:var(--vd);font-weight:800;margin-top:2px">🎫 Ver ventas ›</div></div></div>`;
       });
     }
   }
@@ -462,7 +462,25 @@ function renderClientesLista(clis,sinDeuda,pend,totG,q){
   document.querySelectorAll('.cli-card[data-idx]').forEach(el=>{
     el.addEventListener('click',()=>abrirCli(clis[parseInt(el.dataset.idx)].nom));
   });
-  // Tarjetas sin deuda no abren fiados (sin historial pendiente)
+  // v41 — Tarjetas SIN DEUDA: abren sus ventas de los últimos 30 días (para reenviar comprobantes)
+  document.querySelectorAll('.cli-card[data-sin]').forEach(el=>{
+    el.addEventListener('click',()=>abrirCliSinDeuda(sinDeuda[parseInt(el.dataset.sin)].nombre||''));
+  });
+}
+
+// ── v41 — ABRIR CLIENTE SIN DEUDA ──────────────────
+// No cambia abrirCli. Busca por nombre normalizado (sin tildes, mayúsculas ni espacios de más).
+// Solo lee lo que ya está cargado en _todos (listarFiados: pendientes + pagados de los últimos 30 días).
+function _normNomCli(n){return String(n||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();}
+function abrirCliSinDeuda(nom){
+  _sel.clear();_recTxt='';
+  _cliNom=nom;
+  const k=_normNomCli(nom);
+  _cliData=_todos.filter(f=>_normNomCli(f.cliente)===k);
+  const cl=(_todosClientes||[]).find(c=>_normNomCli(c.nombre)===k);
+  _cliTel=_cliData[0]?.telefono||(cl&&cl.telefono)||'';
+  renderFiados();
+  ir('fiados',nom);
 }
 
 // ── ABRIR CLIENTE ──────────────────────────────────
@@ -564,6 +582,7 @@ function renderFiados(){
     });
   }
   if(!html)html='<div class="empty"><div class="icon">✅</div>Sin fiados registrados</div>';
+  if(!pend.length&&!pagados.length) html+='<div class="empty" style="font-size:.8rem"><div class="icon">🧾</div>Sin fiados pendientes ni cobrados en los últimos 30 días.<br>Las compras más viejas no aparecen acá.</div>';
   document.getElementById('cuerpoFiados').innerHTML=html;
   // Event delegation — evita problemas con IDs especiales en onclick inline
   document.querySelectorAll('#cuerpoFiados .fc').forEach(el=>{
@@ -778,6 +797,10 @@ async function confirmarCob(){
   if(montoIngresado<=0){toast('⚠️ Ingresá un monto','r');return;}
   const esAbono=montoIngresado<_montoFull-0.5;
   const selArr=[..._sel];
+  // v42 — deuda del cliente ANTES de cobrar (la misma suma que muestra "Deuda total") y fecha/hora del recibo
+  const _deudaAntes=Math.round(_cliData.filter(f=>f.estado!=='PAGADO').reduce((s,f)=>s+parseFloat(f.total||0),0));
+  const _ahoraRec=new Date(), _fechaRec=_ahoraRec.toLocaleDateString('es-AR'), _horaRec=_ahoraRec.toTimeString().slice(0,5);
+  const _bloqueDeuda=(abonado)=>{const act=Math.max(0,_deudaAntes-Math.round(abonado));return['📌 *Deuda anterior: '+fmt(_deudaAntes)+'*',`💵 *Abono: ${fmt(abonado)}* (${_met})`,(act>0?'📋':'✅')+' *Deuda actualizada: '+fmt(act)+'*'];};
   _recIds=selArr.slice();   // v40: a qué fiados corresponde el comprobante (para elegir el teléfono correcto)
   const btn=document.getElementById('btnConf');
   btn.disabled=true;btn.textContent='⏳ Guardando...';
@@ -793,12 +816,12 @@ async function confirmarCob(){
       const ref=f?.ticket&&f.ticket.trim()!==''?'Ticket #'+f.ticket:selArr[0];
       const resta=Math.max(0,(f?.total||0)-montoIngresado);
       _recTxt=['✅ *ABONO RECIBIDO — Almacén Copihue*','',
-        `📅 ${new Date().toLocaleDateString('es-AR')}  🕐 ${new Date().toTimeString().slice(0,5)}`,
-        `👤 Cliente: ${_cliNom}`,'',
-        `🧾 Ref: ${ref}`,
-        `💰 Abono: ${fmt(montoIngresado)}`,
-        resta>0?`📋 Saldo restante: ${fmt(resta)}`:'✅ Deuda saldada',
-        `💳 Método: ${_met}`,'','📍 Almacén Copihue'].join('\n');
+        `📅 Fecha: ${_fechaRec}`,
+        `🕐 Hora: ${_horaRec}`,
+        `👤 Cliente: ${_cliNom}`,'']
+        .concat(_bloqueDeuda(montoIngresado),['',
+        `  🧾 ${ref} · ${fmt(montoIngresado)} de ${fmt(f?.total||0)} 📋 Abonado${resta>0?' (resta '+fmt(resta)+')':' ✅ Saldado'}`,
+        '','📍 Almacén Copihue']).join('\n');
     }else if(esAbono&&selArr.length>1){
       // Abono parcial repartido entre varios fiados seleccionados:
       // se van marcando pagados en orden mientras el monto alcance, y el
@@ -828,10 +851,10 @@ async function confirmarCob(){
       if(err>0)throw new Error('Algunos cobros/abonos fallaron');
       toast('✅ Pago registrado','v');
       _recTxt=['✅ *PAGO RECIBIDO — Almacén Copihue*','',
-        `📅 ${new Date().toLocaleDateString('es-AR')}  🕐 ${new Date().toTimeString().slice(0,5)}`,
-        `👤 Cliente: ${_cliNom}`,'',lineas.join('\n'),'',
-        `💰 *Total pagado: ${fmt(montoIngresado)}*`,
-        `💳 Método: ${_met}`,'','📍 Almacén Copihue'].join('\n');
+        `📅 Fecha: ${_fechaRec}`,
+        `🕐 Hora: ${_horaRec}`,
+        `👤 Cliente: ${_cliNom}`,'']
+        .concat(_bloqueDeuda(montoIngresado),['',lineas.join('\n'),'','📍 Almacén Copihue']).join('\n');
     }else{
       // Cobro total de todos los seleccionados
       let err=0;
@@ -845,10 +868,12 @@ async function confirmarCob(){
       const selF=selArr.map(id=>_cliData.find(f=>f.idFiado===id)).filter(Boolean);
       const lineas=selF.map(f=>{const ref=f.ticket&&f.ticket.trim()!==''?'Ticket #'+f.ticket:f.idFiado;return`  🧾 ${ref} · ${fmt(f.total)}`;}).join('\n');
       _recTxt=['✅ *PAGO RECIBIDO — Almacén Copihue*','',
-        `📅 ${new Date().toLocaleDateString('es-AR')}  🕐 ${new Date().toTimeString().slice(0,5)}`,
-        `👤 Cliente: ${_cliNom}`,'',lineas,'',
-        `💰 *Total cobrado: ${fmt(_montoFull)}*`,
-        `💳 Método: ${_met}`,'','✅ ¡Gracias por saldar tu deuda! 🙌','📍 Almacén Copihue'].join('\n');
+        `📅 Fecha: ${_fechaRec}`,
+        `🕐 Hora: ${_horaRec}`,
+        `👤 Cliente: ${_cliNom}`,'']
+        .concat(_bloqueDeuda(_montoFull),['',lineas,'',
+        ...(Math.max(0,_deudaAntes-Math.round(_montoFull))===0?['✅ ¡Gracias por saldar tu deuda! 🙌']:[]),
+        '📍 Almacén Copihue']).join('\n');
     }
     cerrarCob();
     // Recargar fiados y abrir recordatorio
