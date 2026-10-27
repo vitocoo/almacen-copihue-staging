@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v534</title>
+    <title>🛒 POS · Copihue v535</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6885,7 +6885,9 @@ async function confirmarVentaMixta() {
             const resp = await _apiFetchUrl('vender', url);
             stockOk = resp.success === true;
             ticketNum = resp.ticket || resp.numeroTicket || null;
+            window._dbgVender = 'success=' + resp.success + ' ticket=' + (resp.ticket === undefined ? 'undefined' : JSON.stringify(resp.ticket)) + ' claves=' + Object.keys(resp || {}).join(','); // v535 diag
         } catch(e) {
+            window._dbgVender = 'ERROR al llamar vender: ' + (e && e.message || e); // v535 diag
             console.warn('⚠️ No se pudo conectar con la planilla (venta mixta):', e);
         }
 
@@ -6977,24 +6979,41 @@ async function confirmarVentaMixta() {
         if (_datosFiadoMixto) {
             const _vRef = window._ultimaVenta;
             _vRef.fiadoMixto = { datos: _datosFiadoMixto, monto: Math.round(_datosFiadoMixto.total), estado: 'calculando', deuda: null };
+            // v535 — línea de diagnóstico TEMPORAL (se saca al terminar la prueba)
+            const _dbgTk = (t) => {
+                try {
+                    let el = document.getElementById('dbgTicketMixto');
+                    if (!el) {
+                        el = document.createElement('div'); el.id = 'dbgTicketMixto';
+                        el.style.cssText = 'font-size:0.68rem;color:#666;background:#f1f1f1;border-radius:6px;padding:6px 8px;margin:6px 12px;word-break:break-word;white-space:pre-wrap;';
+                        const b = document.getElementById('btnTicketWA'); if (b) b.insertAdjacentElement('afterend', el);
+                    }
+                    el.textContent += (el.textContent ? '\n' : '') + t;
+                } catch (e) {}
+            };
+            try { const _old = document.getElementById('dbgTicketMixto'); if (_old) _old.remove(); } catch (e) {}
+            _dbgTk('DIAG v535 · vender → ' + (window._dbgVender || '?') + ' · ticketNum=' + (ticketNum || 'VACÍO'));
             (async () => {
                 let d;
                 if (!_fiadoMixtoGuardado) d = { ok: false, motivo: 'el fiado quedó pendiente de sincronizar' };
                 else {
-                    // v534 — si 'vender' no devolvió el N° de ticket, se busca por idVenta y se completa SOLO si la columna está vacía
+                    // v534/v535 — si 'vender' no devolvió el N° de ticket, se busca por idVenta y se completa SOLO si la columna está vacía
                     if (!ticketNum && stockOk) {
                         try {
                             let tk = '';
-                            for (let n = 0; n < 3 && !tk; n++) {
-                                if (n) await new Promise(r => setTimeout(r, 1500));
+                            const esperas = [0, 2000, 3000, 5000];
+                            for (let n = 0; n < esperas.length && !tk; n++) {
+                                if (esperas[n]) await new Promise(r => setTimeout(r, esperas[n]));
                                 const rT = await _apiFetchUrl('consultarEstadoOperacion', API_URL + '?action=consultarEstadoOperacion&data=' + encodeURIComponent(JSON.stringify({ idVenta: idVenta })) + '&t=' + Date.now());
+                                _dbgTk('consulta ' + (n + 1) + ': ' + (rT && rT.venta ? (rT.venta.estado + ' / ' + (rT.venta.motivo || '') + ' / ticket=' + rT.venta.ticket) : 'sin venta en la respuesta (success=' + (rT && rT.success) + ' msg=' + (rT && rT.mensaje) + ')'));
                                 if (rT && rT.venta && String(rT.venta.estado || '').toUpperCase() === 'REGISTRADA' && rT.venta.ticket) tk = String(rT.venta.ticket);
                             }
                             if (tk) {
                                 _datosFiadoMixto.ticket = tk;
-                                await _apiFetchUrl('actualizarTicketFiado', API_URL + '?action=actualizarTicketFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: _datosFiadoMixto.idFiado, ticket: tk })) + '&t=' + Date.now());
-                            }
-                        } catch (eTk) { console.warn('⚠️ v534 no se pudo completar el ticket del fiado (queda vacío, no se pisa nada):', eTk); }
+                                const rU = await _apiFetchUrl('actualizarTicketFiado', API_URL + '?action=actualizarTicketFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: _datosFiadoMixto.idFiado, ticket: tk })) + '&t=' + Date.now());
+                                _dbgTk('actualizar ticket ' + tk + ': ' + JSON.stringify(rU));
+                            } else _dbgTk('NO se completó el ticket');
+                        } catch (eTk) { _dbgTk('ERROR: ' + (eTk && eTk.message || eTk)); console.warn('⚠️ no se pudo completar el ticket del fiado (queda vacío, no se pisa nada):', eTk); }
                     }
                     try {
                         d = await Promise.race([
@@ -7334,6 +7353,7 @@ function cerrarConfirm() {
     document.removeEventListener('keydown', _keyHandlerConfirm);
     const btnTicket = document.getElementById('btnTicketWA');
     if (btnTicket) btnTicket.style.display = 'none';
+    const _dbgEl = document.getElementById('dbgTicketMixto'); if (_dbgEl) _dbgEl.remove(); // v535
     const btnOk = document.getElementById('btnOkConfirm');
     if (btnOk) { btnOk.textContent = '✅ Confirmar cobro'; btnOk.disabled = false; btnOk.onclick = confirmarVenta; }
     const btnCancelar = document.querySelector('.btn-cancelar-confirm');
