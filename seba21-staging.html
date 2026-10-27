@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v535</title>
+    <title>🛒 POS · Copihue v536</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6993,28 +6993,33 @@ async function confirmarVentaMixta() {
             };
             try { const _old = document.getElementById('dbgTicketMixto'); if (_old) _old.remove(); } catch (e) {}
             _dbgTk('DIAG v535 · vender → ' + (window._dbgVender || '?') + ' · ticketNum=' + (ticketNum || 'VACÍO'));
+            // v536 — completar el N° de ticket del fiado en segundo plano (no demora ni el ticket ni el cálculo de la deuda).
+            // Antes no corría cuando 'vender' daba timeout (justo el caso real). El servidor sigue trabajando aunque el POS ya no espere.
+            if (_fiadoMixtoGuardado && !ticketNum) {
+                (async () => {
+                    try {
+                        let tk = '';
+                        const esperas = [0, 3000, 5000, 8000, 12000, 15000, 20000]; // ~63 s en total
+                        for (let n = 0; n < esperas.length && !tk; n++) {
+                            if (esperas[n]) await new Promise(r => setTimeout(r, esperas[n]));
+                            let rT = null;
+                            try { rT = await _apiFetchUrl('consultarEstadoOperacion', API_URL + '?action=consultarEstadoOperacion&data=' + encodeURIComponent(JSON.stringify({ idVenta: idVenta })) + '&t=' + Date.now()); }
+                            catch (eC) { _dbgTk('consulta ' + (n + 1) + ': ERROR ' + (eC && eC.message || eC)); continue; }
+                            _dbgTk('consulta ' + (n + 1) + ': ' + (rT && rT.venta ? (rT.venta.estado + ' / ' + (rT.venta.motivo || '') + ' / ticket=' + rT.venta.ticket) : 'sin venta en la respuesta (success=' + (rT && rT.success) + ' msg=' + (rT && rT.mensaje) + ')'));
+                            if (rT && rT.venta && String(rT.venta.estado || '').toUpperCase() === 'REGISTRADA' && rT.venta.ticket) tk = String(rT.venta.ticket);
+                        }
+                        if (tk) {
+                            _datosFiadoMixto.ticket = tk;
+                            const rU = await _apiFetchUrl('actualizarTicketFiado', API_URL + '?action=actualizarTicketFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: _datosFiadoMixto.idFiado, ticket: tk })) + '&t=' + Date.now());
+                            _dbgTk('actualizar ticket ' + tk + ': ' + JSON.stringify(rU));
+                        } else _dbgTk('NO se completó el ticket (queda vacío, no se pisa nada)');
+                    } catch (eTk) { _dbgTk('ERROR: ' + (eTk && eTk.message || eTk)); console.warn('⚠️ no se pudo completar el ticket del fiado:', eTk); }
+                })();
+            }
             (async () => {
                 let d;
                 if (!_fiadoMixtoGuardado) d = { ok: false, motivo: 'el fiado quedó pendiente de sincronizar' };
                 else {
-                    // v534/v535 — si 'vender' no devolvió el N° de ticket, se busca por idVenta y se completa SOLO si la columna está vacía
-                    if (!ticketNum && stockOk) {
-                        try {
-                            let tk = '';
-                            const esperas = [0, 2000, 3000, 5000];
-                            for (let n = 0; n < esperas.length && !tk; n++) {
-                                if (esperas[n]) await new Promise(r => setTimeout(r, esperas[n]));
-                                const rT = await _apiFetchUrl('consultarEstadoOperacion', API_URL + '?action=consultarEstadoOperacion&data=' + encodeURIComponent(JSON.stringify({ idVenta: idVenta })) + '&t=' + Date.now());
-                                _dbgTk('consulta ' + (n + 1) + ': ' + (rT && rT.venta ? (rT.venta.estado + ' / ' + (rT.venta.motivo || '') + ' / ticket=' + rT.venta.ticket) : 'sin venta en la respuesta (success=' + (rT && rT.success) + ' msg=' + (rT && rT.mensaje) + ')'));
-                                if (rT && rT.venta && String(rT.venta.estado || '').toUpperCase() === 'REGISTRADA' && rT.venta.ticket) tk = String(rT.venta.ticket);
-                            }
-                            if (tk) {
-                                _datosFiadoMixto.ticket = tk;
-                                const rU = await _apiFetchUrl('actualizarTicketFiado', API_URL + '?action=actualizarTicketFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: _datosFiadoMixto.idFiado, ticket: tk })) + '&t=' + Date.now());
-                                _dbgTk('actualizar ticket ' + tk + ': ' + JSON.stringify(rU));
-                            } else _dbgTk('NO se completó el ticket');
-                        } catch (eTk) { _dbgTk('ERROR: ' + (eTk && eTk.message || eTk)); console.warn('⚠️ no se pudo completar el ticket del fiado (queda vacío, no se pisa nada):', eTk); }
-                    }
                     try {
                         d = await Promise.race([
                             _fiadoDeudaAcumulada(_datosFiadoMixto, Math.round(_datosFiadoMixto.total)),
