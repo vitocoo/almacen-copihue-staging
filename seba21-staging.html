@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v540</title>
+    <title>🛒 POS · Copihue v541</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3953,12 +3953,12 @@
                     <button onclick="guardarNuevoCliente()" style="width:100%;margin-top:5px;padding:8px;border:none;border-radius:10px;background:rgba(255,193,7,0.2);color:#ffc107;font-size:.85rem;font-weight:700;cursor:pointer;">💾 Guardar cliente nuevo</button>
                 </div>
             </div>
-            <button onclick="enviarTicketWA()"
+            <button id="btnEnviarTicketWA" onclick="enviarTicketWA()"
                     style="width:100%;padding:12px;border:none;border-radius:14px;
                            background:linear-gradient(135deg,#25D366,#128C7E);
                            color:white;font-size:0.95rem;font-weight:900;cursor:pointer;
                            display:flex;align-items:center;justify-content:center;gap:8px;">
-                <span style="font-size:1.2rem;">📲</span> Enviar ticket al cliente
+                <span style="font-size:1.2rem;">📲</span> <span id="btnEnviarTicketWATxt">Enviar ticket al cliente</span>
             </button>
         </div>
     </div>
@@ -6967,6 +6967,16 @@ async function _buscarTicketVenta(idVenta, esperas, log) {
     }
     return '';
 }
+// v541 — el botón "Enviar ticket" queda deshabilitado con el avance mientras se aplican los abonos a la deuda.
+// txt=null → vuelve a la normalidad. Solo cambia la parte visual: no toca ventas, abonos ni montos.
+function _ticketBtnEstado(txt) {
+    try {
+        const b = document.getElementById('btnEnviarTicketWA'), t = document.getElementById('btnEnviarTicketWATxt');
+        if (!b || !t) return;
+        if (txt) { t.textContent = txt; b.disabled = true; b.style.opacity = '0.6'; b.style.cursor = 'default'; }
+        else { t.textContent = 'Enviar ticket al cliente'; b.disabled = false; b.style.opacity = ''; b.style.cursor = 'pointer'; }
+    } catch (e) {}
+}
 // Aplica los abonos DESPUÉS de registrar la venta. Cada abono lleva idOperacion: si la planilla tarda o el
 // POS reintenta, abonarFiado responde "ya estaba registrado" y no descuenta de nuevo.
 async function _vdAplicar(snap, idVenta, vRef, tkProm) {
@@ -6986,7 +6996,8 @@ async function _vdAplicar(snap, idVenta, vRef, tkProm) {
     };
     try { const _o = document.getElementById('dbgAbonoVd'); if (_o) _o.remove(); } catch (e) {}
     const _tIni = performance.now();
-    _vdDbg('DIAG v539 · abonos a aplicar: ' + snap.asignaciones.length);
+    _vdDbg('Progreso · abonos a aplicar: ' + snap.asignaciones.length);
+    _ticketBtnEstado('⏳ Aplicando abono a la deuda: 0 de ' + res.total + '…');
     try {
         for (const a of snap.asignaciones) {
             const idOp = 'vd_' + idVenta + '_' + a.idFiado;
@@ -6995,11 +7006,12 @@ async function _vdAplicar(snap, idVenta, vRef, tkProm) {
                 if (n) await new Promise(r => setTimeout(r, n * 4000));
                 try {
                     const r = await _apiFetchUrl('abonarFiado', API_URL + '?action=abonarFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: a.idFiado, abono: a.monto, metodoPago: 'EFECTIVO', idOperacion: idOp })) + '&t=' + Date.now());
-                    if (r && r.success === true) { hecho = true; res.aplicado += a.monto; res.detalle.push({ ticket: a.ticket, idFiado: a.idFiado, monto: a.monto, saldo: a.saldo }); }
+                    if (r && r.success === true) { hecho = true; res.aplicado += a.monto; res.detalle.push({ ticket: a.ticket, idFiado: a.idFiado, monto: a.monto, saldo: a.saldo, fecha: a.fecha }); }
                     else { definitivo = true; _vdDbg('abono ' + (res.hechos + 1) + ' RECHAZADO: ' + ((r && r.mensaje) || 'sin mensaje')); } // la planilla contestó que no: no se reintenta
                 } catch (e) { _vdDbg('abono ' + (res.hechos + 1) + ' intento ' + (n + 1) + ': ' + (e && e.message || e)); /* sin respuesta: se reintenta con el MISMO idOperacion (seguro) */ }
             }
             res.hechos++;
+            _ticketBtnEstado(res.hechos < res.total ? '⏳ Aplicando abono a la deuda: ' + res.hechos + ' de ' + res.total + '…' : '⏳ Terminando…');
             _vdDbg('abono ' + res.hechos + '/' + res.total + (hecho ? ' OK' : ' SIN CONFIRMAR') + ' · ' + _fiadoFmt(a.monto) + ' · ' + Math.round((performance.now() - _tIni) / 1000) + ' s desde el inicio');
             if (!hecho) {
                 res.fallos.push(a);
@@ -7014,6 +7026,7 @@ async function _vdAplicar(snap, idVenta, vRef, tkProm) {
     } catch (e) { console.warn('⚠️ _vdAplicar:', e); }
     try { await Promise.race([tkProm, new Promise(r => setTimeout(r, 15000))]); } catch (e) {} // v540: espera el N° de ticket hasta 15 s
     res.estado = 'listo';
+    _ticketBtnEstado(null);
     if (res.fallos.length) {
         mostrarToast('⚠️ NO se pudo confirmar el abono de ' + _fiadoFmt(res.fallos.reduce((x, a) => x + a.monto, 0)) + ' a la deuda de ' + snap.cliente + '. Revisá en Fiados ANTES de repetirlo (si ya figura, no lo cargues otra vez).', 'naranja');
     } else if (res.aplicado > 0) {
@@ -7089,7 +7102,7 @@ async function confirmarVentaMixta() {
         // v538 — vuelto aplicado a deuda: se congela lo elegido antes de que se limpie el panel
         let _vdSnap = null;
         if (_vd && !pagoFiado && vueltoARS > 0) {
-            const asign = _vd.fiados.filter(f => f.monto > 0).map(f => ({ idFiado: f.idFiado, monto: f.monto, ticket: f.ticket, saldo: f.saldo }));
+            const asign = _vd.fiados.filter(f => f.monto > 0).map(f => ({ idFiado: f.idFiado, monto: f.monto, ticket: f.ticket, saldo: f.saldo, fecha: f.ts ? new Date(f.ts).toLocaleDateString('es-AR') : '' }));
             const ap = asign.reduce((a, x) => a + x.monto, 0);
             if (ap > 0 && ap <= vueltoARS) _vdSnap = { cliente: _vd.cliente, telefono: _vd.telefono, asignaciones: asign, aplicado: ap, efectivo: vueltoARS - ap, deudaTotal: _vd.fiados.reduce((a, f) => a + f.saldo, 0) };
         }
@@ -7581,7 +7594,7 @@ function enviarTicketWA() {
         if (vdd.aplicado > 0) {
             var _detVd = (vdd.detalle || []).map(function(d) {
                 var resta = Math.max(0, Math.round((d.saldo || 0) - d.monto));
-                return (d.ticket ? 'Ticket #' + d.ticket : 'Compra') + ' · ' + _fiadoFmt(d.monto) + (d.saldo ? ' de ' + _fiadoFmt(d.saldo) : '') + ' ' + (resta > 0 ? '📋 Abonado (resta ' + _fiadoFmt(resta) + ')' : '✅ Saldado');
+                return (d.ticket ? 'Ticket #' + d.ticket : (d.fecha ? 'Compra del ' + d.fecha : 'Compra')) + ' · ' + _fiadoFmt(d.monto) + (d.saldo ? ' de ' + _fiadoFmt(d.saldo) : '') + ' ' + (resta > 0 ? '📋 Abonado (resta ' + _fiadoFmt(resta) + ')' : '✅ Saldado');
             });
             bloqueDeuda += '\n\n📌 *Deuda anterior: ' + _fiadoFmt(vdd.deudaAnterior || 0) + '*\n' +
                 '💵 *Abono (vuelto): ' + _fiadoFmt(vdd.aplicado) + '*\n' +

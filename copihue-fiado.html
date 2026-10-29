@@ -238,7 +238,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 <div id="toast"></div>
 
 <script>
-const APP_VERSION=41;
+const APP_VERSION=43;
 const API_URL='https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 
 // ── Estado ─────────────────────────────────────────
@@ -252,6 +252,8 @@ let _ordenAsc=false; // tocar el mismo criterio de nuevo invierte el orden
 
 // ── Helpers ────────────────────────────────────────
 const fmt=n=>'$'+Math.round(n).toLocaleString('es-AR');
+// v43 — referencia legible de un fiado: N° de ticket o, si no tiene, "Compra del DD/MM/AAAA" (nunca el código interno).
+const _refFiado=f=>f&&f.ticket&&String(f.ticket).trim()!==''?'Ticket #'+f.ticket:(f&&f.fecha?'Compra del '+_fmt(f.fecha):(f&&f.idFiado)||'Compra');
 function safeEnc(s){try{return encodeURIComponent(s);}catch(e){return encodeURIComponent(String(s).replace(/[\uD800-\uDFFF]/g,'?'));}}
 function sanitizeWA(s){return(s||'').replace(/◆/g,'-').replace(/·/g,'-').replace(/[^\x20-\x7E\u00C0-\u024F\u00A0\n]/g,' ').replace(/\s{2,}/g,' ').trim();}
 function normTel(t){const d=String(t||'').replace(/\D/g,'');if(d.length===10)return'549'+d;if(d.length>=11)return d;return'';}
@@ -761,7 +763,7 @@ function abrirCobrar(){
   _montoFull=selF.reduce((s,f)=>s+parseFloat(f.total||0),0);
 
   let info=`<b>${_cliNom}</b><br>`;
-  selF.forEach(f=>{const ref=f.ticket&&f.ticket.trim()!==''?'Ticket #'+f.ticket:f.idFiado;info+=`🧾 ${ref} · ${fmt(f.total)}<br>`;});
+  selF.forEach(f=>{const ref=_refFiado(f);info+=`🧾 ${ref} · ${fmt(f.total)}<br>`;});
   info+=`<br>💰 <b>Total: ${fmt(_montoFull)}</b>`;
   document.getElementById('cobInfo').innerHTML=info;
   document.getElementById('cobTit').innerHTML='✅ Registrar pago <button onclick="cerrarCob()">✕</button>';
@@ -813,7 +815,7 @@ async function confirmarCob(){
       toast(r.yaExistia?'✅ Ese abono ya estaba registrado — no se descontó de nuevo':'✅ Abono registrado','v');
       // Recordatorio de abono
       const f=_cliData.find(x=>x.idFiado===selArr[0]);
-      const ref=f?.ticket&&f.ticket.trim()!==''?'Ticket #'+f.ticket:selArr[0];
+      const ref=f?_refFiado(f):selArr[0];
       const resta=Math.max(0,(f?.total||0)-montoIngresado);
       _recTxt=['✅ *ABONO RECIBIDO — Almacén Copihue*','',
         `📅 Fecha: ${_fechaRec}`,
@@ -834,7 +836,7 @@ async function confirmarCob(){
       const selF=selArr.map(id=>_cliData.find(f=>f.idFiado===id)).filter(Boolean);
       for(const f of selF){
         if(resta<=0.5)break;
-        const ref=f.ticket&&f.ticket.trim()!==''?'Ticket #'+f.ticket:f.idFiado;
+        const ref=_refFiado(f);
         if(resta>=f.total-0.5){
           const r=await _api('cobrarFiado',{idFiado:f.idFiado,metodoPago:_met,idOperacion:_idOpCobro});
           if(!r.success){err++;toast('❌ '+(r.mensaje||'Error'),'r');continue;}
@@ -866,7 +868,7 @@ async function confirmarCob(){
       toast('✅ Cobro registrado','v');
       // Recordatorio de cobro
       const selF=selArr.map(id=>_cliData.find(f=>f.idFiado===id)).filter(Boolean);
-      const lineas=selF.map(f=>{const ref=f.ticket&&f.ticket.trim()!==''?'Ticket #'+f.ticket:f.idFiado;return`  🧾 ${ref} · ${fmt(f.total)}`;}).join('\n');
+      const lineas=selF.map(f=>{const ref=_refFiado(f);return`  🧾 ${ref} · ${fmt(f.total)}`;}).join('\n');
       _recTxt=['✅ *PAGO RECIBIDO — Almacén Copihue*','',
         `📅 Fecha: ${_fechaRec}`,
         `🕐 Hora: ${_horaRec}`,

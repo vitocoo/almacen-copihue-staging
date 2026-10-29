@@ -8,9 +8,9 @@ Cada archivo tiene su propia numeración. Los respaldos de la versión anterior 
 
 | Archivo | STAGING | PRODUCCIÓN |
 |---|---|---|
-| seba21 (POS) | v540 | v537 |
+| seba21 (POS) | v541 | v537 |
 | copihue-ingreso | v28 | v28 |
-| copihue-fiado | v42 | v41 |
+| copihue-fiado | v43 | v41 |
 | copihue-reportes | ver.36 | ver.36 |
 | code.gs (Apps Script) | v11.0 en uso | sin cambios en esta tanda |
 
@@ -18,7 +18,8 @@ Cada archivo tiene su propia numeración. Los respaldos de la versión anterior 
 
 | Versión | Fecha | Qué cambió | STAGING | PRODUCCIÓN |
 |---|---|---|---|---|
-| v540 | 27/10 | Mensaje de WhatsApp del vuelto aplicado a deuda: Ticket, Fecha, Hora, Deuda anterior, Abono (vuelto), Deuda actualizada y detalle por ticket. El N° de ticket se busca por idVenta si vender da timeout; si no se encuentra, la línea se omite. La venta mixta con fiado también lleva Ticket/Fecha/Hora con etiqueta. | sí (simulador 24/24; celular pendiente) | no |
+| v541 | 29/10 | El botón "Enviar ticket al cliente" queda deshabilitado con el avance ("Aplicando abono a la deuda: 2 de 4…") hasta que terminan los abonos del vuelto. Los fiados viejos sin N° de ticket salen como "Compra del DD/MM/AAAA" en el detalle. La línea gris pasó de "DIAG v539" a "Progreso". | sí (simulador 26/26; celular pendiente) | no |
+| v540 | 27/10 | Mensaje de WhatsApp del vuelto aplicado a deuda: Ticket, Fecha, Hora, Deuda anterior, Abono (vuelto), Deuda actualizada y detalle por ticket. El N° de ticket se busca por idVenta si vender da timeout; si no se encuentra, la línea se omite. La venta mixta con fiado también lleva Ticket/Fecha/Hora con etiqueta. La venta normal también muestra el N° de ticket si vender lo devuelve. | sí (simulador 24/24; celular pendiente) | no |
 | v539 | 27/10 | Contador de avance al aplicar el vuelto ("X de N fiados listos") y línea de tiempos. | sí | no |
 | v538 | 27/10 | Vuelto aplicado a deuda: abonos al fiado más viejo primero, el resto en efectivo, con idOperacion (no duplica). | sí | no |
 | v537 | 27/10 | Arreglo: la venta mixta después de cerrar la pantalla de cobro se cobraba como EFECTIVO por el total y el fiado no se creaba. El botón volvía a apuntar a confirmarVenta y salteaba _confirmarCobroDispatch. Cambio en cerrarConfirm() y en el cierre del fiado. | sí | sí (27/10) |
@@ -43,21 +44,21 @@ Cada archivo tiene su propia numeración. Los respaldos de la versión anterior 
 
 | Archivo | Versión | Qué cambió | Dónde |
 |---|---|---|---|
-| copihue-fiado.html | v42 | Los tres recibos de WhatsApp (abono a un fiado, pago repartido, cobro total) muestran Fecha, Hora, Cliente, Deuda anterior, Abono y Deuda actualizada, más el detalle por ticket. Importes y registros no se tocan. Respaldo: copihue-fiado-v41. Simulador 6/6; celular pendiente. | solo STAGING |
+| copihue-fiado.html | v43 | (v43: los fiados sin N° de ticket salen como "Compra del DD/MM/AAAA" en vez del código f_…; respaldo copihue-fiado-v42. Simulador 7/7.) v42: Los tres recibos de WhatsApp (abono a un fiado, pago repartido, cobro total) muestran Fecha, Hora, Cliente, Deuda anterior, Abono y Deuda actualizada, más el detalle por ticket. Importes y registros no se tocan. Respaldo: copihue-fiado-v41. Simulador 6/6; celular pendiente. | solo STAGING |
 | copihue-ingreso.html | v28 | Lista de resultados más alta y stock primero (pasó a PROD junto con seba21 v530). Respaldo: copihue-ingreso-v27. | STAGING y PROD |
 
 ## Respaldos disponibles
 
-- STAGING/RESPALDO: seba21-staging-v521 a v539; copihue-fiado v41 (cada uno es el estado justo antes del cambio siguiente).
+- STAGING/RESPALDO: seba21-staging-v521 a v540; copihue-fiado v41 y v42 (cada uno es el estado justo antes del cambio siguiente).
 - PRODUCCION/RESPALDO: seba21-v518, v519, v521, v521b y v530; copihue-ingreso-v27; copihue-fiado v37 y v39; copihue-reportes ver35; copihue-retiros-de-caja v1 a v3.
 
 ## Pendientes y problemas conocidos
 
-- vender tarda más de 25 s en STAGING (timeout del POS). Falta mirar Ejecuciones en Apps Script (columna Duración). Comparar con PRODUCCIÓN.
+- vender tarda ~28 s en las ventas mixtas de STAGING (Ejecuciones 29/10: 28,49 s y 27,62 s) y el POS corta a los 25 s. Falta ver por qué tarda y comparar con PRODUCCIÓN.
 - Ventas mixtas en PRODUCCIÓN anteriores a v537: pueden haber quedado como EFECTIVO por el total, con el fiado sin crear. Falta revisar la hoja Ventas.
 - Fiados de ventas mixtas hechas antes de v534 (por ejemplo f_1792821891526_f8bmp, f_1793064886040_xr620, f_1793065782118_dzgyl): quedaron sin ticket y con "TICKET COMPLETO". No se modificaron.
 - Ventas de prueba en STAGING del 27/10 00:52 ($9.500) y 00:55 ($7.900): quedaron como EFECTIVO por el error de v536 y anteriores. No se modificaron.
-- v538–v540 y copihue-fiado v42 esperan prueba en el celular y OK para pasar a PRODUCCIÓN.
+- v538–v541 y copihue-fiado v43 esperan prueba en el celular y OK para pasar a PRODUCCIÓN.
 - Manual Ofertas, columnas E:G: algo las vuelve a escribir hasta la fila 764 en STAGING. Queda pendiente, es un problema visual.
 - getMulticompraTodas está definida dos veces en flyer_multicompra.gs. Queda ofrecido neutralizar la vieja en STAGING.
 - Prueba en el celular pendiente: cotización por WhatsApp con "Compartir".
