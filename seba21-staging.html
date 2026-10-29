@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v539</title>
+    <title>🛒 POS · Copihue v540</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6953,10 +6953,24 @@ function _vdRender() {
     });
     _vdRenderResumen();
 }
+// v540 — busca el N° de ticket de una venta por su idVenta (consultarEstadoOperacion). Seguro: solo lee.
+// Devuelve '' si no lo encuentra. 'log' es opcional (línea gris de diagnóstico).
+async function _buscarTicketVenta(idVenta, esperas, log) {
+    log = log || function () {};
+    for (let n = 0; n < esperas.length; n++) {
+        if (esperas[n]) await new Promise(r => setTimeout(r, esperas[n]));
+        try {
+            const rT = await _apiFetchUrl('consultarEstadoOperacion', API_URL + '?action=consultarEstadoOperacion&data=' + encodeURIComponent(JSON.stringify({ idVenta: idVenta })) + '&t=' + Date.now());
+            log('consulta ' + (n + 1) + ': ' + (rT && rT.venta ? (rT.venta.estado + ' / ' + (rT.venta.motivo || '') + ' / ticket=' + rT.venta.ticket) : 'sin venta en la respuesta (success=' + (rT && rT.success) + ' msg=' + (rT && rT.mensaje) + ')'));
+            if (rT && rT.venta && String(rT.venta.estado || '').toUpperCase() === 'REGISTRADA' && rT.venta.ticket) return String(rT.venta.ticket);
+        } catch (e) { log('consulta ' + (n + 1) + ': ERROR ' + (e && e.message || e)); }
+    }
+    return '';
+}
 // Aplica los abonos DESPUÉS de registrar la venta. Cada abono lleva idOperacion: si la planilla tarda o el
 // POS reintenta, abonarFiado responde "ya estaba registrado" y no descuenta de nuevo.
-async function _vdAplicar(snap, idVenta, vRef) {
-    const res = { estado: 'aplicando', cliente: snap.cliente, aplicado: 0, fallos: [], deudaRestante: null, efectivo: snap.efectivo, hechos: 0, total: snap.asignaciones.length };
+async function _vdAplicar(snap, idVenta, vRef, tkProm) {
+    const res = { estado: 'aplicando', cliente: snap.cliente, aplicado: 0, fallos: [], deudaRestante: null, deudaAnterior: snap.deudaTotal, efectivo: snap.efectivo, hechos: 0, total: snap.asignaciones.length, detalle: [] };
     vRef.vueltoDeuda = res;
     // v539 — línea gris con el tiempo de cada abono (TEMPORAL, para entender la lentitud de la planilla)
     const _vdDbg = (t) => {
@@ -6981,7 +6995,7 @@ async function _vdAplicar(snap, idVenta, vRef) {
                 if (n) await new Promise(r => setTimeout(r, n * 4000));
                 try {
                     const r = await _apiFetchUrl('abonarFiado', API_URL + '?action=abonarFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: a.idFiado, abono: a.monto, metodoPago: 'EFECTIVO', idOperacion: idOp })) + '&t=' + Date.now());
-                    if (r && r.success === true) { hecho = true; res.aplicado += a.monto; }
+                    if (r && r.success === true) { hecho = true; res.aplicado += a.monto; res.detalle.push({ ticket: a.ticket, idFiado: a.idFiado, monto: a.monto, saldo: a.saldo }); }
                     else { definitivo = true; _vdDbg('abono ' + (res.hechos + 1) + ' RECHAZADO: ' + ((r && r.mensaje) || 'sin mensaje')); } // la planilla contestó que no: no se reintenta
                 } catch (e) { _vdDbg('abono ' + (res.hechos + 1) + ' intento ' + (n + 1) + ': ' + (e && e.message || e)); /* sin respuesta: se reintenta con el MISMO idOperacion (seguro) */ }
             }
@@ -6998,6 +7012,7 @@ async function _vdAplicar(snap, idVenta, vRef) {
         }
         if (res.aplicado > 0) res.deudaRestante = Math.max(0, snap.deudaTotal - res.aplicado); // v539: cálculo local con el saldo consultado al elegir el cliente (evita otra consulta lenta)
     } catch (e) { console.warn('⚠️ _vdAplicar:', e); }
+    try { await Promise.race([tkProm, new Promise(r => setTimeout(r, 15000))]); } catch (e) {} // v540: espera el N° de ticket hasta 15 s
     res.estado = 'listo';
     if (res.fallos.length) {
         mostrarToast('⚠️ NO se pudo confirmar el abono de ' + _fiadoFmt(res.fallos.reduce((x, a) => x + a.monto, 0)) + ' a la deuda de ' + snap.cliente + '. Revisá en Fiados ANTES de repetirlo (si ya figura, no lo cargues otra vez).', 'naranja');
@@ -7074,7 +7089,7 @@ async function confirmarVentaMixta() {
         // v538 — vuelto aplicado a deuda: se congela lo elegido antes de que se limpie el panel
         let _vdSnap = null;
         if (_vd && !pagoFiado && vueltoARS > 0) {
-            const asign = _vd.fiados.filter(f => f.monto > 0).map(f => ({ idFiado: f.idFiado, monto: f.monto, ticket: f.ticket }));
+            const asign = _vd.fiados.filter(f => f.monto > 0).map(f => ({ idFiado: f.idFiado, monto: f.monto, ticket: f.ticket, saldo: f.saldo }));
             const ap = asign.reduce((a, x) => a + x.monto, 0);
             if (ap > 0 && ap <= vueltoARS) _vdSnap = { cliente: _vd.cliente, telefono: _vd.telefono, asignaciones: asign, aplicado: ap, efectivo: vueltoARS - ap, deudaTotal: _vd.fiados.reduce((a, f) => a + f.saldo, 0) };
         }
@@ -7199,8 +7214,16 @@ async function confirmarVentaMixta() {
 
         window._ultimaVenta = { items: itemsSnapshot, total, totalOriginal: totalV, descuentoRedondeo: window._descuentoRedondeo || 0, hora, metodo: metodoPagoTexto, detallePagos };
 
+        // v540 — N° de ticket para el mensaje: el que devolvió vender o, si dio timeout, se busca por idVenta (solo lectura)
+        const _uv = window._ultimaVenta;
+        _uv.fechaVenta = _t.toLocaleDateString('es-AR');
+        if (ticketNum) _uv.nroTicket = String(ticketNum);
+        const _tkProm = ticketNum ? Promise.resolve(String(ticketNum))
+            : ((_datosFiadoMixto || _vdSnap) ? _buscarTicketVenta(idVenta, [0, 3000, 5000, 8000, 12000, 15000, 20000], null) : Promise.resolve(''));
+        _tkProm.then(tk => { if (tk) _uv.nroTicket = tk; }).catch(() => {});
+
         // v538 — aplicar el vuelto a la deuda (en segundo plano, con idOperacion)
-        if (_vdSnap) _vdAplicar(_vdSnap, idVenta, window._ultimaVenta);
+        if (_vdSnap) _vdAplicar(_vdSnap, idVenta, _uv, _tkProm);
 
         // v533 — venta mixta CON fiado: se calcula (en segundo plano) la deuda total del cliente para el ticket.
         // Solo lectura de la planilla; si no se puede confirmar, el ticket sale sin ese bloque (nunca inventa números).
@@ -7315,7 +7338,7 @@ async function confirmarVenta() {
     // v16/09/2026 — se declara ACÁ (fuera del try) para que guardarVentaDia,
     // más abajo, pueda guardarlo junto a la venta — necesario para poder
     // reconciliar el aviso "stock pendiente" cuando el reintento sí funciona.
-    let idVenta = null;
+    let idVenta = null, _tkNormal = null; // v540: N° de ticket si vender lo devolvió
     try {
         const ventaData = _itemsParaServidor(ventaActual);
         // Agregar método de pago al request
@@ -7326,6 +7349,7 @@ async function confirmarVenta() {
         const url = API_URL + '?action=vender&data=' + dataEncoded;
         const resp = await _apiFetchUrl('vender', url);
         stockOk = resp.success === true;
+        _tkNormal = resp.ticket || resp.numeroTicket || null;
         if (resp.errores && resp.errores.length > 0) {
             console.warn('⚠️ Errores de stock:', resp.errores);
         }
@@ -7393,7 +7417,9 @@ async function confirmarVenta() {
             totalOriginal,
             descuentoRedondeo,
             hora,
-            metodo: metodoPagoFinal || metodoPagoActual
+            metodo: metodoPagoFinal || metodoPagoActual,
+            nroTicket: _tkNormal ? String(_tkNormal) : '', // v540: solo si vender lo devolvió
+            fechaVenta: _t.toLocaleDateString('es-AR')
         };
 
         actualizarRanking(); // recalcular ranking después de confirmar venta
@@ -7553,16 +7579,23 @@ function enviarTicketWA() {
         var vdd = v.vueltoDeuda;
         if (vdd.estado !== 'listo') { mostrarToast('⏳ Aplicando el abono a la deuda: ' + (vdd.hechos || 0) + ' de ' + (vdd.total || '?') + ' fiados listos… tocá de nuevo en unos segundos', 'naranja'); return; }
         if (vdd.aplicado > 0) {
-            bloqueDeuda += '\n\n📌 *VUELTO APLICADO A TU DEUDA*\n' +
-                'Abonaste: ' + _fiadoFmt(vdd.aplicado) + '\n' +
-                (vdd.efectivo > 0 ? 'Vuelto en efectivo: ' + _fiadoFmt(vdd.efectivo) + '\n' : '') +
-                '💰 *DEUDA QUE QUEDA: ' + _fiadoFmt(vdd.deudaRestante || 0) + '*';
+            var _detVd = (vdd.detalle || []).map(function(d) {
+                var resta = Math.max(0, Math.round((d.saldo || 0) - d.monto));
+                return (d.ticket ? 'Ticket #' + d.ticket : 'Compra') + ' · ' + _fiadoFmt(d.monto) + (d.saldo ? ' de ' + _fiadoFmt(d.saldo) : '') + ' ' + (resta > 0 ? '📋 Abonado (resta ' + _fiadoFmt(resta) + ')' : '✅ Saldado');
+            });
+            bloqueDeuda += '\n\n📌 *Deuda anterior: ' + _fiadoFmt(vdd.deudaAnterior || 0) + '*\n' +
+                '💵 *Abono (vuelto): ' + _fiadoFmt(vdd.aplicado) + '*\n' +
+                ((vdd.deudaRestante || 0) > 0 ? '📋' : '✅') + ' *Deuda actualizada: ' + _fiadoFmt(vdd.deudaRestante || 0) + '*' +
+                (vdd.efectivo > 0 ? '\n💶 Vuelto en efectivo: ' + _fiadoFmt(vdd.efectivo) : '') +
+                (_detVd.length ? '\n\nDetalle:\n' + _detVd.join('\n') : '');
         }
     }
-    var nroTicket = v.nroTicket ? ' · #' + v.nroTicket : '';
+    // v540 — fecha, hora y N° de ticket con etiqueta (el ticket solo si se conoce; nunca se inventa)
+    var nroTicket = '';
+    var cabeceraWA = (v.nroTicket ? '🎫 Ticket: #' + v.nroTicket + '\n' : '') + '📅 Fecha: ' + (v.fechaVenta || fecha) + '\n🕐 Hora: ' + v.hora + ' hs\n\n';
     var saludo = _clienteActual ? '\n¡Hasta pronto, ' + _clienteActual.nombre.split(' ')[0] + '! 👋' : '\n¡Gracias por tu compra! 🙏';
-    var mensaje = '🛒 *Almacén Copihue*' + nroTicket + '\n' +
-        '📅 ' + fecha + ' · ' + v.hora + 'hs\n\n' +
+    var mensaje = '🛒 *Almacén Copihue*\n' +
+        cabeceraWA +
         lineas +
         lineaRedondeo + '\n' +
         '─────────────────\n' +
