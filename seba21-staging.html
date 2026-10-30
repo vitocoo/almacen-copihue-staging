@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v543</title>
+    <title>🛒 POS · Copihue v544</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -4532,7 +4532,6 @@ async function cargarProductos(intento = 1) {
         setTimeout(alertarVencidosHoy, 500);
         setTimeout(procesarVencidosDeAyer, 1500); // auto-zero stock confirmados ayer
         setTimeout(verificarAlertasDelDia, 800);
-        setTimeout(alertarFiadosVencidos, 4000);  // fiados vencidos (1 llamada/día)
         setTimeout(() => alertarMulticompraBloqueada(data.alertasMulticompra), 900); // v10.17 — blindaje de promociones
         programarRecordatorioCierre();
         // Recuperar carrito pendiente si existe
@@ -10852,6 +10851,7 @@ function _renderNotifGuardadas() {
 function abrirNotifPos() {
     _renderNotifGuardadas();
     document.getElementById('modalNotifPos').style.display = 'block';
+    _fiadosHoyResumen(); // v544: resumen en vivo
 }
 function cerrarNotifPos() {
     document.getElementById('modalNotifPos').style.display = 'none';
@@ -11016,58 +11016,73 @@ function alertarMulticompraBloqueada(alertas) {
     localStorage.setItem(lsKey, JSON.stringify(Array.from(new Set(yaAlertadas.concat(alertas.map(clave))))));
 }
 
-// ── Alerta de fiados vencidos ────────────────────────────────────────────────
-async function alertarFiadosVencidos() {
-    const hoyKey = fechaArgentina(0);
-    const lsKey  = 'copihue_fiados_alertados_' + hoyKey;
-    if (localStorage.getItem(lsKey)) return; // ya alertó hoy
-
+// ── v544: «Fiados de hoy» (resumen de lo que PASÓ hoy; el detalle por cliente vive en copihue-fiado) ──
+// Se calcula en vivo cada vez que se abre el panel de notificaciones (1 llamada a listarFiados).
+// No guarda nada ni modifica ningún dato.
+async function _fiadosHoyResumen() {
+    const lista = document.getElementById('listaNotifPos');
+    if (!lista) return;
+    let box = document.getElementById('notifFiadosHoy');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'notifFiadosHoy';
+        box.style.cssText = 'padding:10px 0;border-bottom:1px solid #ffe082;font-size:0.85rem;line-height:1.5;color:#444;';
+        lista.prepend(box);
+    }
+    Array.from(lista.children).forEach(c => { if (c !== box && /Sin notificaciones hoy/.test(c.textContent) && !c.id) c.remove(); });
+    box.innerHTML = '<strong style="color:#2e7d32;">🧾 Fiados de hoy</strong><br><span style="color:#999;">Calculando…</span>';
     let data;
-    try { data = await _apiFetch('listarFiados'); } catch(e) { return; }
-    if (!data || !data.ok || !data.fiados) return;
-
-    const hoy = new Date(); hoy.setHours(0,0,0,0);
-
-    const _parseFechaISO = s => {
-        if (!s) return null;
-        const str = String(s).trim();
-        if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-            const [y,m,d] = str.split('-').map(Number);
-            return new Date(y, m-1, d);
-        }
-        try { const d = new Date(str); return isNaN(d) ? null : d; } catch(e) { return null; }
+    try { data = await _apiFetch('listarFiados'); } catch(e) { data = null; }
+    if (!data || !data.ok || !Array.isArray(data.fiados)) {
+        box.innerHTML = '<strong style="color:#2e7d32;">🧾 Fiados de hoy</strong><br><span style="color:#c62828;">No se pudo consultar ahora (sin conexión).</span>';
+        return;
+    }
+    const hoy = fechaArgentina(0), man = fechaArgentina(1);
+    const dmy = hoy.split('-').reverse().join('/');
+    const diaAR = ts => { try { return new Date(ts).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }); } catch(e) { return ''; } };
+    const esHoy = txt => {
+        const t = String(txt || '').trim();
+        if (!t) return false;
+        if (t.indexOf(hoy) === 0 || t.indexOf(dmy) === 0) return true;
+        const ts = Date.parse(t);
+        return !isNaN(ts) && diaAR(ts) === hoy;
     };
-
-    const DIAS_DEFAULT = 7;
-    const vencidos = data.fiados.filter(f => {
-        if (f.estado === 'PAGADO') return false;
-        let limite;
-        if (f.fechaVencimiento) {
-            limite = _parseFechaISO(f.fechaVencimiento);
-        } else if (f.fecha) {
-            limite = _parseFechaISO(f.fecha);
-            if (limite) limite = new Date(limite.getTime() + DIAS_DEFAULT * 86400000);
+    const money = n => '$' + Math.round(n).toLocaleString('es-AR');
+    let nuevos = 0, montoNuevo = 0, cobrado = 0, cobros = 0, deuda = 0, clientesDeuda = new Set(), vencen = 0;
+    data.fiados.forEach(f => {
+        const pendiente = f.estado !== 'PAGADO';
+        const original = parseFloat(f.totalOriginal) || parseFloat(f.total) || 0;
+        if (diaAR(_vdTs(f)) === hoy) { nuevos++; montoNuevo += original; }
+        // Abonos: texto "Abono $15 (EFECTIVO) 30/10/2026 | ..." (lo escribe abonarFiado)
+        let abonosHoy = 0, abonosTotal = 0, m;
+        const re = /Abono \$([\d.]+)\s*\([^)]*\)\s*(\d{2}\/\d{2}\/\d{4})/g;
+        const txt = String(f.abonos || '');
+        while ((m = re.exec(txt)) !== null) {
+            const v = parseFloat(m[1]) || 0;
+            abonosTotal += v;
+            if (m[2] === dmy) abonosHoy += v;
         }
-        if (!limite) return false;
-        limite.setHours(0,0,0,0);
-        return limite < hoy;
+        let cobradoF = abonosHoy;
+        if (!pendiente && esHoy(f.fechaPago)) {
+            // pagado completo hoy con «cobrarFiado»: se cobró lo que faltaba (original − abonos)
+            cobradoF += Math.max(0, original - abonosTotal);
+        }
+        if (cobradoF > 0) { cobrado += cobradoF; cobros++; }
+        if (pendiente) {
+            deuda += parseFloat(f.total) || 0;
+            clientesDeuda.add(f.cliente);
+            if (f.fechaVencimiento === hoy || f.fechaVencimiento === man) vencen++;
+        }
     });
-
-    if (vencidos.length === 0) return;
-
-    localStorage.setItem(lsKey, '1');
-
-    const lineas = vencidos.map(f => {
-        const monto = f.total ? `$${Math.round(f.total).toLocaleString('es-AR')}` : '';
-        return `<strong>${f.cliente}</strong>${monto ? ' · ' + monto : ''}`;
-    }).join('<br>');
-
-    agregarNotifPos(
-        '🧾',
-        `Fiado${vencidos.length > 1 ? 's' : ''} vencido${vencidos.length > 1 ? 's' : ''} — ${vencidos.length} pendiente${vencidos.length > 1 ? 's' : ''}`,
-        lineas,
-        '#b71c1c'
-    );
+    const linea = (ico, txt) => '<div>' + ico + ' ' + txt + '</div>';
+    const hora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    box.innerHTML =
+        '<strong style="color:#2e7d32;">🧾 Fiados de hoy</strong> <span style="color:#999;font-size:0.75rem;">· a las ' + hora + '</span>' +
+        linea('➕', 'Nuevos: ' + (nuevos ? '<strong>' + nuevos + '</strong> · ' + money(montoNuevo) : 'ninguno')) +
+        linea('💵', 'Cobrado: ' + (cobros ? '<strong>' + money(cobrado) + '</strong> (' + cobros + ' fiado' + (cobros > 1 ? 's' : '') + ')' : 'nada todavía')) +
+        linea('📒', 'Deuda total: <strong style="color:#c62828;">' + money(deuda) + '</strong> · ' + clientesDeuda.size + ' cliente' + (clientesDeuda.size === 1 ? '' : 's')) +
+        (vencen ? linea('⏰', 'Vencen hoy o mañana: <strong>' + vencen + '</strong>') : '') +
+        '<button onclick="window.location.href=\'copihue-fiado.html\'" style="margin-top:6px;padding:8px 12px;border:1.5px solid #2e7d32;border-radius:10px;background:#e8f5e9;color:#2e7d32;font-weight:700;cursor:pointer;">Abrir Fiados →</button>';
 }
 
 function alertarVencidosHoy() {
