@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v541</title>
+    <title>🛒 POS · Copihue v542</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3140,6 +3140,25 @@
 
 
 <!-- MODAL VENDEDOR -->
+<!-- v542: pantalla de clave (una clave de 6 dígitos por persona) -->
+<div id="segOverlay" style="display:none;position:fixed;inset:0;z-index:5000;background:linear-gradient(160deg,#1b5e20,#2e7d32);flex-direction:column;align-items:center;justify-content:center;padding:16px;overflow:auto;font-family:inherit;">
+  <div style="background:#fff;border-radius:20px;padding:22px 18px;width:100%;max-width:340px;box-shadow:0 10px 40px rgba(0,0,0,.35);text-align:center;">
+    <div style="font-size:2rem;">🔐</div>
+    <div style="font-weight:800;font-size:1.15rem;color:#1b5e20;margin-bottom:2px;">Almacén Copihue</div>
+    <div id="segTitulo" style="font-size:.9rem;color:#555;margin-bottom:12px;">¿Quién vende?</div>
+    <div id="segNombres" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div id="segPinBox" style="display:none;">
+      <div id="segQuien" style="font-weight:800;font-size:1.05rem;color:#222;margin-bottom:8px;"></div>
+      <div id="segDots" style="display:flex;justify-content:center;gap:10px;margin:6px 0 10px;"></div>
+      <div id="segMsg" style="min-height:20px;font-size:.85rem;font-weight:700;color:#c62828;margin-bottom:8px;"></div>
+      <div id="segTeclado" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
+      <button id="segAtras" type="button" style="margin-top:10px;background:none;border:none;color:#555;font-size:.9rem;cursor:pointer;text-decoration:underline;">← Elegir otra persona</button>
+    </div>
+    <div id="segEstado" style="font-size:.8rem;color:#777;margin-top:10px;"></div>
+    <button id="segVolver" type="button" style="display:none;margin-top:10px;background:none;border:none;color:#555;font-size:.9rem;cursor:pointer;text-decoration:underline;">Volver a la venta</button>
+  </div>
+</div>
+
 <div class="modal-bg" id="modalVendedor">
     <div class="modal-sheet" style="padding-bottom:24px;">
         <div class="modal-handle"></div>
@@ -10473,15 +10492,178 @@ function setVendedores(arr) {
     localStorage.setItem(VENDEDORES_KEY, JSON.stringify(arr));
 }
 
+// ── v542: CLAVE POR PERSONA ────────────────────────────────────────────────
+// Sesión en sessionStorage: al cerrar la app se borra y pide la clave de nuevo.
+// Navegar a copihue-fiado y volver (misma pestaña) conserva la sesión.
+const SEG_SESION_KEY = 'copihue_sesion';
+const SEG_LISTA_KEY  = 'copihue_seg_lista';   // últimos nombres conocidos (para entrar sin red)
+const SEG_LOCAL_KEY  = 'copihue_seg_local';   // clave cifrada de ESTE aparato (solo tras un ingreso online correcto)
+const SEG_INT_KEY    = 'copihue_seg_int';     // intentos fallidos sin red
+let segToken = '';
+let _segNombre = '', _segPin = '', _segOcupado = false;
+
+function _segLeer(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch(e) { return def; } }
+function _segSesionValida() {
+    try {
+        const x = JSON.parse(sessionStorage.getItem(SEG_SESION_KEY) || 'null');
+        if (x && x.vendedor && x.token && x.exp > Date.now()) return x;
+    } catch(e) {}
+    return null;
+}
+async function _segHashLocal(sal, nombre, pin) {
+    const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('loc|' + sal + '|' + nombre + '|' + pin));
+    return Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2, '0')).join('');
+}
+async function _segGuardarLocal(nombre, pin) {
+    try {
+        const sal = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()));
+        const all = _segLeer(SEG_LOCAL_KEY, {});
+        all[nombre] = { s: sal, h: await _segHashLocal(sal, nombre, pin) };
+        localStorage.setItem(SEG_LOCAL_KEY, JSON.stringify(all));
+    } catch(e) {}
+}
+async function _segSeg(op, extra) {
+    const data = encodeURIComponent(JSON.stringify(Object.assign({ op: op }, extra || {})));
+    return await _apiFetchUrl('seguridad', API_URL + '?action=seguridad&data=' + data);
+}
+
 function inicializarVendedor() {
-    const guardado = localStorage.getItem(VENDEDOR_KEY);
-    if (guardado) {
-        vendedorActual = guardado;
-        actualizarBadgeVendedor();
-    } else {
-        // Primera vez — mostrar selector
-        setTimeout(() => abrirSelectorVendedor(false), 800);
+    const ses = _segSesionValida();
+    if (ses) { _segEntrar(ses.vendedor, ses.token, false); return; }
+    _segMostrar(false);
+}
+
+function _segEntrar(nombre, token, aviso) {
+    vendedorActual = nombre;
+    segToken = token || '';
+    try { localStorage.setItem(VENDEDOR_KEY, nombre); } catch(e) {}
+    actualizarBadgeVendedor();
+    document.getElementById('segOverlay').style.display = 'none';
+    if (aviso) mostrarToast('👤 Vendiendo como ' + nombre, 'verde');
+}
+
+async function _segMostrar(puedeVolver) {
+    const ov = document.getElementById('segOverlay');
+    ov.style.display = 'flex';
+    _segNombre = ''; _segPin = '';
+    document.getElementById('segPinBox').style.display = 'none';
+    document.getElementById('segNombres').style.display = 'flex';
+    document.getElementById('segTitulo').textContent = '¿Quién vende?';
+    const volver = document.getElementById('segVolver');
+    volver.style.display = puedeVolver ? 'inline-block' : 'none';
+    volver.onclick = () => { ov.style.display = 'none'; };
+    const est = document.getElementById('segEstado');
+    est.textContent = 'Cargando…';
+    let lista = null, legacy = false;
+    try {
+        const r = await _segSeg('lista');
+        if (r && r.success && Array.isArray(r.vendedores)) {
+            if (r.vendedores.length) { lista = r.vendedores; localStorage.setItem(SEG_LISTA_KEY, JSON.stringify(lista)); }
+            else legacy = true;           // el servidor todavía no tiene claves cargadas
+        } else legacy = true;             // el servidor no conoce la acción (todavía no se subió seguridad.gs)
+    } catch(e) {
+        lista = _segLeer(SEG_LISTA_KEY, null);  // sin red: últimos nombres conocidos
     }
+    if (legacy) {
+        est.textContent = '⚠️ Claves todavía no configuradas en el servidor.';
+        document.getElementById('segNombres').innerHTML = '';
+        getVendedores().forEach(n => _segBotonNombre(n, () => { _segEntrar(n, '', true); }));
+        return;
+    }
+    if (!lista || !lista.length) {
+        est.textContent = '🔌 Sin conexión. Necesito conectarme una vez para reconocer las claves.';
+        document.getElementById('segNombres').innerHTML = '';
+        return;
+    }
+    est.textContent = '';
+    document.getElementById('segNombres').innerHTML = '';
+    lista.forEach(n => _segBotonNombre(n, () => _segElegir(n)));
+}
+
+function _segBotonNombre(n, fn) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = '👤 ' + n;
+    b.style.cssText = 'padding:14px;border:2px solid #e0e0e0;border-radius:12px;background:#fff;font-size:1.05rem;font-weight:700;cursor:pointer;color:#222;';
+    b.onclick = fn;
+    document.getElementById('segNombres').appendChild(b);
+}
+
+function _segElegir(n) {
+    _segNombre = n; _segPin = '';
+    document.getElementById('segNombres').style.display = 'none';
+    document.getElementById('segPinBox').style.display = 'block';
+    document.getElementById('segTitulo').textContent = 'Ingresá tu clave de 6 dígitos';
+    document.getElementById('segQuien').textContent = '👤 ' + n;
+    document.getElementById('segMsg').textContent = '';
+    const tec = document.getElementById('segTeclado');
+    if (!tec.children.length) {
+        ['1','2','3','4','5','6','7','8','9','','0','⌫'].forEach(k => {
+            const b = document.createElement('button'); b.type = 'button'; b.textContent = k;
+            b.style.cssText = 'padding:14px 0;font-size:1.4rem;font-weight:700;border:1px solid #ddd;border-radius:12px;background:' + (k ? '#f5f5f5' : 'transparent') + ';cursor:pointer;color:#222;' + (k ? '' : 'visibility:hidden;');
+            if (k) b.onclick = () => _segTecla(k);
+            tec.appendChild(b);
+        });
+    }
+    document.getElementById('segAtras').onclick = () => _segMostrar(!!_segSesionValida());
+    _segDots();
+}
+
+function _segDots() {
+    document.getElementById('segDots').innerHTML = [0,1,2,3,4,5].map(i =>
+        '<span style="width:14px;height:14px;border-radius:50%;border:2px solid #2e7d32;background:' + (i < _segPin.length ? '#2e7d32' : 'transparent') + ';display:inline-block;"></span>').join('');
+}
+
+function _segTecla(k) {
+    if (_segOcupado) return;
+    if (k === '⌫') _segPin = _segPin.slice(0, -1);
+    else if (_segPin.length < 6) _segPin += k;
+    document.getElementById('segMsg').textContent = '';
+    _segDots();
+    if (_segPin.length === 6) _segProbar();
+}
+
+async function _segProbar() {
+    _segOcupado = true;
+    const msg = document.getElementById('segMsg');
+    const nombre = _segNombre, pin = _segPin;
+    msg.style.color = '#555'; msg.textContent = 'Verificando…';
+    try {
+        const r = await _segSeg('login', { vendedor: nombre, pin: pin });
+        if (r && r.success) {
+            await _segGuardarLocal(nombre, pin);
+            try { sessionStorage.setItem(SEG_SESION_KEY, JSON.stringify({ vendedor: r.vendedor, token: r.token, exp: r.expira })); } catch(e) {}
+            localStorage.removeItem(SEG_INT_KEY);
+            _segOcupado = false;
+            _segEntrar(r.vendedor, r.token, true);
+            return;
+        }
+        msg.style.color = '#c62828';
+        if (r && r.bloqueado) msg.textContent = '🔒 Bloqueado por intentos. Probá en ' + (r.minutos || 5) + ' min.';
+        else if (r && r.mensaje === 'Clave incorrecta') msg.textContent = 'Clave incorrecta' + (r.intentosRestantes ? ' (' + r.intentosRestantes + ' intentos)' : '');
+        else msg.textContent = (r && r.mensaje) || 'No se pudo verificar';
+    } catch(e) {
+        await _segProbarLocal(nombre, pin, msg);
+    }
+    _segPin = ''; _segDots(); _segOcupado = false;
+}
+
+// Sin red: solo entra quien ya entró antes en ESTE aparato con conexión (clave cifrada local).
+async function _segProbarLocal(nombre, pin, msg) {
+    msg.style.color = '#c62828';
+    const ints = _segLeer(SEG_INT_KEY, { n: 0, hasta: 0 });
+    if (ints.hasta && Date.now() < ints.hasta) { msg.textContent = '🔒 Bloqueado. Probá en ' + Math.ceil((ints.hasta - Date.now()) / 60000) + ' min.'; return; }
+    const reg = _segLeer(SEG_LOCAL_KEY, {})[nombre];
+    if (!reg) { msg.textContent = '🔌 Sin conexión. Conectate una vez para entrar.'; return; }
+    if ((await _segHashLocal(reg.s, nombre, pin)) === reg.h) {
+        localStorage.removeItem(SEG_INT_KEY);
+        try { sessionStorage.setItem(SEG_SESION_KEY, JSON.stringify({ vendedor: nombre, token: '', exp: Date.now() + 12 * 3600000 })); } catch(e) {}
+        _segOcupado = false;
+        _segEntrar(nombre, '', true);
+        return;
+    }
+    const n = (ints.n || 0) + 1;
+    if (n >= 5) { localStorage.setItem(SEG_INT_KEY, JSON.stringify({ n: 0, hasta: Date.now() + 5 * 60000 })); msg.textContent = '🔒 Bloqueado 5 min.'; }
+    else { localStorage.setItem(SEG_INT_KEY, JSON.stringify({ n: n, hasta: 0 })); msg.textContent = 'Clave incorrecta (' + (5 - n) + ' intentos)'; }
 }
 
 function actualizarBadgeVendedor() {
@@ -10551,7 +10733,14 @@ function agregarVendedor() {
 }
 
 function cambiarVendedor() {
-    abrirSelectorVendedor(true);
+    // v542: tocar el nombre = cerrar sesión (pide clave de nuevo)
+    _confirmModal('¿Cerrar la sesión de ' + (vendedorActual || 'este usuario') + '?', () => {
+        try { sessionStorage.removeItem(SEG_SESION_KEY); } catch(e) {}
+        segToken = ''; vendedorActual = '';
+        try { localStorage.removeItem(VENDEDOR_KEY); } catch(e) {}
+        actualizarBadgeVendedor();
+        _segMostrar(false);
+    });
 }
 
 
