@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v542</title>
+    <title>🛒 POS · Copihue v543</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -4005,6 +4005,23 @@ function badgeStock(stock) {
 
 // ========== CONFIG ==========
 const API_URL = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
+
+// v543 (Etapa 2): TODA llamada al servidor lleva el código de sesión (&token=...).
+// Un solo punto: envuelve fetch y agrega el token solo a pedidos hacia API_URL.
+// Si falla o no hay sesión, el pedido sale igual que antes (sin token). El servidor
+// por ahora solo anota; NO rechaza nada.
+let segToken = '';
+(function() {
+    const _fetchOrig = window.fetch.bind(window);
+    window.fetch = function(input, init) {
+        try {
+            if (segToken && typeof input === 'string' && input.indexOf(API_URL) === 0 && input.indexOf('action=seguridad') === -1 && input.indexOf('&token=') === -1) {
+                input += (input.indexOf('?') === -1 ? '?' : '&') + 'token=' + encodeURIComponent(segToken);
+            }
+        } catch(e) {}
+        return _fetchOrig(input, init);
+    };
+})();
 
 // Timeout unificado para todas las llamadas a Apps Script
 const API_TIMEOUT_MS = 25000;
@@ -10499,7 +10516,6 @@ const SEG_SESION_KEY = 'copihue_sesion';
 const SEG_LISTA_KEY  = 'copihue_seg_lista';   // últimos nombres conocidos (para entrar sin red)
 const SEG_LOCAL_KEY  = 'copihue_seg_local';   // clave cifrada de ESTE aparato (solo tras un ingreso online correcto)
 const SEG_INT_KEY    = 'copihue_seg_int';     // intentos fallidos sin red
-let segToken = '';
 let _segNombre = '', _segPin = '', _segOcupado = false;
 
 function _segLeer(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch(e) { return def; } }
