@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v544</title>
+    <title>🛒 POS · Copihue v545</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -4651,9 +4651,16 @@ function scoreBusqueda(nombreNorm, terminos) {
 
 function buscarProductos(term, incluirSinStock = true) {
     const termNorm = normalizarBusqueda(term);
-    const terminos = expandirTerminos(termNorm);
+    // v545: con varias palabras ("pan x") el producto tiene que coincidir con TODAS
+    // (cada palabra o sus sinónimos). Antes sumaba "o" y los productos con una "X" suelta
+    // (cervezas "X LATA") desplazaban a "PAN X KG" fuera de los 25 resultados.
+    const grupos = termNorm.split(/\s+/).filter(Boolean).map(w => expandirTerminos(w));
     return productos
-        .map(p => ({ p, score: scoreBusqueda(normalizarBusqueda(p.name), terminos) }))
+        .map(p => {
+            const nombreNorm = normalizarBusqueda(p.name);
+            const puntajes = grupos.map(g => scoreBusqueda(nombreNorm, g));
+            return { p, score: puntajes.every(x => x > 0) ? puntajes.reduce((a, b) => a + b, 0) : 0 };
+        })
         .filter(({score}) => score > 0)
         .sort((a, b) => {
             // primero con stock, luego por score
