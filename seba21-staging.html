@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v554</title>
+    <title>🛒 POS · Copihue v555</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -11318,8 +11318,8 @@ async function _fiadosHoyResumen() {
         }
         if (cobradoF > 0) {
             cobrado += cobradoF; cobros++;
-            const kc = claveCli(f), c = (porCobro[kc] = porCobro[kc] || { nombre: String(f.cliente || 'Sin nombre'), monto: 0, mets: {} });
-            c.monto += cobradoF; Object.keys(metHoy).forEach(k => { c.mets[k] = (c.mets[k] || 0) + metHoy[k]; });
+            const kc = claveCli(f), c = (porCobro[kc] = porCobro[kc] || { nombre: String(f.cliente || 'Sin nombre'), monto: 0, mets: {}, tickets: 0 });
+            c.tickets++; c.monto += cobradoF; Object.keys(metHoy).forEach(k => { c.mets[k] = (c.mets[k] || 0) + metHoy[k]; });
         }
         if (pendiente) {
             deuda += parseFloat(f.total) || 0;
@@ -11334,14 +11334,14 @@ async function _fiadosHoyResumen() {
         if (!arr.length) return '';
         return arr.slice(0, 8).map(c => {
             const mets = conMetodo ? Object.keys(c.mets || {}).filter(Boolean) : [];
-            return '<div style="margin-left:22px;font-size:0.8rem;color:#555;">• ' + esc(c.nombre) + ' · <strong>' + money(c.monto) + '</strong>' + (mets.length ? ' · ' + esc(mets.join(' + ')) : '') + '</div>';
+            return '<div style="margin-left:22px;font-size:0.8rem;color:#555;">• ' + esc(c.nombre) + (conMetodo && c.tickets ? ' · ' + c.tickets + ' ticket' + (c.tickets > 1 ? 's' : '') : '') + ' · <strong>' + money(c.monto) + '</strong>' + (mets.length ? ' · ' + esc(mets.join(' + ')) : '') + '</div>';
         }).join('') + (arr.length > 8 ? '<div style="margin-left:22px;font-size:0.78rem;color:#999;">+' + (arr.length - 8) + ' más</div>' : '');
     };
     const hora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
     box.innerHTML =
         '<strong style="color:#2e7d32;">🧾 Fiados de hoy</strong> <span style="color:#999;font-size:0.75rem;">· a las ' + hora + '</span>' +
         linea('➕', 'Nuevos: ' + (nuevos ? '<strong>' + nuevos + '</strong> · ' + money(montoNuevo) : 'ninguno')) + detalle(porNuevo, false) +
-        linea('💵', 'Cobrado: ' + (cobros ? '<strong>' + money(cobrado) + '</strong> (' + cobros + ' fiado' + (cobros > 1 ? 's' : '') + ')' : 'nada todavía')) + detalle(porCobro, true) +
+        linea('💵', 'Cobrado: ' + (cobros ? '<strong>' + money(cobrado) + '</strong> (' + cobros + ' ticket' + (cobros > 1 ? 's' : '') + ' · ' + Object.keys(porCobro).length + ' cliente' + (Object.keys(porCobro).length > 1 ? 's' : '') + ')' : 'nada todavía')) + detalle(porCobro, true) +
         linea('📒', 'Deuda total: <strong style="color:#c62828;">' + money(deuda) + '</strong> · ' + clientesDeuda.size + ' cliente' + (clientesDeuda.size === 1 ? '' : 's')) +
         (vencen ? linea('⏰', 'Vencen hoy o mañana: <strong>' + vencen + '</strong>') : '') +
         '<button onclick="window.location.href=\'copihue-fiado.html\'" style="margin-top:6px;padding:8px 12px;border:1.5px solid #2e7d32;border-radius:10px;background:#e8f5e9;color:#2e7d32;font-weight:700;cursor:pointer;">Abrir Fiados →</button>';

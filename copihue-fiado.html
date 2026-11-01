@@ -238,7 +238,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 <div id="toast"></div>
 
 <script>
-const APP_VERSION=45;
+const APP_VERSION=46;
 const API_URL='https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 
 // ── Estado ─────────────────────────────────────────
@@ -418,11 +418,12 @@ function renderClientesLista(clis,sinDeuda,pend,totG,q){
   const ordenBar=document.getElementById('ordenClientesBar');
   if(ordenBar){
     const opciones=[['monto','💰 Monto'],['vencidos','🔴 Vencidos'],['reciente','🕓 Última compra']];
+    const _btnCobros='<button onclick="abrirCobrosRecientes()" style="flex:1;padding:6px 4px;border-radius:9px;border:1.5px solid var(--vd);background:#e8f5e9;color:var(--vd);font-size:.72rem;font-weight:700;cursor:pointer">🧾 Cobros</button>';
     ordenBar.innerHTML=opciones.map(([crit,lbl])=>{
       const activo=_ordenClientes===crit;
       const flecha=activo?(_ordenAsc?' ↑':' ↓'):'';
       return `<button onclick="_cambiarOrden('${crit}')" style="flex:1;padding:6px 4px;border-radius:9px;border:1.5px solid ${activo?'var(--verde)':'var(--borde)'};background:${activo?'var(--verde)':'#fff'};color:${activo?'#fff':'#555'};font-size:.72rem;font-weight:600;cursor:pointer">${lbl}${flecha}</button>`;
-    }).join('');
+    }).join('')+_btnCobros;
   }
 
   // Resumen
@@ -483,6 +484,63 @@ function abrirCliSinDeuda(nom){
   _cliTel=_cliData[0]?.telefono||(cl&&cl.telefono)||'';
   renderFiados();
   ir('fiados',nom);
+}
+
+
+// ── v46 — COBROS RECIENTES ─────────────────────────
+// Solo lectura: arma la lista con lo que ya está en _todos (listarFiados).
+// Abonos parciales: texto col N "Abono $X (METODO) dd/MM/yyyy". Pago total: fechaPago/metodoPago.
+let _cobrosDias=7;
+function _cobrosLista(){
+  const num=t=>/^\d{1,3}(\.\d{3})+$/.test(t)?parseFloat(t.replace(/\./g,'')):(parseFloat(String(t).replace(',','.'))||0);
+  const ev=[];
+  _todos.forEach(f=>{
+    const re=/Abono \$([\d.,]+)\s*\(([^)]*)\)\s*(\d{2})\/(\d{2})\/(\d{4})/g;
+    let m,ab=0;
+    const txt=String(f.abonos||'');
+    while((m=re.exec(txt))!==null){
+      const v=num(m[1]);ab+=v;
+      ev.push({cli:f.cliente,monto:v,met:m[2].trim(),fecha:m[5]+'-'+m[4]+'-'+m[3],ticket:f.ticket||'',tipo:'abono'});
+    }
+    if(f.estado==='PAGADO'&&f.fechaPago){
+      const orig=parseFloat(f.totalOriginal)||parseFloat(f.total)||0;
+      const resto=Math.max(0,orig-ab);
+      if(resto>0)ev.push({cli:f.cliente,monto:resto,met:String(f.metodoPago||'').trim(),fecha:String(f.fechaPago).slice(0,10),ticket:f.ticket||'',tipo:'pago'});
+    }
+  });
+  return ev;
+}
+function _hoyAR(){return new Date().toLocaleDateString('en-CA',{timeZone:'America/Argentina/Buenos_Aires'});}
+function _ml(m){m=String(m||'').toUpperCase();return m==='EFECTIVO'?'Efectivo':m==='POSNET'?'Posnet':m==='TRANSFERENCIA'?'Transferencia':(m?m.charAt(0)+m.slice(1).toLowerCase():'—');}
+function abrirCobrosRecientes(){
+  let ov=document.getElementById('ovCobros');
+  if(!ov){ov=document.createElement('div');ov.id='ovCobros';ov.style.cssText='position:fixed;inset:0;z-index:900;background:var(--bg);overflow-y:auto';document.body.appendChild(ov);}
+  ov.style.display='block';
+  _pintarCobros();
+}
+function cerrarCobrosRecientes(){const ov=document.getElementById('ovCobros');if(ov)ov.style.display='none';}
+function cobrosDias(n){_cobrosDias=n;_pintarCobros();}
+function cobrosAbrirCli(nom){cerrarCobrosRecientes();abrirCliSinDeuda(nom);}
+function _pintarCobros(){
+  const ov=document.getElementById('ovCobros');if(!ov)return;
+  const hoy=_hoyAR();
+  const desde=new Date(hoy+'T12:00:00');desde.setDate(desde.getDate()-(_cobrosDias-1));
+  const dk=desde.toISOString().slice(0,10);
+  const ev=_cobrosLista().filter(e=>e.fecha>=dk&&e.fecha<=hoy).sort((a,b)=>b.fecha.localeCompare(a.fecha)||b.monto-a.monto);
+  const tot=ev.reduce((s,e)=>s+e.monto,0);
+  const esc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const bt=n=>`<button onclick="cobrosDias(${n})" style="flex:1;padding:7px;border-radius:9px;border:1.5px solid ${_cobrosDias===n?'var(--verde)':'var(--borde)'};background:${_cobrosDias===n?'var(--verde)':'#fff'};color:${_cobrosDias===n?'#fff':'#555'};font-weight:700;font-size:.78rem;cursor:pointer">Últimos ${n} días</button>`;
+  let h=`<div style="background:var(--verde);color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px;position:sticky;top:0"><button class="btn-back" onclick="cerrarCobrosRecientes()">← Volver</button><div style="flex:1;font-weight:800">🧾 Cobros recientes</div></div>`;
+  h+=`<div style="padding:10px 12px"><div style="display:flex;gap:6px">${bt(7)}${bt(30)}</div>`;
+  h+=`<div class="resumen" style="margin-top:10px"><div><div class="lbl">Total cobrado</div><div class="sub">${ev.length} cobro${ev.length!==1?'s':''}</div></div><div class="monto" style="color:var(--vd)">${fmt(tot)}</div></div>`;
+  if(!ev.length)h+=`<div class="empty"><div class="icon">🧾</div>Sin cobros en los últimos ${_cobrosDias} días</div>`;
+  let dia='';
+  ev.forEach(e=>{
+    if(e.fecha!==dia){dia=e.fecha;h+=`<div class="sec-lbl">${e.fecha===hoy?'HOY':_fmt(e.fecha)}</div>`;}
+    h+=`<div class="cli-card" onclick="cobrosAbrirCli(decodeURIComponent('${safeEnc(e.cli)}'))"><div><div class="cli-nombre">${esc(e.cli)}</div><div class="cli-tel">${e.ticket?'🎫 #'+esc(e.ticket)+' · ':''}${esc(_ml(e.met))}${e.tipo==='abono'?' · abono':' · pago total'}</div></div><div class="cli-deuda" style="color:var(--vd)">${fmt(e.monto)}</div></div>`;
+  });
+  h+='</div>';
+  ov.innerHTML=h;
 }
 
 // ── ABRIR CLIENTE ──────────────────────────────────
