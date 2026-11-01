@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>📒 Fiados · Copihue (STAGING)</title>
+<title>📒 Fiados · Copihue</title>
 <meta name="theme-color" content="#1b5e20">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -148,7 +148,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 </style>
 </head>
 <body>
-<div style="background:#e65100;color:#fff;text-align:center;font-weight:800;font-size:.72rem;padding:4px">🚧 STAGING — NO ES EL SITIO REAL 🚧</div>
 
 <div class="hdr" id="hdr">
   <span style="font-size:1.4rem">🌸</span>
@@ -239,7 +238,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 
 <script>
 const APP_VERSION=47;
-const API_URL='https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
+const API_URL='https://script.google.com/macros/s/AKfycbx-84yapENFqCNS1nfivFOR4P25l8U27gEoeWvVL6Nu5HmKr8e7m3KIJjshqtR_2brrHA/exec';
 
 // ── Estado ─────────────────────────────────────────
 let _todos=[], _cliNom='', _cliTel='', _cliData=[];
@@ -1069,7 +1068,7 @@ function ir(vista,titulo){
   });
   const hdr=document.getElementById('hdr');
   if(vista==='clientes'){
-    hdr.innerHTML=`<div style="flex:1"><div class="hdr-t">Copihue — Fiados <span class="ver-badge" style="font-size:.62rem;font-weight:400;opacity:.75">v${APP_VERSION}</span></div><div class="hdr-s" id="hdrSub">—</div></div><button class="btn-icon" onclick="cargar()">🔄</button><button class="btn-back" onclick="if(confirm('¿Salir de Fiados?'))window.location.href='seba21-staging.html'">← Volver</button>`;
+    hdr.innerHTML=`<div style="flex:1"><div class="hdr-t">Copihue — Fiados <span class="ver-badge" style="font-size:.62rem;font-weight:400;opacity:.75">v${APP_VERSION}</span></div><div class="hdr-s" id="hdrSub">—</div></div><button class="btn-icon" onclick="cargar()">🔄</button><button class="btn-back" onclick="if(confirm('¿Salir de Fiados?'))window.location.href='seba21.html'">← Volver</button>`;
   }else if(vista==='fiados'){
     hdr.innerHTML=`<button class="btn-back" onclick="volverClis()">← Volver</button><div style="flex:1;margin-left:8px"><div class="hdr-t">${titulo||''}</div><div class="hdr-s" id="hdrSub">fiados</div></div><button class="btn-icon" onclick="recargarCli()">🔄</button>`;
     const pend=_cliData.filter(f=>f.estado!=='PAGADO').length;
