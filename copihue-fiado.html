@@ -238,7 +238,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 <div id="toast"></div>
 
 <script>
-const APP_VERSION=46;
+const APP_VERSION=47;
 const API_URL='https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 
 // ── Estado ─────────────────────────────────────────
@@ -500,7 +500,9 @@ function _cobrosLista(){
     const txt=String(f.abonos||'');
     while((m=re.exec(txt))!==null){
       const v=num(m[1]);ab+=v;
-      ev.push({cli:f.cliente,monto:v,met:m[2].trim(),fecha:m[5]+'-'+m[4]+'-'+m[3],ticket:f.ticket||'',tipo:'abono'});
+      const orig0=parseFloat(f.totalOriginal)||parseFloat(f.total)||0;
+      const salda=f.estado==='PAGADO'&&orig0>0&&ab>=orig0-0.5;   // v47: este abono dejó el ticket en cero
+      ev.push({cli:f.cliente,monto:v,met:m[2].trim(),fecha:m[5]+'-'+m[4]+'-'+m[3],ticket:f.ticket||'',tipo:salda?'saldado':'abono'});
     }
     if(f.estado==='PAGADO'&&f.fechaPago){
       const orig=parseFloat(f.totalOriginal)||parseFloat(f.total)||0;
@@ -537,7 +539,7 @@ function _pintarCobros(){
   let dia='';
   ev.forEach(e=>{
     if(e.fecha!==dia){dia=e.fecha;h+=`<div class="sec-lbl">${e.fecha===hoy?'HOY':_fmt(e.fecha)}</div>`;}
-    h+=`<div class="cli-card" onclick="cobrosAbrirCli(decodeURIComponent('${safeEnc(e.cli)}'))"><div><div class="cli-nombre">${esc(e.cli)}</div><div class="cli-tel">${e.ticket?'🎫 #'+esc(e.ticket)+' · ':''}${esc(_ml(e.met))}${e.tipo==='abono'?' · abono':' · pago total'}</div></div><div class="cli-deuda" style="color:var(--vd)">${fmt(e.monto)}</div></div>`;
+    h+=`<div class="cli-card" onclick="cobrosAbrirCli(decodeURIComponent('${safeEnc(e.cli)}'))"><div><div class="cli-nombre">${esc(e.cli)}</div><div class="cli-tel">${e.ticket?'🎫 #'+esc(e.ticket)+' · ':''}${esc(_ml(e.met))}${e.tipo==='abono'?' · abono':e.tipo==='saldado'?' · saldado ✅':' · pago total'}</div></div><div class="cli-deuda" style="color:var(--vd)">${fmt(e.monto)}</div></div>`;
   });
   h+='</div>';
   ov.innerHTML=h;
