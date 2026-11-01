@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v557</title>
+    <title>🛒 POS · Copihue v558</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -7026,9 +7026,9 @@ function _dcRenderResumen() {
 }
 function _dcSumar() {
     if (!_dc || _dc.fiados.reduce((a, f) => a + f.monto, 0) <= 0) return;
-    if (metodoPagoActual === 'fiado') seleccionarMetodo('efectivo');   // con deuda sumada no se puede fiar
     _dc.activo = true;
     document.getElementById('dcPanel').style.display = 'none';
+    if (metodoPagoActual === 'fiado') seleccionarMetodo('efectivo');   // con deuda sumada no se puede fiar (v558: después de marcarla sumada)
     document.getElementById('dcFlecha').textContent = '›';
     _dcRefrescar();
     seleccionarMetodo(metodoPagoActual);   // refresca el QR con el total nuevo
@@ -7052,7 +7052,7 @@ function _dcResetUI() {
 function _dcReset() { _dc = null; _dcResetUI(); }
 // v556 — con deuda sumada, Fiado se ve apagado (seleccionarMetodo ya lo frena con aviso)
 function _dcFiadoGris() {
-    try { const b = document.getElementById('btnFiado'); if (b) b.classList.toggle('dc-bloqueado', _dcMonto() > 0); } catch (e) {}
+    try { const b = document.getElementById('btnFiado'); if (b) b.classList.toggle('dc-bloqueado', _dcMonto() > 0 || _dcLeyendoSinSumar()); } catch (e) {}   // v558: también mientras lee deuda
     try { const o = document.getElementById('btnOkConfirm'); if (o) o.classList.toggle('dc-espera', _dcLeyendoSinSumar()); } catch (e) {}   // v557
 }
 // v557 — tarjeta naranja abierta con deuda leída (montos > 0) pero todavía NO sumada al cobro: el cobro queda bloqueado
@@ -7060,8 +7060,21 @@ function _dcLeyendoSinSumar() {
     const pn = document.getElementById('dcPanel');
     return !!(pn && pn.style.display === 'block' && _dc && !_dc.activo && _dc.fiados.some(f => f.monto > 0));
 }
+// v558 — aviso grande y legible (el toast chico se cortaba): cuadro centrado con botón «Entendido»
+function _dcModalAviso(titulo, texto, color) {
+    let ov = document.getElementById('dcAvisoOv'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'dcAvisoOv';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:6500;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px;';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#fff;border-radius:16px;padding:20px;max-width:360px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.35);border-top:6px solid ' + color + ';';
+    box.innerHTML = '<div class="avT" style="font-weight:900;font-size:1.15rem;margin-bottom:10px;"></div><div class="avX" style="font-size:1rem;line-height:1.4;color:#333;"></div>'
+        + '<button type="button" id="dcAvisoOk" style="width:100%;margin-top:16px;padding:13px;border:none;border-radius:10px;background:' + color + ';color:#fff;font-weight:800;font-size:1rem;">Entendido</button>';
+    box.querySelector('.avT').style.color = color; box.querySelector('.avT').textContent = titulo; box.querySelector('.avX').textContent = texto;
+    ov.appendChild(box); document.body.appendChild(ov);
+    document.getElementById('dcAvisoOk').onclick = () => ov.remove();
+}
 function _dcAvisoSinSumar() {
-    mostrarToast('⚠️ Tenés una deuda leída sin sumar. Tocá «Sumar … al cobro» o cerrá la tarjeta naranja.', 'naranja');
+    _dcModalAviso('⚠️ Deuda leída sin sumar', 'Tenés una deuda leída sin sumar al cobro. Tocá «Sumar … al cobro» o cerrá la tarjeta naranja para poder cobrar.', '#e65100');
 }
 // v556 — antes de cobrar con deuda sumada: pregunta con el desglose. Sin deuda, no aparece.
 function _dcPedirConfirmacion() {
@@ -9916,7 +9929,7 @@ function confirmarPeso() {
 
 // ========== MÉTODO DE PAGO ==========
 function seleccionarMetodo(metodo) {
-    if (metodo === 'fiado' && _dcMonto() > 0) { mostrarToast('⚠️ Con una deuda sumada no se puede usar Fiado. Quitala o elegí otro método.', 'rojo'); return; } // v553
+    if (metodo === 'fiado' && (_dcMonto() > 0 || _dcLeyendoSinSumar())) { _dcModalAviso('⛔ Fiado no disponible', 'No se puede usar Fiado con una deuda cargada. Quitá la deuda o elegí otro método.', '#c62828'); return; } // v553/v558
     metodoPagoActual = metodo;
     const mapId = { efectivo: 'btnEfectivo', posnet: 'btnPosnet', transferencia: 'btnTransf', fiado: 'btnFiado' };
     Object.values(mapId).forEach(id => {
