@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v563</title>
+    <title>🛒 POS · Copihue v564</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -8081,6 +8081,11 @@ function enviarTicketWA() {
             return;
         }
         if (vdd.aplicado > 0) {
+            // v564 — «Vuelto: $X» a secas se leía como plata devuelta en mano: si el vuelto fue a la deuda, el renglón lo dice.
+            if (vdd.modo !== 'cobro' && v.detallePagos && v.detallePagos.vueltoARS > 0) {
+                var _lineaVuelto = '\nVuelto: $' + v.detallePagos.vueltoARS.toLocaleString('es-AR');
+                if (metodoLabel.indexOf(_lineaVuelto) >= 0) metodoLabel = metodoLabel.replace(_lineaVuelto, function() { return '\nVuelto aplicado a la deuda: ' + _fiadoFmt(vdd.aplicado); });
+            }
             var _detVd = (vdd.detalle || []).map(function(d) {
                 var resta = Math.max(0, Math.round((d.saldo || 0) - d.monto));
                 return (d.ticket ? 'Ticket #' + d.ticket : (d.fecha ? 'Compra del ' + d.fecha : 'Compra')) + ' · ' + _fiadoFmt(d.monto) + (d.saldo ? ' de ' + _fiadoFmt(d.saldo) : '') + ' ' + (resta > 0 ? '📋 Abonado (resta ' + _fiadoFmt(resta) + ')' : '✅ Saldado');
