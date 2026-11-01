@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v552</title>
+    <title>🛒 POS · Copihue v553</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3899,6 +3899,29 @@
         </style>
 
 
+
+        <!-- v553 — COBRAR DEUDA DEL CLIENTE (se suma a esta compra y se cobra todo junto) -->
+        <div id="dcWrap">
+            <div id="dcCard" onclick="_dcToggle()" style="margin:8px 20px 4px;background:linear-gradient(135deg,#ef6c00,#fb8c00);border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;">
+                <span style="font-size:1.5rem;">💰</span>
+                <div style="flex:1;">
+                    <div style="font-size:0.85rem;font-weight:900;color:white;">Cobrar deuda del cliente</div>
+                    <div style="font-size:0.72rem;color:rgba(255,255,255,0.85);">Sumala a esta compra y cobrá todo junto</div>
+                </div>
+                <span id="dcFlecha" style="font-size:1.1rem;color:rgba(255,255,255,0.7);">›</span>
+            </div>
+            <div id="dcPanel" style="display:none;margin:6px 20px 0;padding:10px;border:1.5px solid #ffcc80;border-radius:12px;background:#fffaf3;">
+                <div style="position:relative;">
+                    <input id="dcCliente" type="text" placeholder="👤 Cliente con deuda (nombre o teléfono)" autocomplete="off" oninput="_dcFiltrar(this.value)" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #ddd;border-radius:10px;font-size:0.95rem;">
+                    <div id="dcDrop" style="display:none;position:absolute;left:0;right:0;top:100%;background:white;border:1.5px solid #ddd;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.12);z-index:100;max-height:220px;overflow-y:auto;"></div>
+                </div>
+                <div id="dcMsg" style="font-size:0.8rem;color:#666;margin-top:6px;"></div>
+                <div id="dcLista" style="margin-top:6px;"></div>
+                <div id="dcResumen" style="font-size:0.85rem;font-weight:700;color:#e65100;margin-top:6px;"></div>
+                <button type="button" id="dcSumarBtn" onclick="_dcSumar()" style="display:none;width:100%;margin-top:8px;padding:11px;border:none;border-radius:10px;background:#e65100;color:white;font-weight:800;font-size:0.9rem;cursor:pointer;">➕ Sumar al cobro</button>
+            </div>
+            <div id="dcBloque" style="display:none;margin:8px 20px 0;padding:10px 12px;border:2px solid #e65100;border-radius:12px;background:#fff3e0;"></div>
+        </div>
 
         <!-- QR PAGO -->
         <div id="panelQR" style="display:none;margin:0 20px 16px;
@@ -5929,6 +5952,7 @@ function actualizarTotalConRedondeo() {
     // (redondeo, +/-, agregar/quitar producto) — refrescar acá cubre todos
     // los casos de una sola vez.
     if (document.getElementById('pmTotal')) _pmRenderResumen();
+    try { _dcRefrescar(); } catch (e) {} // v553
 }
 
 // ===== LIMPIAR BÚSQUEDA =====
@@ -6497,6 +6521,7 @@ async function togglePagoMixto() {
     const panel = document.getElementById('panelPagoMixto');
     const abrir = panel.style.display === 'none';
     if (!abrir) { _pmLimpiarTodo(); return; } // v523 — "✕ cerrar" descarta lo cargado
+    if (abrir && _dcMonto() > 0) { mostrarToast('⚠️ Quitá la deuda sumada para usar pago mixto (el mixto ya permite aplicar el vuelto a la deuda).', 'naranja'); return; } // v553
     panel.style.display = abrir ? 'block' : 'none';
     document.getElementById('pmToggleFlecha').textContent = abrir ? '⌄' : '›';
     _pagoMixtoActivo = abrir;
@@ -6887,6 +6912,163 @@ function _vdMetodoMostrar(mostrar) {
     box.style.display = mostrar ? 'block' : 'none';
     if (mostrar) _vdSelMetodo(_vdMetodoSugerido());
 }
+// ══════════════════════════════════════════════════════════════
+// v553 — COBRAR DEUDA DEL CLIENTE JUNTO CON LA COMPRA
+// La deuda se SUMA al cobro (el cajero cobra compra + deuda con Efectivo/Posnet/Transferencia). La venta de productos se
+// registra EXACTAMENTE igual que siempre (mismo vender, mismo total). Después, los abonos se aplican con _vdAplicar
+// (abonarFiado + idOperacion: repetir NUNCA descuenta dos veces), con el método elegido. No toca el pago mixto.
+// ══════════════════════════════════════════════════════════════
+let _dc = null; // { cliente, telefono, fiados:[{idFiado,ticket,saldo,desc,ts,monto}], activo:boolean }
+function _dcMonto() { return (_dc && _dc.activo) ? _dc.fiados.reduce((a, f) => a + f.monto, 0) : 0; }
+function _dcToggle() {
+    if (_pagoMixtoActivo) { mostrarToast('⚠️ Cerrá el pago mixto para sumar una deuda (el mixto ya permite aplicar el vuelto a la deuda).', 'naranja'); return; }
+    const pn = document.getElementById('dcPanel'); if (!pn) return;
+    const abrir = pn.style.display === 'none';
+    pn.style.display = abrir ? 'block' : 'none';
+    document.getElementById('dcFlecha').textContent = abrir ? '⌄' : '›';
+    if (abrir) {
+        const cacheVigente = _fiadoClientesCache && _fiadoClientesCache.length > 0 && (Date.now() - _fiadoClientesCacheTs) < _CLIENTES_TTL;
+        if (!cacheVigente) {
+            _apiFetch('listarClientes').then(data => {
+                if (data && data.ok && Array.isArray(data.clientes) && data.clientes.length > 0) { _fiadoClientesCache = data.clientes; _fiadoClientesCacheTs = Date.now(); }
+            }).catch(e => console.warn('⚠️ Sin lista de clientes:', e));
+        }
+        const c = document.getElementById('dcCliente'); if (c) c.focus();
+    }
+}
+function _dcFiltrar(q) {
+    const drop = document.getElementById('dcDrop');
+    const lista = _fiadoClientesCache || [];
+    q = (q || '').trim();
+    if (!q || lista.length === 0) { drop.style.display = 'none'; return; }
+    const terminos = _normalizarBusqueda(q).split(' ').filter(Boolean);
+    const qTel = q.replace(/\D/g, '');
+    const matches = lista.filter(c => {
+        const tel = (c.telefono || '').replace(/\D/g, '');
+        if (qTel.length >= 4 && tel.includes(qTel)) return true;
+        const n = _normalizarBusqueda(c.nombre);
+        return terminos.every(t => n.includes(t));
+    }).slice(0, 8);
+    if (!matches.length) { drop.style.display = 'none'; return; }
+    drop.innerHTML = '';
+    matches.forEach(c => {
+        const d = document.createElement('div');
+        d.style.cssText = 'padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;';
+        d.innerHTML = '<span style="font-weight:600;font-size:0.95rem;"></span><span style="color:#888;font-size:0.78rem;"></span>';
+        d.children[0].textContent = c.nombre; d.children[1].textContent = c.telefono || '—';
+        d.onclick = () => _dcElegir(c.nombre, c.telefono || '');
+        drop.appendChild(d);
+    });
+    drop.style.display = 'block';
+}
+async function _dcElegir(nombre, telefono) {
+    const msg = document.getElementById('dcMsg');
+    document.getElementById('dcCliente').value = nombre;
+    document.getElementById('dcDrop').style.display = 'none';
+    document.getElementById('dcLista').innerHTML = '';
+    document.getElementById('dcResumen').textContent = '';
+    document.getElementById('dcSumarBtn').style.display = 'none';
+    msg.textContent = '⏳ Buscando deudas de ' + nombre + '…';
+    _dc = null;
+    try {
+        const r = await _apiFetch('listarFiados');
+        if (!r || r.ok !== true || !Array.isArray(r.fiados)) throw new Error('respuesta inválida de la planilla');
+        const tel6 = String(telefono || '').replace(/\D/g, '').length >= 6;
+        const nom = _fiadoNorm(nombre);
+        const pend = r.fiados.filter(f => f && String(f.estado || '').toUpperCase() !== 'PAGADO' && (parseFloat(f.total) || 0) > 0 &&
+            (tel6 ? _fiadoMismoTel(f.telefono, telefono) : _fiadoNorm(f.cliente) === nom));
+        if (!pend.length) { msg.textContent = 'ℹ️ ' + nombre + ' no tiene deuda pendiente.'; return; }
+        const otros = Array.from(new Set(pend.filter(f => _fiadoNorm(f.cliente) !== nom).map(f => String(f.cliente || '?'))));
+        pend.sort((a, b) => _vdTs(a) - _vdTs(b));
+        _dc = { cliente: nombre, telefono: telefono, activo: false, fiados: pend.map(f => { const sal = Math.round(parseFloat(f.total) || 0); return {
+            idFiado: String(f.idFiado), ticket: (f.ticket && String(f.ticket).trim()) ? String(f.ticket).trim() : '', saldo: sal,
+            desc: String(f.descripcion || ''), ts: _vdTs(f), monto: sal }; }) };   // por defecto: la deuda COMPLETA
+        msg.textContent = otros.length ? '⚠️ Este teléfono también tiene fiados a nombre de: ' + otros.join(', ') + '. Revisá antes de sumar.' : '';
+        _dcRender();
+    } catch (e) {
+        _dc = null;
+        msg.textContent = '⚠️ No se pudo consultar la deuda (' + (e && e.message || e) + '). No se suma nada.';
+    }
+}
+function _dcRender() {
+    const cont = document.getElementById('dcLista'); if (!cont) return;
+    cont.innerHTML = '';
+    if (!_dc) { document.getElementById('dcResumen').textContent = ''; document.getElementById('dcSumarBtn').style.display = 'none'; return; }
+    _dc.fiados.forEach((f, i) => {
+        const fila = document.createElement('div');
+        fila.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f3e3c9;font-size:0.82rem;';
+        const txt = document.createElement('div'); txt.style.cssText = 'flex:1;min-width:0;';
+        const fecha = f.ts ? new Date(f.ts).toLocaleDateString('es-AR') : '';
+        txt.innerHTML = '<div style="font-weight:700;"></div><div style="color:#888;font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>';
+        txt.children[0].textContent = (f.ticket ? 'Ticket #' + f.ticket : 'Fiado ' + (fecha || f.idFiado.slice(-6))) + ' · debe ' + _fiadoFmt(f.saldo);
+        txt.children[1].textContent = (fecha ? fecha + ' · ' : '') + (f.desc || '');
+        const inp = document.createElement('input'); inp.type = 'number'; inp.inputMode = 'numeric'; inp.value = f.monto; inp.min = 0; inp.max = f.saldo;
+        inp.style.cssText = 'width:92px;padding:7px 8px;border:1.5px solid #ddd;border-radius:8px;font-size:0.9rem;text-align:right;';
+        inp.oninput = () => { let m = Math.round(parseFloat(inp.value) || 0); if (m < 0) m = 0; if (m > f.saldo) m = f.saldo; f.monto = m; _dcRenderResumen(); };
+        inp.onblur = () => { inp.value = f.monto; };
+        fila.appendChild(txt); fila.appendChild(inp); cont.appendChild(fila);
+    });
+    _dcRenderResumen();
+}
+function _dcRenderResumen() {
+    const el = document.getElementById('dcResumen'), b = document.getElementById('dcSumarBtn');
+    if (!el || !b) return;
+    if (!_dc) { el.textContent = ''; b.style.display = 'none'; return; }
+    const ap = _dc.fiados.reduce((a, f) => a + f.monto, 0), deuda = _dc.fiados.reduce((a, f) => a + f.saldo, 0);
+    el.textContent = 'Cobrás ' + _fiadoFmt(ap) + ' de la deuda de ' + _fiadoFmt(deuda) + ' · Quedaría: ' + _fiadoFmt(deuda - ap);
+    b.style.display = ap > 0 ? 'block' : 'none';
+    b.textContent = '➕ Sumar ' + _fiadoFmt(ap) + ' al cobro';
+}
+function _dcSumar() {
+    if (!_dc || _dc.fiados.reduce((a, f) => a + f.monto, 0) <= 0) return;
+    if (metodoPagoActual === 'fiado') seleccionarMetodo('efectivo');   // con deuda sumada no se puede fiar
+    _dc.activo = true;
+    document.getElementById('dcPanel').style.display = 'none';
+    document.getElementById('dcFlecha').textContent = '›';
+    _dcRefrescar();
+    seleccionarMetodo(metodoPagoActual);   // refresca el QR con el total nuevo
+}
+function _dcQuitar() {
+    _dc = null; _dcResetUI();
+    seleccionarMetodo(metodoPagoActual);
+}
+function _dcResetUI() {
+    try {
+        ['dcLista', 'dcMsg', 'dcResumen'].forEach(id => { const e = document.getElementById(id); if (e) { if (id === 'dcLista') e.innerHTML = ''; else e.textContent = ''; } });
+        const c = document.getElementById('dcCliente'); if (c) c.value = '';
+        const d = document.getElementById('dcDrop'); if (d) d.style.display = 'none';
+        const p = document.getElementById('dcPanel'); if (p) p.style.display = 'none';
+        const fl = document.getElementById('dcFlecha'); if (fl) fl.textContent = '›';
+        const b = document.getElementById('dcSumarBtn'); if (b) b.style.display = 'none';
+        const bl = document.getElementById('dcBloque'); if (bl) { bl.style.display = 'none'; bl.innerHTML = ''; }
+    } catch (e) {}
+}
+function _dcReset() { _dc = null; _dcResetUI(); }
+// Muestra/actualiza el bloque "Deuda + TOTAL A COBRAR". El TOTAL de arriba (la venta) NO cambia.
+function _dcRefrescar() {
+    const bl = document.getElementById('dcBloque'); if (!bl) return;
+    const m = _dcMonto();
+    if (!m) { bl.style.display = 'none'; bl.innerHTML = ''; return; }
+    const venta = window._totalConRedondeo || _totalCarritoConDescuentosGrupales();
+    bl.style.display = 'block';
+    bl.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;font-weight:800;color:#e65100;">'
+        + '<span class="dcNom"></span><span>+' + _fiadoFmt(m) + '</span></div>'
+        + '<div style="display:flex;justify-content:space-between;font-size:0.78rem;color:#666;margin-top:2px;"><span>Compra</span><span>' + _fiadoFmt(venta) + '</span></div>'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:1.15rem;font-weight:900;color:#1b5e20;margin-top:4px;border-top:1px dashed #e65100;padding-top:4px;"><span>TOTAL A COBRAR</span><span>' + _fiadoFmt(venta + m) + '</span></div>'
+        + '<div style="text-align:right;margin-top:4px;"><button type="button" onclick="_dcQuitar()" style="background:none;border:none;color:#999;font-size:0.75rem;text-decoration:underline;cursor:pointer;">✕ quitar deuda</button></div>';
+    bl.querySelector('.dcNom').textContent = '💰 Deuda de ' + _dc.cliente;
+}
+// Congela lo elegido ANTES de que se limpie nada. null si no hay deuda sumada.
+function _dcCongelar() {
+    if (!_dc || !_dc.activo) return null;
+    const asign = _dc.fiados.filter(f => f.monto > 0).map(f => ({ idFiado: f.idFiado, monto: f.monto, ticket: f.ticket, saldo: f.saldo, fecha: f.ts ? new Date(f.ts).toLocaleDateString('es-AR') : '' }));
+    const ap = asign.reduce((a, x) => a + x.monto, 0);
+    if (!(ap > 0)) return null;
+    const mapa = { efectivo: 'EFECTIVO', posnet: 'POSNET', transferencia: 'TRANSFERENCIA' };
+    return { cliente: _dc.cliente, telefono: _dc.telefono, asignaciones: asign, aplicado: ap, metodo: mapa[metodoPagoActual] || 'EFECTIVO', efectivo: 0,
+             deudaTotal: _dc.fiados.reduce((a, f) => a + f.saldo, 0), modo: 'cobro' };
+}
+
 function _vdTs(f) {
     let m = /^f_(\d{13})_/.exec(String(f.idFiado || ''));
     if (m) return parseInt(m[1], 10);
@@ -7054,7 +7236,7 @@ function _ticketBtnEstado(txt) {
 // POS reintenta, abonarFiado responde "ya estaba registrado" y no descuenta de nuevo.
 async function _vdAplicar(snap, idVenta, vRef, tkProm) {
     const res = { estado: 'aplicando', cliente: snap.cliente, aplicado: 0, fallos: [], deudaRestante: null, deudaAnterior: snap.deudaTotal, efectivo: snap.efectivo, hechos: 0, total: snap.asignaciones.length, detalle: [] };
-    vRef.vueltoDeuda = res;
+    vRef.vueltoDeuda = res; res.modo = snap.modo || '';
     // v539 — línea gris con el tiempo de cada abono (TEMPORAL, para entender la lentitud de la planilla)
     const _vdDbg = (t) => {
         try {
@@ -7405,6 +7587,7 @@ async function confirmarVenta() {
         return;
     }
 
+    const _dcSnap = _dcCongelar(); // v553: deuda sumada (null si no hay) — se congela ANTES de tocar nada
     const btn = document.getElementById('btnOkConfirm');
     btn.disabled = true;
     btn.textContent = '⏳ Procesando...';
@@ -7425,6 +7608,16 @@ async function confirmarVenta() {
     // más abajo, pueda guardarlo junto a la venta — necesario para poder
     // reconciliar el aviso "stock pendiente" cuando el reintento sí funciona.
     let idVenta = null, _tkNormal = null; // v540: N° de ticket si vender lo devolvió
+    // v553 — abonos de la deuda sumada: se lanzan UNA sola vez, después de registrar la venta (con o sin cosmética OK)
+    let _dcLanzado = false;
+    const _dcLanzar = (vRef) => {
+        if (!_dcSnap || _dcLanzado) return;
+        _dcLanzado = true;
+        try {
+            const tk = _tkNormal ? Promise.resolve(String(_tkNormal)) : _buscarTicketVenta(idVenta, [0, 3000, 5000, 8000, 12000, 15000, 20000], null);
+            _vdAplicar(_dcSnap, idVenta, vRef || {}, tk);
+        } catch (eDc) { console.warn('⚠️ abonos de deuda:', eDc); }
+    };
     try {
         const ventaData = _itemsParaServidor(ventaActual);
         // Agregar método de pago al request
@@ -7507,6 +7700,8 @@ async function confirmarVenta() {
             nroTicket: _tkNormal ? String(_tkNormal) : '', // v540: solo si vender lo devolvió
             fechaVenta: _t.toLocaleDateString('es-AR')
         };
+        _dcLanzar(window._ultimaVenta); // v553
+        try { _dcReset(); } catch (e) {} // v553
 
         actualizarRanking(); // recalcular ranking después de confirmar venta
 
@@ -7525,6 +7720,8 @@ async function confirmarVenta() {
         // después. Nunca reactivar el botón de cobro acá: eso rompería la
         // protección de arriba.
         console.error('⚠️ Error cosmético post-venta (la venta SÍ se guardó):', eCosmetico);
+        _dcLanzar(window._ultimaVenta); // v553: los abonos se aplican igual aunque falle lo cosmético
+        try { _dcReset(); } catch (e) {}
         mostrarToast(stockOk ? '✅ Venta confirmada' : '✅ Venta registrada (stock manual)', 'verde');
     }
     } catch(e) {
@@ -7670,7 +7867,7 @@ function enviarTicketWA() {
                 return (d.ticket ? 'Ticket #' + d.ticket : (d.fecha ? 'Compra del ' + d.fecha : 'Compra')) + ' · ' + _fiadoFmt(d.monto) + (d.saldo ? ' de ' + _fiadoFmt(d.saldo) : '') + ' ' + (resta > 0 ? '📋 Abonado (resta ' + _fiadoFmt(resta) + ')' : '✅ Saldado');
             });
             bloqueDeuda += '\n\n📌 *Deuda anterior: ' + _fiadoFmt(vdd.deudaAnterior || 0) + '*\n' +
-                '💵 *Abono (vuelto): ' + _fiadoFmt(vdd.aplicado) + '*\n' +
+                (vdd.modo === 'cobro' ? '💵 *Abono a la deuda: ' : '💵 *Abono (vuelto): ') + _fiadoFmt(vdd.aplicado) + '*\n' +
                 ((vdd.deudaRestante || 0) > 0 ? '📋' : '✅') + ' *Deuda actualizada: ' + _fiadoFmt(vdd.deudaRestante || 0) + '*' +
                 (vdd.efectivo > 0 ? '\n💶 Vuelto en efectivo: ' + _fiadoFmt(vdd.efectivo) : '') +
                 (_detVd.length ? '\n\nDetalle:\n' + _detVd.join('\n') : '');
@@ -7698,6 +7895,7 @@ function enviarTicketWA() {
 }
 
 function cerrarConfirm() {
+    try { _dcReset(); } catch (e) {} // v553
     document.getElementById('modalConfirm').classList.remove('open');
     // FIX: red de seguridad — sincronizar el scroll de resultados al cerrar el
     // modal (incluye cierre por botón atrás del navegador vía popstate), por si
@@ -9671,6 +9869,7 @@ function confirmarPeso() {
 
 // ========== MÉTODO DE PAGO ==========
 function seleccionarMetodo(metodo) {
+    if (metodo === 'fiado' && _dcMonto() > 0) { mostrarToast('⚠️ Con una deuda sumada no se puede usar Fiado. Quitala o elegí otro método.', 'rojo'); return; } // v553
     metodoPagoActual = metodo;
     const mapId = { efectivo: 'btnEfectivo', posnet: 'btnPosnet', transferencia: 'btnTransf', fiado: 'btnFiado' };
     Object.values(mapId).forEach(id => {
@@ -9688,7 +9887,7 @@ function seleccionarMetodo(metodo) {
     const panelPosnet = document.getElementById('panelQRPosnet');
     const panelTransf = document.getElementById('panelQRTransf');
     if (panelQR) {
-        const total = _totalCarritoConDescuentosGrupales();
+        const total = _totalCarritoConDescuentosGrupales() + _dcMonto();   // v553: con deuda sumada, el QR cobra todo junto
         if (metodo === 'posnet') {
             panelQR.style.display = 'block';
             if (panelPosnet) panelPosnet.style.display = 'block';
