@@ -238,7 +238,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 <div id="toast"></div>
 
 <script>
-const APP_VERSION=44;
+const APP_VERSION=45;
 const API_URL='https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 
 // ── Estado ─────────────────────────────────────────
@@ -1009,7 +1009,7 @@ function ir(vista,titulo){
   });
   const hdr=document.getElementById('hdr');
   if(vista==='clientes'){
-    hdr.innerHTML=`<div style="flex:1"><div class="hdr-t">Copihue — Fiados <span class="ver-badge" style="font-size:.62rem;font-weight:400;opacity:.75">v${APP_VERSION}</span></div><div class="hdr-s" id="hdrSub">—</div></div><button class="btn-icon" onclick="cargar()">🔄</button><button class="btn-back" onclick="if(confirm('¿Salir de Fiados?'))window.location.href='seba21.html'">← Volver</button>`;
+    hdr.innerHTML=`<div style="flex:1"><div class="hdr-t">Copihue — Fiados <span class="ver-badge" style="font-size:.62rem;font-weight:400;opacity:.75">v${APP_VERSION}</span></div><div class="hdr-s" id="hdrSub">—</div></div><button class="btn-icon" onclick="cargar()">🔄</button><button class="btn-back" onclick="if(confirm('¿Salir de Fiados?'))window.location.href='seba21-staging.html'">← Volver</button>`;
   }else if(vista==='fiados'){
     hdr.innerHTML=`<button class="btn-back" onclick="volverClis()">← Volver</button><div style="flex:1;margin-left:8px"><div class="hdr-t">${titulo||''}</div><div class="hdr-s" id="hdrSub">fiados</div></div><button class="btn-icon" onclick="recargarCli()">🔄</button>`;
     const pend=_cliData.filter(f=>f.estado!=='PAGADO').length;

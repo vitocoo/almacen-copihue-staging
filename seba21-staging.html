@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v553</title>
+    <title>🛒 POS · Copihue v554</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -11288,10 +11288,18 @@ async function _fiadosHoyResumen() {
     };
     const money = n => '$' + Math.round(n).toLocaleString('es-AR');
     let nuevos = 0, montoNuevo = 0, cobrado = 0, cobros = 0, deuda = 0, clientesDeuda = new Set(), vencen = 0;
+    // v554 — detalle por cliente (solo lectura, con lo que ya trae listarFiados)
+    const porCobro = {}, porNuevo = {};
+    const metLabel = m => { m = String(m || '').trim().toUpperCase(); return m === 'EFECTIVO' ? 'Efectivo' : m === 'POSNET' ? 'Posnet' : m === 'TRANSFERENCIA' ? 'Transferencia' : (m ? m.charAt(0) + m.slice(1).toLowerCase() : ''); };
+    const claveCli = f => _fiadoNorm(f.cliente) || '?';
     data.fiados.forEach(f => {
         const pendiente = f.estado !== 'PAGADO';
         const original = parseFloat(f.totalOriginal) || parseFloat(f.total) || 0;
-        if (diaAR(_vdTs(f)) === hoy) { nuevos++; montoNuevo += original; }
+        if (diaAR(_vdTs(f)) === hoy) {
+            nuevos++; montoNuevo += original;
+            const kn = claveCli(f); (porNuevo[kn] = porNuevo[kn] || { nombre: String(f.cliente || 'Sin nombre'), monto: 0 }).monto += original;
+        }
+        const metHoy = {};   // v554: método → monto cobrado hoy en este fiado
         // Abonos: texto "Abono $15 (EFECTIVO) 30/10/2026 | ..." (lo escribe abonarFiado)
         let abonosHoy = 0, abonosTotal = 0, m;
         const re = /Abono \$([\d.]+)\s*\([^)]*\)\s*(\d{2}\/\d{2}\/\d{4})/g;
@@ -11299,14 +11307,20 @@ async function _fiadosHoyResumen() {
         while ((m = re.exec(txt)) !== null) {
             const v = parseFloat(m[1]) || 0;
             abonosTotal += v;
-            if (m[2] === dmy) abonosHoy += v;
+            if (m[2] === dmy) { abonosHoy += v; const ml = metLabel((/\(([^)]*)\)/.exec(m[0]) || [])[1]); metHoy[ml] = (metHoy[ml] || 0) + v; }
         }
         let cobradoF = abonosHoy;
         if (!pendiente && esHoy(f.fechaPago)) {
             // pagado completo hoy con «cobrarFiado»: se cobró lo que faltaba (original − abonos)
-            cobradoF += Math.max(0, original - abonosTotal);
+            const resto = Math.max(0, original - abonosTotal);
+            cobradoF += resto;
+            if (resto > 0) { const ml = metLabel(f.metodoPago); metHoy[ml] = (metHoy[ml] || 0) + resto; }
         }
-        if (cobradoF > 0) { cobrado += cobradoF; cobros++; }
+        if (cobradoF > 0) {
+            cobrado += cobradoF; cobros++;
+            const kc = claveCli(f), c = (porCobro[kc] = porCobro[kc] || { nombre: String(f.cliente || 'Sin nombre'), monto: 0, mets: {} });
+            c.monto += cobradoF; Object.keys(metHoy).forEach(k => { c.mets[k] = (c.mets[k] || 0) + metHoy[k]; });
+        }
         if (pendiente) {
             deuda += parseFloat(f.total) || 0;
             clientesDeuda.add(f.cliente);
@@ -11314,11 +11328,20 @@ async function _fiadosHoyResumen() {
         }
     });
     const linea = (ico, txt) => '<div>' + ico + ' ' + txt + '</div>';
+    const esc = t => String(t).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+    const detalle = (obj, conMetodo) => {
+        const arr = Object.keys(obj).map(k => obj[k]).sort((a, b) => b.monto - a.monto);
+        if (!arr.length) return '';
+        return arr.slice(0, 8).map(c => {
+            const mets = conMetodo ? Object.keys(c.mets || {}).filter(Boolean) : [];
+            return '<div style="margin-left:22px;font-size:0.8rem;color:#555;">• ' + esc(c.nombre) + ' · <strong>' + money(c.monto) + '</strong>' + (mets.length ? ' · ' + esc(mets.join(' + ')) : '') + '</div>';
+        }).join('') + (arr.length > 8 ? '<div style="margin-left:22px;font-size:0.78rem;color:#999;">+' + (arr.length - 8) + ' más</div>' : '');
+    };
     const hora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
     box.innerHTML =
         '<strong style="color:#2e7d32;">🧾 Fiados de hoy</strong> <span style="color:#999;font-size:0.75rem;">· a las ' + hora + '</span>' +
-        linea('➕', 'Nuevos: ' + (nuevos ? '<strong>' + nuevos + '</strong> · ' + money(montoNuevo) : 'ninguno')) +
-        linea('💵', 'Cobrado: ' + (cobros ? '<strong>' + money(cobrado) + '</strong> (' + cobros + ' fiado' + (cobros > 1 ? 's' : '') + ')' : 'nada todavía')) +
+        linea('➕', 'Nuevos: ' + (nuevos ? '<strong>' + nuevos + '</strong> · ' + money(montoNuevo) : 'ninguno')) + detalle(porNuevo, false) +
+        linea('💵', 'Cobrado: ' + (cobros ? '<strong>' + money(cobrado) + '</strong> (' + cobros + ' fiado' + (cobros > 1 ? 's' : '') + ')' : 'nada todavía')) + detalle(porCobro, true) +
         linea('📒', 'Deuda total: <strong style="color:#c62828;">' + money(deuda) + '</strong> · ' + clientesDeuda.size + ' cliente' + (clientesDeuda.size === 1 ? '' : 's')) +
         (vencen ? linea('⏰', 'Vencen hoy o mañana: <strong>' + vencen + '</strong>') : '') +
         '<button onclick="window.location.href=\'copihue-fiado.html\'" style="margin-top:6px;padding:8px 12px;border:1.5px solid #2e7d32;border-radius:10px;background:#e8f5e9;color:#2e7d32;font-weight:700;cursor:pointer;">Abrir Fiados →</button>';
