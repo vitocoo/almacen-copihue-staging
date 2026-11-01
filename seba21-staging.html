@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v550</title>
+    <title>🛒 POS · Copihue v551</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -10417,6 +10417,7 @@ async function guardarAjuste() {
         const url = API_URL + '?action=ajusteRapido&data=' + encodeURIComponent(JSON.stringify(datos));
         const resp = await _apiFetchUrl('registrarMovimientoCaja', url);
         if (resp.success) {
+            const _nombreAntesLC = ajusteProducto.name;   // v551
             ajusteProducto.stock = ajusteValor;
             const nombreNuevoLocal = document.getElementById('ajusteNombreNuevo').value.trim().toUpperCase();
             if (nombreNuevoLocal && nombreNuevoLocal !== ajusteProducto.name) {
@@ -10437,6 +10438,7 @@ async function guardarAjuste() {
             } else {
                 mostrarToast('✅ Stock ajustado a ' + ajusteValor, 'verde');
             }
+            try { lcTrasAjuste(_nombreAntesLC, ajusteProducto); } catch (_eLC) {}   // v551
             cerrarAjuste();
         } else {
             mostrarToast('❌ ' + resp.mensaje, 'rojo');
@@ -14515,12 +14517,17 @@ function lcRenderizar(filtro) {
 
     var prodRef = productos.find(function(p){ return p.name === it.nombre; });
     var prodId  = prodRef ? prodRef.id : null;
+    // v551: fila con ✏️ Editar (abre el editor de ajuste rápido del catálogo) + Marcar inactivo
     var btnPausarHtml = prodId !== null
-      ? '<button onclick="lcTogglePausado(' + prodId + ', this)" '
-        + 'style="margin-top:6px;width:100%;padding:5px 0;border:1px solid #ccc;border-radius:8px;background:white;'
+      ? '<div style="display:flex;gap:6px;margin-top:6px;">'
+        + '<button onclick="abrirAjusteStockRapido(' + prodId + ')" '
+        + 'style="flex:0 0 auto;padding:5px 12px;border:1px solid #1565c0;border-radius:8px;background:white;'
+        + 'font-size:0.7rem;color:#1565c0;font-weight:700;cursor:pointer;">✏️ Editar</button>'
+        + '<button onclick="lcTogglePausado(' + prodId + ', this)" '
+        + 'style="flex:1;padding:5px 0;border:1px solid #ccc;border-radius:8px;background:white;'
         + 'font-size:0.7rem;color:#607d8b;cursor:pointer;">'
         + (esPausado ? '▶️ Reactivar' : 'Marcar inactivo')
-        + '</button>'
+        + '</button></div>'
       : '';
 
     // Checkbox en modo proveedor
@@ -14538,6 +14545,7 @@ function lcRenderizar(filtro) {
       +   '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
       +     badgeTxt
       +     '<span style="font-size:0.68rem;color:#888;">📦 stock: ' + it.stock + '</span>'
+      +     (it.corregido ? '<span style="font-size:0.65rem;font-weight:700;color:#1565c0;">✏️ corregido</span>' : '')
       +     '<span style="font-size:0.68rem;color:#888;">⏱ ' + diasTxt + '</span>'
       +     (!modoProveedor ? provTxt : '')
       +   '</div>'
@@ -14569,6 +14577,27 @@ function lcRenderizar(filtro) {
   });
 
   document.getElementById('lcCuerpo').innerHTML = html;
+}
+
+// v551 — tras guardar un ajuste desde el editor, reflejar el stock nuevo en la tarjeta
+// (no recalcula urgencia: eso lo hace el servidor al reabrir la lista).
+function lcTrasAjuste(nombreAntes, prod) {
+  var it = _lcItems.find(function(i){ return i.nombre === nombreAntes; });
+  if (!it) return;
+  it.stock = prod.stock;
+  it.corregido = true;
+  if (prod.name !== nombreAntes) {
+    it.nombre = prod.name;
+    if (_lcSeleccionados.has(nombreAntes)) { _lcSeleccionados.delete(nombreAntes); _lcSeleccionados.add(prod.name); }
+  }
+  var modal = document.getElementById('modalListaCompra');
+  if (modal && modal.style.display !== 'none') {
+    var cuerpo = document.getElementById('lcCuerpo');
+    var y = cuerpo ? cuerpo.scrollTop : 0;
+    lcRenderizar(_lcFiltroActivo);
+    if (cuerpo) cuerpo.scrollTop = y;
+    lcActualizarContadorSeleccion();
+  }
 }
 
 async function lcTogglePausado(id, btn) {
