@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v556</title>
+    <title>🛒 POS · Copihue v557</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2465,6 +2465,7 @@
             background: #aaa;
             animation: none;
         }
+        .btn-ok-confirm.dc-espera { background: #aaa; animation: none; }  /* v557: leyendo deuda sin sumar */
         @keyframes pulseConfirmar {
             0%   { box-shadow: 0 4px 14px rgba(153,27,27,0.5), 0 0 0 0 rgba(153,27,27,0.45); }
             60%  { box-shadow: 0 4px 14px rgba(153,27,27,0.3), 0 0 0 10px rgba(153,27,27,0); }
@@ -6503,6 +6504,7 @@ async function _cargarCotizaciones() {
 }
 
 function _confirmarCobroDispatch() {
+    if (_dcLeyendoSinSumar()) { _dcAvisoSinSumar(); return; }   // v557
     // v532 — con el panel mixto abierto el cobro NUNCA vuelve al camino normal (era lo que abría "Registrar
     // Fiado" por el total entero): si no hay ningún pago cargado, avisa y no hace nada.
     const _pmPanelAbierto = (document.getElementById('panelPagoMixto') || { style: {} }).style.display === 'block';
@@ -6927,6 +6929,7 @@ function _dcToggle() {
     const abrir = pn.style.display === 'none';
     pn.style.display = abrir ? 'block' : 'none';
     document.getElementById('dcFlecha').textContent = abrir ? '⌄' : '›';
+    _dcFiadoGris();   // v557
     if (abrir) {
         const cacheVigente = _fiadoClientesCache && _fiadoClientesCache.length > 0 && (Date.now() - _fiadoClientesCacheTs) < _CLIENTES_TTL;
         if (!cacheVigente) {
@@ -7012,6 +7015,7 @@ function _dcRender() {
     _dcRenderResumen();
 }
 function _dcRenderResumen() {
+    _dcFiadoGris();   // v557
     const el = document.getElementById('dcResumen'), b = document.getElementById('dcSumarBtn');
     if (!el || !b) return;
     if (!_dc) { el.textContent = ''; b.style.display = 'none'; return; }
@@ -7049,6 +7053,15 @@ function _dcReset() { _dc = null; _dcResetUI(); }
 // v556 — con deuda sumada, Fiado se ve apagado (seleccionarMetodo ya lo frena con aviso)
 function _dcFiadoGris() {
     try { const b = document.getElementById('btnFiado'); if (b) b.classList.toggle('dc-bloqueado', _dcMonto() > 0); } catch (e) {}
+    try { const o = document.getElementById('btnOkConfirm'); if (o) o.classList.toggle('dc-espera', _dcLeyendoSinSumar()); } catch (e) {}   // v557
+}
+// v557 — tarjeta naranja abierta con deuda leída (montos > 0) pero todavía NO sumada al cobro: el cobro queda bloqueado
+function _dcLeyendoSinSumar() {
+    const pn = document.getElementById('dcPanel');
+    return !!(pn && pn.style.display === 'block' && _dc && !_dc.activo && _dc.fiados.some(f => f.monto > 0));
+}
+function _dcAvisoSinSumar() {
+    mostrarToast('⚠️ Tenés una deuda leída sin sumar. Tocá «Sumar … al cobro» o cerrá la tarjeta naranja.', 'naranja');
 }
 // v556 — antes de cobrar con deuda sumada: pregunta con el desglose. Sin deuda, no aparece.
 function _dcPedirConfirmacion() {
@@ -7616,6 +7629,7 @@ async function confirmarVenta() {
         return;
     }
 
+    if (_dcLeyendoSinSumar()) { _dcAvisoSinSumar(); return; }   // v557 (defensa extra)
     // v556 — con deuda sumada: pedir confirmación (desglose) antes de procesar
     if (_dcMonto() > 0 && !window._dcConfirmado) { _dcPedirConfirmacion(); return; }
     window._dcConfirmado = false;
