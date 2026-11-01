@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v549</title>
+    <title>🛒 POS · Copihue v550</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14541,7 +14541,7 @@ function lcRenderizar(filtro) {
       +     '<span style="font-size:0.68rem;color:#888;">⏱ ' + diasTxt + '</span>'
       +     (!modoProveedor ? provTxt : '')
       +   '</div>'
-      +   (!modoProveedor ? btnPausarHtml : '')
+      +   btnPausarHtml   // v550: también dentro de un proveedor
       + '</div>'
       + '<div style="text-align:right;min-width:80px;">'
       +   '<div style="font-size:1rem;font-weight:900;color:#e65100;">x' + it.cantidad + '</div>'
@@ -14586,8 +14586,11 @@ async function lcTogglePausado(id, btn) {
     lcItem.urgencia = nuevoPausado ? 99 : 7;
     lcItem.prioridad = nuevoPausado ? 'PAUSADO' : 'OK';
   }
-  // Re-renderizar sin recargar desde Sheets
-  lcRenderizar('todos');
+  // v550: al inactivar, sale del pedido (si estaba tildado)
+  if (nuevoPausado) _lcSeleccionados.delete(p.name);
+  // Re-renderizar sin recargar desde Sheets (respetando el filtro de urgencia activo)
+  lcRenderizar(_lcFiltroActivo);
+  lcActualizarContadorSeleccion();
 
   // API en segundo plano
   _apiFetch('setPausadoListaCompra', { id: id, pausado: nuevoPausado ? 'SI' : '' }).then(function(resp){
