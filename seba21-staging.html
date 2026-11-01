@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v559</title>
+    <title>🛒 POS · Copihue v560</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -7287,10 +7287,137 @@ function _ticketBtnEstado(txt) {
         else { t.textContent = 'Enviar ticket al cliente'; b.disabled = false; b.style.opacity = ''; b.style.cursor = 'pointer'; }
     } catch (e) {}
 }
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// v560 — Abonos del vuelto/deuda: "ocupado" ya NO es un fallo.
+// Antes: cualquier respuesta que no fuera éxito se tomaba como definitiva ("NO se pudo confirmar").
+// Ahora el servidor (Code.gs v11.2) puede contestar { ocupado:true } = "no escribí nada, reintentá".
+//  · ocupado / sin respuesta  → se reintenta con el MISMO idOperacion (seguro: no descuenta dos veces)
+//  · rechazo (tope, ya pagado…) → definitivo, se informa y NO se reintenta
+//  · se agota el tiempo (_VD_TOPE_MS en total) → el abono queda GUARDADO como pendiente en
+//    localStorage 'abonos_vuelto_sin_confirmar' (con su idOperacion) y se reintenta desde ahí:
+//    solo (1 reintento a los 90 s, al volver internet y a los 20 s de abrir el POS) o con el botón
+//    «Reintentar abono». Mientras tanto el cajero puede seguir vendiendo (todo corre en segundo plano).
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+let _VD_TOPE_MS = 60000;                                   // tiempo total máximo de reintentos por venta
+let _VD_ESPERAS_MS = [0, 3000, 5000, 8000, 12000, 15000]; // espera antes de cada intento (el último se repite)
+let _VD_AUTO_MS = 90000;                                   // reintento automático tras agotar el tiempo
+const _VD_PEND_KEY = 'abonos_vuelto_sin_confirmar';
+window._vdResPorOp = window._vdResPorOp || {};             // idOperacion → { res, a } de la venta en pantalla (para actualizar el ticket)
+let _vdAplicando = 0, _vdReintentando = false;
+const _vdSleep = ms => new Promise(r => setTimeout(r, ms));
+
+function _vdPendLeer() { try { const a = JSON.parse(localStorage.getItem(_VD_PEND_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function _vdPendGuardar(arr) { try { localStorage.setItem(_VD_PEND_KEY, JSON.stringify(arr)); } catch (e) {} }
+function _vdPendSet(entrada) {                              // alta o actualización por idOperacion
+    const arr = _vdPendLeer(); const i = arr.findIndex(x => x && x.idOperacion === entrada.idOperacion);
+    if (i >= 0) arr[i] = Object.assign({}, arr[i], entrada); else arr.push(entrada);
+    _vdPendGuardar(arr);
+}
+function _vdPendQuitar(idOp) { _vdPendGuardar(_vdPendLeer().filter(x => !(x && x.idOperacion === idOp))); }
+// "reintentable" = lo guardó v560 como pendiente y sabemos con qué método cobrarlo. Los registros viejos (sin estado) NO se reintentan solos.
+function _vdPendReintentables() { return _vdPendLeer().filter(x => x && x.estado === 'pendiente' && x.metodo); }
+
+// Un intento. Devuelve { tipo: 'ok' | 'ocupado' | 'rechazado' | 'sinRespuesta', r?, error? }
+async function _vdEnviarAbono(idFiado, monto, metodo, idOp) {
+    try {
+        const r = await _apiFetchUrl('abonarFiado', API_URL + '?action=abonarFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: idFiado, abono: monto, metodoPago: (metodo || 'EFECTIVO'), idOperacion: idOp })) + '&t=' + Date.now());
+        if (r && r.success === true) return { tipo: 'ok', r: r };
+        if (r && r.ocupado === true) return { tipo: 'ocupado', r: r };
+        return { tipo: 'rechazado', r: r };
+    } catch (e) { return { tipo: 'sinRespuesta', error: e }; }
+}
+
+// Cartelito de progreso/estado (abajo a la izquierda, chico): se ve aunque el cajero siga vendiendo.
+function _vdPill(texto, color) {
+    try {
+        let el = document.getElementById('vdPill');
+        if (!texto) { if (el) el.style.display = 'none'; return; }
+        if (!el) {
+            el = document.createElement('div'); el.id = 'vdPill';
+            el.style.cssText = 'position:fixed;left:10px;bottom:84px;z-index:4500;max-width:62vw;padding:8px 12px;border-radius:18px;font-size:0.78rem;font-weight:800;color:#fff;box-shadow:0 3px 12px rgba(0,0,0,.3);cursor:pointer;line-height:1.25;';
+            el.onclick = () => { try { _vdPanelPendientes(); } catch (e) {} };
+            document.body.appendChild(el);
+        }
+        el.style.background = color || '#e65100'; el.style.display = 'block'; el.textContent = texto;
+    } catch (e) {}
+}
+function _vdPillRefrescar() {
+    if (_vdAplicando > 0 || _vdReintentando) return;        // mientras corre, manda el texto de progreso
+    const pend = _vdPendReintentables(), otros = _vdPendLeer().filter(x => x && x.estado !== 'pendiente' || x && !x.metodo);
+    if (pend.length) _vdPill('⏳ ' + pend.length + ' abono' + (pend.length > 1 ? 's' : '') + ' a deuda pendiente' + (pend.length > 1 ? 's' : '') + ' · tocá para reintentar', '#e65100');
+    else if (otros.length) _vdPill('⚠️ ' + otros.length + ' abono' + (otros.length > 1 ? 's' : '') + ' sin confirmar (revisar) · tocá', '#b71c1c');
+    else _vdPill(null);
+}
+
+function _vdPanelPendientes() {
+    const lista = _vdPendLeer(); if (!lista.length) { mostrarToast('No hay abonos pendientes', ''); return; }
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:white;border-radius:16px;padding:18px;max-width:380px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.3);max-height:85vh;overflow:auto;';
+    const filas = lista.map((x, i) => {
+        const est = x.estado === 'pendiente' && x.metodo ? '⏳ pendiente' : (x.estado === 'rechazado' ? '⛔ rechazado' : '⚠️ revisar a mano');
+        return '<div style="border:1px solid #eee;border-radius:10px;padding:8px 10px;margin-bottom:8px;font-size:0.85rem;line-height:1.35;">'
+            + '<div style="display:flex;justify-content:space-between;gap:8px;"><strong class="vdN"></strong><span>' + _fiadoFmt(x.monto) + '</span></div>'
+            + '<div style="color:#666;">' + est + '<span class="vdM"></span></div>'
+            + '<button type="button" data-i="' + i + '" class="vdQuitar" style="margin-top:6px;background:none;border:none;color:#999;text-decoration:underline;font-size:0.75rem;cursor:pointer;">Quitar de la lista</button></div>';
+    }).join('');
+    box.innerHTML = '<div style="font-weight:900;color:#e65100;margin-bottom:6px;">Abonos a deuda sin confirmar</div>'
+        + '<div style="font-size:0.82rem;color:#555;margin-bottom:10px;">Cada abono guarda su código de operación: reintentar NO lo descuenta dos veces. No lo cargues a mano.</div>' + filas
+        + '<div style="display:flex;gap:10px;margin-top:10px;"><button type="button" id="vdCerrar" style="flex:1;padding:12px;border-radius:10px;border:2px solid #ddd;background:white;font-weight:700;color:#666;">Cerrar</button>'
+        + '<button type="button" id="vdReint" style="flex:1;padding:12px;border-radius:10px;border:none;background:#2e7d32;color:white;font-weight:700;">🔄 Reintentar abono</button></div>';
+    ov.appendChild(box); document.body.appendChild(ov);
+    const nombres = box.querySelectorAll('.vdN'), motivos = box.querySelectorAll('.vdM');
+    lista.forEach((x, i) => { nombres[i].textContent = String(x.cliente || 'Cliente'); if (x.motivo) motivos[i].textContent = ' — ' + x.motivo; });
+    box.querySelector('#vdCerrar').onclick = () => ov.remove();
+    box.querySelector('#vdReint').onclick = () => { ov.remove(); _vdReintentarPend(true); };
+    box.querySelectorAll('.vdQuitar').forEach(btn => btn.onclick = () => {
+        const x = lista[+btn.dataset.i]; ov.remove();
+        _confirmModal('¿Quitar este abono de la lista?\n\nUsalo solo si ya figura en Fiados o si no querés que se registre.', () => { _vdPendQuitar(x.idOperacion); _vdPillRefrescar(); });
+    });
+}
+
+// Reintenta lo guardado como pendiente (mismo idOperacion). manual=true → avisa el resultado con cartel grande.
+async function _vdReintentarPend(manual) {
+    if (_vdReintentando || _vdAplicando > 0) { if (manual) mostrarToast('⏳ Ya se está aplicando un abono…', 'naranja'); return; }
+    const lista = _vdPendReintentables();
+    if (!lista.length) { if (manual) mostrarToast('No hay abonos pendientes para reintentar', ''); _vdPillRefrescar(); return; }
+    _vdReintentando = true;
+    let ok = 0, rech = 0, sigue = 0, montoOk = 0, ultimoCli = '';
+    const tIni = Date.now();
+    try {
+        for (let k = 0; k < lista.length; k++) {
+            const e = lista[k]; let resuelto = false;
+            _vdPill('⏳ Reintentando abono ' + (k + 1) + ' de ' + lista.length + '…', '#e65100');
+            for (let n = 0; n < _VD_ESPERAS_MS.length && !resuelto; n++) {
+                if (n > 0) { const esp = _VD_ESPERAS_MS[Math.min(n, _VD_ESPERAS_MS.length - 1)]; if (Date.now() - tIni + esp >= _VD_TOPE_MS) break; await _vdSleep(esp); }
+                else if (Date.now() - tIni >= _VD_TOPE_MS) break;
+                const x = await _vdEnviarAbono(e.idFiado, e.monto, e.metodo, e.idOperacion);
+                if (x.tipo === 'ok') {
+                    resuelto = true; ok++; montoOk += e.monto; ultimoCli = e.cliente; _vdPendQuitar(e.idOperacion);
+                    const ref = window._vdResPorOp[e.idOperacion];   // si el ticket de esa venta sigue en pantalla, se completa
+                    if (ref) { const r0 = ref.res; r0.aplicado += e.monto; r0.detalle.push({ ticket: ref.a.ticket, idFiado: ref.a.idFiado, monto: ref.a.monto, saldo: ref.a.saldo, fecha: ref.a.fecha }); r0.pendientes = (r0.pendientes || []).filter(z => z !== ref.a); r0.fallos = (r0.fallos || []).filter(z => z !== ref.a); r0.deudaRestante = Math.max(0, (r0.deudaAnterior || 0) - r0.aplicado); delete window._vdResPorOp[e.idOperacion]; }
+                } else if (x.tipo === 'rechazado') {
+                    resuelto = true; rech++; _vdPendSet({ idOperacion: e.idOperacion, estado: 'rechazado', motivo: (x.r && x.r.mensaje) || 'la planilla no lo aceptó' });
+                    if (manual) _dcModalAviso('⛔ Abono rechazado', 'La planilla no aceptó el abono de ' + _fiadoFmt(e.monto) + ' a la deuda de ' + e.cliente + ': ' + ((x.r && x.r.mensaje) || 'sin detalle') + '. No se registró. Revisá la deuda en Fiados.', '#c62828');
+                }
+            }
+            if (!resuelto) { sigue++; _vdPendSet({ idOperacion: e.idOperacion, intentos: (e.intentos || 0) + 1 }); }
+        }
+    } finally { _vdReintentando = false; }
+    _vdPillRefrescar();
+    if (ok > 0) {
+        if (manual) _dcModalAviso('✅ Abono confirmado', _fiadoFmt(montoOk) + ' descontados de la deuda de ' + ultimoCli + (sigue ? '. Quedan ' + sigue + ' pendientes.' : '.'), '#2e7d32');
+        else { _vdPill('✅ Abono a deuda confirmado: ' + _fiadoFmt(montoOk), '#2e7d32'); setTimeout(_vdPillRefrescar, 5000); }
+    } else if (sigue > 0 && manual) {
+        _dcModalAviso('⏳ Sigue pendiente', 'La planilla todavía no confirmó ' + (sigue > 1 ? 'los abonos' : 'el abono') + '. Quedan guardados con su código de operación: podés volver a tocar «Reintentar abono» en un rato. No lo cargues a mano.', '#e65100');
+    }
+}
+
 // Aplica los abonos DESPUÉS de registrar la venta. Cada abono lleva idOperacion: si la planilla tarda o el
 // POS reintenta, abonarFiado responde "ya estaba registrado" y no descuenta de nuevo.
 async function _vdAplicar(snap, idVenta, vRef, tkProm) {
-    const res = { estado: 'aplicando', cliente: snap.cliente, aplicado: 0, fallos: [], deudaRestante: null, deudaAnterior: snap.deudaTotal, efectivo: snap.efectivo, hechos: 0, total: snap.asignaciones.length, detalle: [] };
+    const res = { estado: 'aplicando', cliente: snap.cliente, aplicado: 0, fallos: [], pendientes: [], rechazados: [], deudaRestante: null, deudaAnterior: snap.deudaTotal, efectivo: snap.efectivo, hechos: 0, total: snap.asignaciones.length, detalle: [] };
     vRef.vueltoDeuda = res; res.modo = snap.modo || '';
     // v539 — línea gris con el tiempo de cada abono (TEMPORAL, para entender la lentitud de la planilla)
     const _vdDbg = (t) => {
@@ -7305,41 +7432,55 @@ async function _vdAplicar(snap, idVenta, vRef, tkProm) {
         } catch (e) {}
     };
     try { const _o = document.getElementById('dbgAbonoVd'); if (_o) _o.remove(); } catch (e) {}
-    const _tIni = performance.now();
+    const _tIni = performance.now(), _t0 = Date.now();
+    _vdAplicando++;
     _vdDbg('Progreso · abonos a aplicar: ' + snap.asignaciones.length);
     _ticketBtnEstado('⏳ Aplicando abono a la deuda: 0 de ' + res.total + '…');
+    _vdPill('⏳ Abono a la deuda de ' + snap.cliente + ': 0 de ' + res.total + '…', '#e65100');
     try {
         for (const a of snap.asignaciones) {
             const idOp = 'vd_' + idVenta + '_' + a.idFiado;
-            let hecho = false, definitivo = false;
-            for (let n = 0; n < 3 && !hecho && !definitivo; n++) {
-                if (n) await new Promise(r => setTimeout(r, n * 4000));
-                try {
-                    const r = await _apiFetchUrl('abonarFiado', API_URL + '?action=abonarFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: a.idFiado, abono: a.monto, metodoPago: (snap.metodo || 'EFECTIVO'), idOperacion: idOp })) + '&t=' + Date.now());
-                    if (r && r.success === true) { hecho = true; res.aplicado += a.monto; res.detalle.push({ ticket: a.ticket, idFiado: a.idFiado, monto: a.monto, saldo: a.saldo, fecha: a.fecha }); }
-                    else { definitivo = true; _vdDbg('abono ' + (res.hechos + 1) + ' RECHAZADO: ' + ((r && r.mensaje) || 'sin mensaje')); } // la planilla contestó que no: no se reintenta
-                } catch (e) { _vdDbg('abono ' + (res.hechos + 1) + ' intento ' + (n + 1) + ': ' + (e && e.message || e)); /* sin respuesta: se reintenta con el MISMO idOperacion (seguro) */ }
+            let hecho = false, definitivo = false, motivo = '', intentos = 0;
+            for (let n = 0; !hecho && !definitivo; n++) {
+                if (n > 0) {
+                    const esp = _VD_ESPERAS_MS[Math.min(n, _VD_ESPERAS_MS.length - 1)];
+                    if (Date.now() - _t0 + esp >= _VD_TOPE_MS) break;          // no alcanza el tiempo: queda pendiente
+                    await _vdSleep(esp);
+                } else if (Date.now() - _t0 >= _VD_TOPE_MS) break;            // los abonos anteriores ya consumieron el tope
+                intentos++;
+                _vdPill('⏳ Abono a la deuda de ' + snap.cliente + ': ' + (res.hechos + 1) + ' de ' + res.total + (intentos > 1 ? ' · reintentando (' + intentos + ')' : '') + '…', '#e65100');
+                const x = await _vdEnviarAbono(a.idFiado, a.monto, snap.metodo, idOp);
+                if (x.tipo === 'ok') { hecho = true; res.aplicado += a.monto; res.detalle.push({ ticket: a.ticket, idFiado: a.idFiado, monto: a.monto, saldo: a.saldo, fecha: a.fecha }); }
+                else if (x.tipo === 'rechazado') { definitivo = true; motivo = (x.r && x.r.mensaje) || 'sin mensaje'; _vdDbg('abono ' + (res.hechos + 1) + ' RECHAZADO: ' + motivo); } // la planilla contestó que no: no se reintenta
+                else if (x.tipo === 'ocupado') { _vdDbg('abono ' + (res.hechos + 1) + ' intento ' + intentos + ': planilla ocupada (no se escribió nada) → se reintenta'); }
+                else { _vdDbg('abono ' + (res.hechos + 1) + ' intento ' + intentos + ': ' + (x.error && x.error.message || x.error) + ' → se reintenta con el MISMO idOperacion'); /* sin respuesta: puede haberse grabado; el idOperacion lo hace seguro */ }
             }
             res.hechos++;
             _ticketBtnEstado(res.hechos < res.total ? '⏳ Aplicando abono a la deuda: ' + res.hechos + ' de ' + res.total + '…' : '⏳ Terminando…');
-            _vdDbg('abono ' + res.hechos + '/' + res.total + (hecho ? ' OK' : ' SIN CONFIRMAR') + ' · ' + _fiadoFmt(a.monto) + ' · ' + Math.round((performance.now() - _tIni) / 1000) + ' s desde el inicio');
+            _vdDbg('abono ' + res.hechos + '/' + res.total + (hecho ? ' OK' : (definitivo ? ' RECHAZADO' : ' PENDIENTE')) + ' · ' + _fiadoFmt(a.monto) + ' · ' + intentos + ' intento(s) · ' + Math.round((performance.now() - _tIni) / 1000) + ' s desde el inicio');
             if (!hecho) {
                 res.fallos.push(a);
-                try {
-                    const arr = JSON.parse(localStorage.getItem('abonos_vuelto_sin_confirmar') || '[]');
-                    arr.push({ idOperacion: idOp, idFiado: a.idFiado, monto: a.monto, cliente: snap.cliente, ts: Date.now() });
-                    localStorage.setItem('abonos_vuelto_sin_confirmar', JSON.stringify(arr));
-                } catch (e) {}
+                const base = { idOperacion: idOp, idFiado: a.idFiado, monto: a.monto, metodo: (snap.metodo || 'EFECTIVO'), cliente: snap.cliente, ticket: a.ticket, saldo: a.saldo, fecha: a.fecha, ts: Date.now(), intentos: intentos };
+                if (definitivo) { res.rechazados.push({ a: a, motivo: motivo }); _vdPendSet(Object.assign(base, { estado: 'rechazado', motivo: motivo })); }
+                else { res.pendientes.push(a); window._vdResPorOp[idOp] = { res: res, a: a }; _vdPendSet(Object.assign(base, { estado: 'pendiente' })); }
             }
         }
         if (res.aplicado > 0) res.deudaRestante = Math.max(0, snap.deudaTotal - res.aplicado); // v539: cálculo local con el saldo consultado al elegir el cliente (evita otra consulta lenta)
     } catch (e) { console.warn('⚠️ _vdAplicar:', e); }
     try { await Promise.race([tkProm, new Promise(r => setTimeout(r, 15000))]); } catch (e) {} // v540: espera el N° de ticket hasta 15 s
     res.estado = 'listo';
+    _vdAplicando--;
     _ticketBtnEstado(null);
-    if (res.fallos.length) {
-        mostrarToast('⚠️ NO se pudo confirmar el abono de ' + _fiadoFmt(res.fallos.reduce((x, a) => x + a.monto, 0)) + ' a la deuda de ' + snap.cliente + '. Revisá en Fiados ANTES de repetirlo (si ya figura, no lo cargues otra vez).', 'naranja');
-    } else if (res.aplicado > 0) {
+    _vdPillRefrescar();
+    const montoDe = arr => _fiadoFmt(arr.reduce((x, a) => x + a.monto, 0));
+    if (res.rechazados.length) {
+        _dcModalAviso('⛔ Abono rechazado', 'La planilla no aceptó el abono de ' + _fiadoFmt(res.rechazados.reduce((x, r) => x + r.a.monto, 0)) + ' a la deuda de ' + snap.cliente + ': ' + res.rechazados[0].motivo + '. No se registró. Revisá la deuda en Fiados.', '#c62828');
+    }
+    if (res.pendientes.length) {
+        _dcModalAviso('⏳ Abono pendiente de confirmar', 'El abono de ' + montoDe(res.pendientes) + ' a la deuda de ' + snap.cliente + ' todavía no está confirmado en la planilla. NO lo cargues de nuevo: queda guardado y se reintenta solo en un par de minutos. También podés tocar «Reintentar abono» (cartelito naranja, abajo a la izquierda). Con el mismo código de operación no se descuenta dos veces.', '#e65100');
+        setTimeout(() => { try { _vdReintentarPend(false); } catch (e) {} }, _VD_AUTO_MS);
+    }
+    if (!res.fallos.length && res.aplicado > 0) {
         mostrarToast('✅ ' + _fiadoFmt(res.aplicado) + ' descontados de la deuda de ' + snap.cliente, 'verde');
     }
 }
@@ -7921,6 +8062,10 @@ function enviarTicketWA() {
     if (v.vueltoDeuda) {
         var vdd = v.vueltoDeuda;
         if (vdd.estado !== 'listo') { mostrarToast('⏳ Aplicando el abono a la deuda: ' + (vdd.hechos || 0) + ' de ' + (vdd.total || '?') + ' fiados listos… tocá de nuevo en unos segundos', 'naranja'); return; }
+        if (vdd.pendientes && vdd.pendientes.length && !vdd._ticketSinAbono) { // v560: abono pendiente de confirmar → se pregunta; el ticket nunca queda trabado
+            _confirmModal('⏳ Hay un abono a la deuda PENDIENTE de confirmar.\n\nSi enviás el ticket ahora saldrá SIN ese abono (la deuda figurará sin descontar). Podés esperar la confirmación o tocar «Reintentar abono».\n\n¿Enviar el ticket igual?', () => { vdd._ticketSinAbono = true; enviarTicketWA(); });
+            return;
+        }
         if (vdd.aplicado > 0) {
             var _detVd = (vdd.detalle || []).map(function(d) {
                 var resta = Math.max(0, Math.round((d.saldo || 0) - d.monto));
@@ -11983,6 +12128,8 @@ setTimeout(_autoConfirmarPendientes, 8000);
 setTimeout(() => _salColaProcesar(), 10000);   // v511: salidas por confirmar
 setInterval(() => _salColaProcesar(), 600000);
 window.addEventListener('online', () => { _salFallos = 0; _salColaProcesar(); });
+window.addEventListener('online', () => { try { setTimeout(() => _vdReintentarPend(false), 4000); } catch (e) {} }); // v560: abonos a deuda pendientes
+document.addEventListener('DOMContentLoaded', function () { try { _vdPillRefrescar(); setTimeout(() => _vdReintentarPend(false), 20000); } catch (e) {} }); // v560
 setInterval(_autoConfirmarPendientes, 600000);
 // setTimeout(() => { _reenviarVentasPendientes(); _actualizarBadgePendientes(); }, 5000);
 // ========== SISTEMA DE CLIENTES ==========
@@ -16244,6 +16391,7 @@ function abrirCobrarSeleccionados() {
     const cliente = seleccionados[0].cliente;
     const mismoCliente = seleccionados.every(f => f.cliente === cliente);
     _metodoCobroPendiente = 'EFECTIVO';
+    window._idOpCobroPend = 'cp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8); // v560: mismo código en todos los reintentos de ESTE cobro
     selMetodoCobrarFiado('EFECTIVO');
     document.getElementById('cobrarFiadoInfo').innerHTML =
         `<strong>${mismoCliente ? cliente : seleccionados.length + ' clientes'}</strong><br>` +
@@ -16269,9 +16417,14 @@ async function confirmarCobroPendiente() {
     try {
         const fechaPago = new Date().toISOString().split('T')[0];
         for (const fiad of seleccionados) {
-            const datos = { idFiado: fiad.idFiado, metodoPago: _metodoCobroPendiente, fechaPago };
+            const datos = { idFiado: fiad.idFiado, metodoPago: _metodoCobroPendiente, fechaPago, idOperacion: window._idOpCobroPend || ('cp_' + Date.now()) }; // v560: idOperacion
             const resp = await _apiFetch('cobrarFiado', datos);
-            if (!resp.success) throw new Error('Error en ' + fiad.idFiado + ': ' + (resp.mensaje || 'Error'));
+            if (!resp.success) {
+                // v560: "ocupado" y "ya estaba pagado" se explican tal cual (no es una falla de red ni un error genérico)
+                if (resp.ocupado) throw new Error('⏳ La planilla está ocupada: no se registró nada. Tocá Confirmar de nuevo (no se cobra dos veces).');
+                if (resp.yaPagado) throw new Error(resp.mensaje || 'Este fiado ya estaba pagado — no se registró de nuevo');
+                throw new Error('Error en ' + fiad.idFiado + ': ' + (resp.mensaje || 'Error'));
+            }
         }
         document.getElementById('modalCobrarFiado').style.display = 'none';
         if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmar pago'; }
