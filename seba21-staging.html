@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v562</title>
+    <title>🛒 POS · Copihue v563</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3921,6 +3921,7 @@
                 <div id="dcLista" style="margin-top:6px;"></div>
                 <div id="dcResumen" style="font-size:0.85rem;font-weight:700;color:#e65100;margin-top:6px;"></div>
                 <button type="button" id="dcSumarBtn" onclick="_dcSumar()" style="display:none;width:100%;margin-top:8px;padding:11px;border:none;border-radius:10px;background:#e65100;color:white;font-weight:800;font-size:0.9rem;cursor:pointer;">➕ Sumar al cobro</button>
+                <button type="button" id="dcCerrarBtn" onclick="_dcQuitar()" style="width:100%;margin-top:8px;padding:10px;border:1.5px solid #bbb;border-radius:10px;background:#fff;color:#555;font-weight:700;font-size:0.9rem;cursor:pointer;">✕ Cerrar y no cobrar deuda</button>
             </div>
             <div id="dcBloque" style="display:none;margin:8px 20px 0;padding:10px 12px;border:2px solid #e65100;border-radius:12px;background:#fff3e0;"></div>
         </div>
@@ -6924,8 +6925,17 @@ function _vdMetodoMostrar(mostrar) {
 // ══════════════════════════════════════════════════════════════
 let _dc = null; // { cliente, telefono, fiados:[{idFiado,ticket,saldo,desc,ts,monto}], activo:boolean }
 function _dcMonto() { return (_dc && _dc.activo) ? _dc.fiados.reduce((a, f) => a + f.monto, 0) : 0; }
+// v563 — el mixto cuenta como abierto solo si su panel se ve. Si la variable dice «activo» pero el panel está oculto
+// (estado fantasma restaurado de un mixto guardado), se limpia en vez de bloquear la tarjeta de deuda.
+function _pmAbiertoReal() {
+    if (!_pagoMixtoActivo) return false;
+    const pm = document.getElementById('panelPagoMixto');
+    if (pm && pm.style.display === 'block') return true;
+    try { _pmLimpiarTodo(); } catch (e) { _pagoMixtoActivo = false; }
+    return false;
+}
 function _dcToggle() {
-    if (_pagoMixtoActivo) { mostrarToast('⚠️ Cerrá el pago mixto para sumar una deuda (el mixto ya permite aplicar el vuelto a la deuda).', 'naranja'); return; }
+    if (_pmAbiertoReal()) { mostrarToast('⚠️ Cerrá el pago mixto para sumar una deuda (el mixto ya permite aplicar el vuelto a la deuda).', 'naranja'); return; }
     const pn = document.getElementById('dcPanel'); if (!pn) return;
     const abrir = pn.style.display === 'none';
     pn.style.display = abrir ? 'block' : 'none';
@@ -7026,7 +7036,7 @@ function _dcRenderResumen() {
     b.textContent = '➕ Sumar ' + _fiadoFmt(ap) + ' al cobro';
 }
 function _dcSumar() {
-    if (_pagoMixtoActivo) { _dcModalAviso('⛔ Pago mixto abierto', 'No se puede sumar la deuda con el pago mixto abierto: usá «Aplicar vuelto a deuda» o cerrá el pago mixto.', '#c62828'); return; }   // v562
+    if (_pmAbiertoReal()) { _dcModalAviso('⛔ Pago mixto abierto', 'No se puede sumar la deuda con el pago mixto abierto: usá «Aplicar vuelto a deuda» o cerrá el pago mixto.', '#c62828'); return; }   // v562
     if (!_dc || _dc.fiados.reduce((a, f) => a + f.monto, 0) <= 0) return;
     _dc.activo = true;
     document.getElementById('dcPanel').style.display = 'none';
