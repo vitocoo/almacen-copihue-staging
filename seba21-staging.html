@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v564</title>
+    <title>🛒 POS · Copihue v565</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -8084,7 +8084,13 @@ function enviarTicketWA() {
             // v564 — «Vuelto: $X» a secas se leía como plata devuelta en mano: si el vuelto fue a la deuda, el renglón lo dice.
             if (vdd.modo !== 'cobro' && v.detallePagos && v.detallePagos.vueltoARS > 0) {
                 var _lineaVuelto = '\nVuelto: $' + v.detallePagos.vueltoARS.toLocaleString('es-AR');
-                if (metodoLabel.indexOf(_lineaVuelto) >= 0) metodoLabel = metodoLabel.replace(_lineaVuelto, function() { return '\nVuelto aplicado a la deuda: ' + _fiadoFmt(vdd.aplicado); });
+                var _dp1 = v.detallePagos.pagos;
+                if (_dp1 && _dp1.length === 1) {   // v565 — un solo pago: el ticket no decía cuánto pagó; ahora «• Efectivo: $10.000» + el vuelto aplicado
+                    var _p1 = _dp1[0], _n1 = ({ EFECTIVO:'Efectivo', TARJETA:'Tarjeta', TRANSFERENCIA:'Transferencia', FIADO:'Fiado' })[_p1.metodo] || _p1.metodo;
+                    if (_p1.moneda && _p1.moneda !== 'ARS') _n1 += ' ' + _p1.moneda;
+                    var _m1 = (!_p1.moneda || _p1.moneda === 'ARS') ? '$' + Number(_p1.recibido).toLocaleString('es-AR') : _p1.recibido + ' ' + _p1.moneda + ' (≈$' + Number(_p1.equivalenteARS).toLocaleString('es-AR') + ')';
+                    metodoLabel = '• ' + _n1 + ': ' + _m1 + '\nVuelto aplicado a la deuda: ' + _fiadoFmt(vdd.aplicado);
+                } else if (metodoLabel.indexOf(_lineaVuelto) >= 0) metodoLabel = metodoLabel.replace(_lineaVuelto, function() { return '\nVuelto aplicado a la deuda: ' + _fiadoFmt(vdd.aplicado); });
             }
             var _detVd = (vdd.detalle || []).map(function(d) {
                 var resta = Math.max(0, Math.round((d.saldo || 0) - d.monto));
