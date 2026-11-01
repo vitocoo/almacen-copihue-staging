@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v551</title>
+    <title>🛒 POS · Copihue v552</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14281,6 +14281,20 @@ var _lcProveedorActivo = null;   // proveedor filtrado actualmente
 var _lcChipsAbiertos = false;    // v549: chips de proveedores desplegados (sin proveedor activo)
 var _lcSeleccionados = new Set(); // nombres seleccionados para el pedido
 
+// v552 — cantidad a pedir editable a mano (solo en esta sesión de la lista; NO toca la planilla ni el algoritmo)
+function _lcCant(it) { return (it.cantidadManual != null) ? it.cantidadManual : it.cantidad; }
+function lcSetCantidad(idx, val) {
+  var it = _lcItems[idx];
+  if (!it) return;
+  var n = parseFloat(String(val).replace(',', '.'));
+  if (!(n > 0)) n = it.cantidad;                       // inválido o 0: vuelve al calculado
+  it.cantidadManual = (n === it.cantidad) ? null : n;
+  var cuerpo = document.getElementById('lcCuerpo');
+  var y = cuerpo ? cuerpo.scrollTop : 0;
+  lcRenderizar(_lcFiltroActivo);
+  if (cuerpo) cuerpo.scrollTop = y;
+}
+
 async function abrirListaCompra() {
   document.getElementById('modalListaCompra').style.display = 'block';
   document.getElementById('lcSubtitulo').textContent = 'Cargando desde Sheets...';
@@ -14455,7 +14469,7 @@ function lcEnviarPedidoWA() {
   var lineas = [];
   _lcSeleccionados.forEach(function(nombre) {
     var it = _lcItems.find(function(i){ return i.nombre === nombre; });
-    if (it) lineas.push('• ' + it.nombre + ' — ' + it.cantidad + ' u.');
+    if (it) lineas.push('• ' + it.nombre + ' — ' + _lcCant(it) + ' u.');
   });
   lineas.sort();
   var prov = _lcProveedorActivo || '';
@@ -14552,9 +14566,12 @@ function lcRenderizar(filtro) {
       +   btnPausarHtml   // v550: también dentro de un proveedor
       + '</div>'
       + '<div style="text-align:right;min-width:80px;">'
-      +   '<div style="font-size:1rem;font-weight:900;color:#e65100;">x' + it.cantidad + '</div>'
+      +   '<div style="display:flex;align-items:center;justify-content:flex-end;gap:2px;font-weight:900;color:#e65100;">x'
+        +   '<input type="number" inputmode="decimal" min="0" step="any" value="' + _lcCant(it) + '" onchange="lcSetCantidad(' + _lcItems.indexOf(it) + ', this.value)" '
+        +   'style="width:52px;text-align:center;font-size:1rem;font-weight:900;color:#e65100;border:1.5px solid ' + (it.cantidadManual != null ? '#1565c0' : '#ffcc80') + ';border-radius:8px;padding:2px 0;background:white;"></div>'
+        + (it.cantidadManual != null ? '<div style="font-size:0.58rem;color:#1565c0;font-weight:700;">✏️ a mano (calc. ' + it.cantidad + ')</div>' : '')
       +   (it.costo > 0
-            ? '<div style="font-size:0.72rem;font-weight:700;color:#2e7d32;">💰 $' + Math.round(it.costo * it.cantidad).toLocaleString('es-AR') + '</div>'
+            ? '<div style="font-size:0.72rem;font-weight:700;color:#2e7d32;">💰 $' + Math.round(it.costo * _lcCant(it)).toLocaleString('es-AR') + '</div>'
               + '<div style="font-size:0.6rem;color:#aaa;">costo · $' + it.costo.toLocaleString('es-AR') + 'c/u</div>'
             : '<div style="font-size:0.7rem;color:#e53935;">Sin precio costo</div>'
               + '<div style="font-size:0.6rem;color:#aaa;">ref. venta: $' + it.precio.toLocaleString('es-AR') + '</div>'
@@ -14647,14 +14664,14 @@ function lcCopiarTexto() {
     var g = it.urgencia <= 2 ? '⚠️ URGENTES' : '📋 NORMAL';
     if (!grupos[g]) grupos[g] = [];
     var costoTxt = it.costo > 0
-      ? ' — $' + Math.round(it.costo * it.cantidad).toLocaleString('es-AR')
+      ? ' — $' + Math.round(it.costo * _lcCant(it)).toLocaleString('es-AR')
       : '';
-    grupos[g].push('• ' + it.nombre + ' x' + it.cantidad
+    grupos[g].push('• ' + it.nombre + ' x' + _lcCant(it)
       + (it.proveedor ? ' (' + it.proveedor + ')' : '')
       + costoTxt);
   });
 
-  var totalCosto = _lcItems.reduce(function(s,it){ return s + (it.costo > 0 ? it.costo * it.cantidad : 0); }, 0);
+  var totalCosto = _lcItems.reduce(function(s,it){ return s + (it.costo > 0 ? it.costo * _lcCant(it) : 0); }, 0);
   var sinCosto   = _lcItems.filter(function(it){ return it.costo <= 0; }).length;
 
   Object.keys(grupos).forEach(function(g) {
@@ -14689,8 +14706,8 @@ function lcCompartirWA() {
   if (urgentes.length) {
     texto += '⚠️ *URGENTES*\n';
     urgentes.forEach(function(it){
-      var costoTxt = it.costo > 0 ? ' — $' + Math.round(it.costo * it.cantidad).toLocaleString('es-AR') : '';
-      texto += '• ' + it.nombre + ' — pedir x' + it.cantidad + costoTxt + '\n';
+      var costoTxt = it.costo > 0 ? ' — $' + Math.round(it.costo * _lcCant(it)).toLocaleString('es-AR') : '';
+      texto += '• ' + it.nombre + ' — pedir x' + _lcCant(it) + costoTxt + '\n';
     });
     texto += '\n';
   }
@@ -14698,13 +14715,13 @@ function lcCompartirWA() {
   if (normales.length) {
     texto += '📋 *NORMAL*\n';
     normales.forEach(function(it){
-      var costoTxt = it.costo > 0 ? ' — $' + Math.round(it.costo * it.cantidad).toLocaleString('es-AR') : '';
-      texto += '• ' + it.nombre + ' — pedir x' + it.cantidad + costoTxt + '\n';
+      var costoTxt = it.costo > 0 ? ' — $' + Math.round(it.costo * _lcCant(it)).toLocaleString('es-AR') : '';
+      texto += '• ' + it.nombre + ' — pedir x' + _lcCant(it) + costoTxt + '\n';
     });
     texto += '\n';
   }
 
-  var totalCosto = _lcItems.reduce(function(s,it){ return s + (it.costo > 0 ? it.costo * it.cantidad : 0); }, 0);
+  var totalCosto = _lcItems.reduce(function(s,it){ return s + (it.costo > 0 ? it.costo * _lcCant(it) : 0); }, 0);
   var sinCosto   = _lcItems.filter(function(it){ return it.costo <= 0; }).length;
   texto += '💰 *Total estimado: $' + Math.round(totalCosto).toLocaleString('es-AR') + '*';
   if (sinCosto > 0) texto += ' _(' + sinCosto + ' sin precio costo)_';
