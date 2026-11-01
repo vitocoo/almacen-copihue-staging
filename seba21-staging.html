@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v565</title>
+    <title>🛒 POS · Copihue v566</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -5901,15 +5901,27 @@ function _patchFilaVenta(id) {
 
 // ========== CONFIRMACIÓN Y COBRO ==========
 let _redondeoActivo = false; // siempre manual, cualquier medio de pago
+let _redondeoModo = '';      // v566 — '' | 'dec' (decenas, hasta −$9) | 'cen' (centenas, hasta −$99, el de siempre) | 'esp' (cliente especial, hasta 6%)
+const _RED_ESP_PCT = 6;      // v566 — tope del redondeo especial: máximo 6% del total (siempre a mano)
 
-function calcularRedondeo(total) {
-    const redondeado = Math.floor(total / 100) * 100;
-    return redondeado < total ? redondeado : total;
+// v566 — total redondeado según el modo (siempre hacia abajo; nunca sube el total)
+function _redondeoCalc(total, modo) {
+    if (modo === 'dec') { const r = Math.floor(total / 10) * 10; return r < total ? r : total; }
+    if (modo === 'cen') { const r = Math.floor(total / 100) * 100; return r < total ? r : total; }
+    if (modo === 'esp') {   // el número más redondo (múltiplo de 10.000, luego 1.000, luego 100) sin pasar el tope
+        for (const paso of [10000, 1000, 100]) {
+            const r = Math.floor(total / paso) * paso;
+            if (r < total && (total - r) * 100 <= total * _RED_ESP_PCT) return r;
+        }
+    }
+    return total;
 }
+function calcularRedondeo(total) { return _redondeoCalc(total, _redondeoModo || 'cen'); }
+function _redondeoElegir(modo) { _redondeoModo = modo || ''; _redondeoActivo = !!_redondeoModo; actualizarTotalConRedondeo(); }
 
 function actualizarTotalConRedondeo() {
     const total = _totalCarritoConDescuentosGrupales();
-    const totalMostrar = _redondeoActivo ? calcularRedondeo(total) : total;
+    const totalMostrar = _redondeoModo ? _redondeoCalc(total, _redondeoModo) : (_redondeoActivo ? calcularRedondeo(total) : total);   // v566: _redondeoActivo solo queda por compatibilidad
     const descuento = total - totalMostrar;
 
     // Reconstruir solo la fila de total + redondeo
@@ -5926,22 +5938,32 @@ function actualizarTotalConRedondeo() {
         const descRow = document.createElement('div');
         descRow.className = 'confirm-item redondeo-row';
         descRow.style.cssText = 'color:#2e7d32;font-size:0.85rem;';
-        descRow.innerHTML = `<span>↓ Redondeo</span><span style="font-weight:700;">−$${descuento.toLocaleString('es-AR')}</span>`;
+        descRow.innerHTML = `<span>↓ Redondeo${_redondeoModo === 'esp' ? ' especial' : ''}</span><span style="font-weight:700;">−$${descuento.toLocaleString('es-AR')}</span>`;
         confirmDetalle.insertBefore(descRow, totalRow);
 
         // Botón para cancelar redondeo
         const cancelRow = document.createElement('div');
         cancelRow.className = 'redondeo-row';
         cancelRow.style.cssText = 'text-align:center;padding:2px 0 6px;';
-        cancelRow.innerHTML = `<button onclick="_redondeoActivo=false;actualizarTotalConRedondeo()" style="background:none;border:none;color:#999;font-size:0.72rem;cursor:pointer;text-decoration:underline;">quitar redondeo</button>`;
+        cancelRow.innerHTML = `<button onclick="_redondeoElegir('')" style="background:none;border:none;color:#999;font-size:0.72rem;cursor:pointer;text-decoration:underline;">quitar redondeo</button>`;
         confirmDetalle.insertBefore(cancelRow, totalRow);
-    } else if (!_redondeoActivo && total % 100 !== 0) {
-        // Ofrecer activar redondeo — siempre, sin importar el medio de pago
-        const activarRow = document.createElement('div');
-        activarRow.className = 'redondeo-row';
-        activarRow.style.cssText = 'text-align:center;padding:2px 0 6px;';
-        activarRow.innerHTML = `<button onclick="_redondeoActivo=true;actualizarTotalConRedondeo()" style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:20px;color:#2e7d32;font-size:0.72rem;font-weight:700;padding:3px 12px;cursor:pointer;">↓ Aplicar redondeo −$${(total - calcularRedondeo(total)).toLocaleString('es-AR')}</button>`;
-        confirmDetalle.insertBefore(activarRow, totalRow);
+    } else {
+        // v566 — ofrecer los redondeos que de verdad bajan algo (siempre manual, cualquier medio de pago)
+        if (_redondeoModo || _redondeoActivo) { _redondeoModo = ''; _redondeoActivo = false; }   // el total cambió y ya no hay nada que redondear en ese modo
+        const dDec = total - _redondeoCalc(total, 'dec'), dCen = total - _redondeoCalc(total, 'cen'), dEsp = total - _redondeoCalc(total, 'esp');
+        const f = n => n.toLocaleString('es-AR');
+        const chips = [];
+        const chip = (modo, txt, estilo) => `<button onclick="_redondeoElegir('${modo}')" style="${estilo}border-radius:20px;font-size:0.72rem;font-weight:700;padding:3px 12px;cursor:pointer;margin:2px 3px;">${txt}</button>`;
+        if (dDec > 0) chips.push(chip('dec', '↓ Decenas −$' + f(dDec), 'background:#e8f5e9;border:1px solid #a5d6a7;color:#2e7d32;'));
+        if (dCen > 0 && dCen !== dDec) chips.push(chip('cen', '↓ Centenas −$' + f(dCen), 'background:#e8f5e9;border:1px solid #a5d6a7;color:#2e7d32;'));
+        if (dEsp > 0 && dEsp !== dCen && dEsp !== dDec) chips.push(chip('esp', '⭐ Especial −$' + f(dEsp) + ' (máx. ' + _RED_ESP_PCT + '%)', 'background:#f3e5f5;border:1px solid #ce93d8;color:#6a1b9a;'));
+        if (chips.length) {
+            const activarRow = document.createElement('div');
+            activarRow.className = 'redondeo-row';
+            activarRow.style.cssText = 'text-align:center;padding:2px 0 6px;';
+            activarRow.innerHTML = chips.join('');
+            confirmDetalle.insertBefore(activarRow, totalRow);
+        }
     }
 
     // Actualizar total mostrado
@@ -6424,7 +6446,7 @@ function abrirConfirmacion() {
     document.getElementById('btnOkConfirm').textContent = '✅ Confirmar cobro';
 
     // Redondeo siempre manual — no se activa automáticamente
-    _redondeoActivo = false;
+    _redondeoActivo = false; _redondeoModo = '';   // v566
     window._totalConRedondeo = total;
     window._descuentoRedondeo = 0;
 
