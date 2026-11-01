@@ -185,8 +185,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
     <div style="font-size:.78rem;font-weight:700;color:var(--gris);margin-bottom:8px">Método de pago</div>
     <div class="metodos">
       <button class="btn-met activo" id="mEf" onclick="selMet('EFECTIVO')">💵<br>Efectivo</button>
-      <button class="btn-met" id="mQR" onclick="selMet('QR')">📱<br>QR</button>
-      <button class="btn-met" id="mTr" onclick="selMet('TRANSFERENCIA')">🏦<br>Transf.</button>
+      <button class="btn-met" id="mPos" onclick="selMet('POSNET')">💳<br>Posnet<br><span style="font-size:.6rem;font-weight:400;color:var(--gris)">Mercado Pago</span></button>
+      <button class="btn-met" id="mTr" onclick="selMet('TRANSFERENCIA')">🏦<br>Transf.<br><span style="font-size:.6rem;font-weight:400;color:var(--gris)">Brubank</span></button>
     </div>
     <div class="monto-wrap">
       <div class="monto-lbl">Monto a cobrar</div>
@@ -238,7 +238,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 <div id="toast"></div>
 
 <script>
-const APP_VERSION=43;
+const APP_VERSION=44;
 const API_URL='https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 
 // ── Estado ─────────────────────────────────────────
@@ -779,7 +779,7 @@ function cerrarCob(){document.getElementById('modalCob').classList.remove('open'
 function selMet(m){
   _met=m;
   document.getElementById('mEf').classList.toggle('activo',m==='EFECTIVO');
-  document.getElementById('mQR').classList.toggle('activo',m==='QR');
+  document.getElementById('mPos').classList.toggle('activo',m==='POSNET');
   document.getElementById('mTr').classList.toggle('activo',m==='TRANSFERENCIA');
 }
 

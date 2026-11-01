@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v545</title>
+    <title>🛒 POS · Copihue v548</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3859,6 +3859,14 @@
                     <div id="pmVdMsg" style="font-size:0.8rem;color:#666;margin-top:6px;"></div>
                     <div id="pmVdLista" style="margin-top:6px;"></div>
                     <div id="pmVdResumen" style="font-size:0.85rem;font-weight:700;color:#e65100;margin-top:6px;"></div>
+                    <div id="pmVdMetodoBox" style="display:none;margin-top:8px;">
+                        <div style="font-size:0.75rem;font-weight:700;color:#8d6e63;margin-bottom:4px;">El abono entra por:</div>
+                        <div style="display:flex;gap:6px;">
+                            <button type="button" id="pmVdM_EFECTIVO" onclick="_vdSelMetodo('EFECTIVO')" style="flex:1;padding:8px 4px;border:2px solid #ddd;border-radius:10px;background:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;">💵 Efectivo</button>
+                            <button type="button" id="pmVdM_POSNET" onclick="_vdSelMetodo('POSNET')" style="flex:1;padding:8px 4px;border:2px solid #ddd;border-radius:10px;background:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;">💳 Posnet<br><span style="font-size:0.6rem;font-weight:400;color:#777;">Mercado Pago</span></button>
+                            <button type="button" id="pmVdM_TRANSFERENCIA" onclick="_vdSelMetodo('TRANSFERENCIA')" style="flex:1;padding:8px 4px;border:2px solid #ddd;border-radius:10px;background:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;">🏦 Transf.<br><span style="font-size:0.6rem;font-weight:400;color:#777;">Brubank</span></button>
+                        </div>
+                    </div>
                     <button type="button" onclick="_vdReset(true)" style="margin-top:8px;padding:6px 10px;border:1px solid #bbb;background:#fff;color:#555;border-radius:8px;font-size:0.8rem;cursor:pointer;">✕ No aplicar a deuda</button>
                 </div>
             </div>
@@ -6856,6 +6864,29 @@ function _pmActualizarEstadoMedio(idx) {
 // desde el fiado más viejo; se puede editar. Lo que sobre del vuelto se devuelve en efectivo.
 // ══════════════════════════════════════════════════════════════════════════
 let _vd = null; // { cliente, telefono, fiados:[{idFiado,ticket,saldo,desc,ts,monto}] }
+// v547 — método con el que ENTRA el abono a la deuda (antes siempre EFECTIVO). La caja se separa por cuenta:
+// Efectivo / Posnet (Mercado Pago) / Transferencia (Brubank). Sugerido según el pago mixto; se puede cambiar.
+let _vdMetodo = 'EFECTIVO';
+function _vdSelMetodo(m) {
+    _vdMetodo = m;
+    ['EFECTIVO', 'POSNET', 'TRANSFERENCIA'].forEach(k => {
+        const b = document.getElementById('pmVdM_' + k);
+        if (b) { b.style.borderColor = k === m ? '#e65100' : '#ddd'; b.style.background = k === m ? '#fff3e0' : '#fff'; }
+    });
+}
+function _vdMetodoSugerido() {
+    const ls = (typeof _pagosMixtos !== 'undefined' && Array.isArray(_pagosMixtos)) ? _pagosMixtos : [];
+    if (ls.some(p => p.metodo === 'EFECTIVO' && p.moneda === 'ARS')) return 'EFECTIVO';
+    const pr = ls.filter(p => p.metodo !== 'FIADO').sort((a, b) => (b.equivalenteARS || 0) - (a.equivalenteARS || 0))[0];
+    if (pr && pr.metodo === 'TRANSFERENCIA') return 'TRANSFERENCIA';
+    if (pr && pr.metodo === 'TARJETA') return 'POSNET';
+    return 'EFECTIVO';
+}
+function _vdMetodoMostrar(mostrar) {
+    const box = document.getElementById('pmVdMetodoBox'); if (!box) return;
+    box.style.display = mostrar ? 'block' : 'none';
+    if (mostrar) _vdSelMetodo(_vdMetodoSugerido());
+}
 function _vdTs(f) {
     let m = /^f_(\d{13})_/.exec(String(f.idFiado || ''));
     if (m) return parseInt(m[1], 10);
@@ -6871,7 +6902,7 @@ function _vdVuelto() {
     return Math.max(0, Math.round(pagado - total));
 }
 function _vdReset(ocultarPanel) {
-    _vd = null;
+    _vd = null; _vdMetodo = 'EFECTIVO'; try { _vdMetodoMostrar(false); } catch (e) {}
     try {
         const l = document.getElementById('pmVdLista'); if (l) l.innerHTML = '';
         const r = document.getElementById('pmVdResumen'); if (r) r.textContent = '';
@@ -6942,9 +6973,9 @@ async function _vdElegir(nombre, telefono) {
             idFiado: String(f.idFiado), ticket: (f.ticket && String(f.ticket).trim()) ? String(f.ticket).trim() : '', saldo: Math.round(parseFloat(f.total) || 0),
             desc: String(f.descripcion || ''), ts: _vdTs(f), monto: 0 })) };
         msg.textContent = otros.length ? '⚠️ Este teléfono también tiene fiados a nombre de: ' + otros.join(', ') + '. Revisá antes de aplicar.' : '';
-        _vdRepartir(); _vdRender();
+        _vdRepartir(); _vdRender(); _vdMetodoMostrar(true);
     } catch (e) {
-        _vd = null;
+        _vd = null; _vdMetodoMostrar(false);
         msg.textContent = '⚠️ No se pudo consultar la deuda (' + (e && e.message || e) + '). No se aplica nada; el vuelto se devuelve en efectivo.';
     }
 }
@@ -7047,7 +7078,7 @@ async function _vdAplicar(snap, idVenta, vRef, tkProm) {
             for (let n = 0; n < 3 && !hecho && !definitivo; n++) {
                 if (n) await new Promise(r => setTimeout(r, n * 4000));
                 try {
-                    const r = await _apiFetchUrl('abonarFiado', API_URL + '?action=abonarFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: a.idFiado, abono: a.monto, metodoPago: 'EFECTIVO', idOperacion: idOp })) + '&t=' + Date.now());
+                    const r = await _apiFetchUrl('abonarFiado', API_URL + '?action=abonarFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: a.idFiado, abono: a.monto, metodoPago: (snap.metodo || 'EFECTIVO'), idOperacion: idOp })) + '&t=' + Date.now());
                     if (r && r.success === true) { hecho = true; res.aplicado += a.monto; res.detalle.push({ ticket: a.ticket, idFiado: a.idFiado, monto: a.monto, saldo: a.saldo, fecha: a.fecha }); }
                     else { definitivo = true; _vdDbg('abono ' + (res.hechos + 1) + ' RECHAZADO: ' + ((r && r.mensaje) || 'sin mensaje')); } // la planilla contestó que no: no se reintenta
                 } catch (e) { _vdDbg('abono ' + (res.hechos + 1) + ' intento ' + (n + 1) + ': ' + (e && e.message || e)); /* sin respuesta: se reintenta con el MISMO idOperacion (seguro) */ }
@@ -7146,7 +7177,7 @@ async function confirmarVentaMixta() {
         if (_vd && !pagoFiado && vueltoARS > 0) {
             const asign = _vd.fiados.filter(f => f.monto > 0).map(f => ({ idFiado: f.idFiado, monto: f.monto, ticket: f.ticket, saldo: f.saldo, fecha: f.ts ? new Date(f.ts).toLocaleDateString('es-AR') : '' }));
             const ap = asign.reduce((a, x) => a + x.monto, 0);
-            if (ap > 0 && ap <= vueltoARS) _vdSnap = { cliente: _vd.cliente, telefono: _vd.telefono, asignaciones: asign, aplicado: ap, efectivo: vueltoARS - ap, deudaTotal: _vd.fiados.reduce((a, f) => a + f.saldo, 0) };
+            if (ap > 0 && ap <= vueltoARS) _vdSnap = { cliente: _vd.cliente, telefono: _vd.telefono, asignaciones: asign, aplicado: ap, metodo: _vdMetodo, efectivo: vueltoARS - ap, deudaTotal: _vd.fiados.reduce((a, f) => a + f.saldo, 0) };
         }
         // Columna F (compatibilidad): un solo pago no-ARS usa su etiqueta,
         // más de uno usa "MIXTO" — la hoja Ventas sigue viendo texto legible
@@ -11687,7 +11718,16 @@ function buscarCliente(q) {
     q = q.trim();
     if (q.length < 2) { res.style.display = 'none'; nuevoPanel.style.display = 'none'; return; }
 
+    // v546: lista local de este celular + clientes de la planilla (los mismos que usa el cuadro de fiado).
+    // Sin repetir por teléfono; los de planilla sin teléfono válido se omiten (el ticket necesita WhatsApp).
     const clientes = getClientes();
+    const _vistos = new Set(clientes.map(c => String(c.telefono || '').replace(/\D/g, '')).filter(Boolean));
+    (Array.isArray(_fiadoClientesCache) ? _fiadoClientesCache : []).forEach(c => {
+        const tel = String(c.telefono || '').replace(/\D/g, '');
+        if (!c.nombre || tel.length < 6 || _vistos.has(tel)) return;
+        _vistos.add(tel);
+        clientes.push({ nombre: c.nombre, telefono: String(c.telefono).trim(), visitas: 0, gastoTotal: 0 });
+    });
     const qNorm = _normalizarBusqueda(q);
     const qTel  = q.replace(/\D/g, '');
     const terminos = qNorm.split(' ').filter(Boolean);
@@ -14773,29 +14813,9 @@ abrirNuevoProducto = function() {
 
       <!-- Producto seleccionado -->
       <div id="salidaProductoSelWrap" style="display:none;padding:12px 16px;border-bottom:1px solid #f0f0f0;">
-        <div style="background:#f5f5f5;border-radius:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-          <div style="display:flex;align-items:center;gap:10px;min-width:0;">
-            <div style="position:relative;flex-shrink:0;width:42px;height:42px;">
-              <img id="salidaFotoProd" src="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
-                   alt="" style="width:42px;height:42px;border-radius:8px;object-fit:cover;display:block;">
-              <div style="display:none;width:42px;height:42px;border-radius:8px;background:#e0e0e0;align-items:center;justify-content:center;font-size:1.1rem;">🛒</div>
-            </div>
-            <div style="min-width:0;">
-              <div id="salidaNombreProd" style="font-weight:700;font-size:0.9rem;color:#1a1a1a;"></div>
-              <div id="salidaInfoProd" style="font-size:0.72rem;color:#888;margin-top:2px;"></div>
-            </div>
-          </div>
-          <button onclick="salidaDeseleccionar()" style="background:none;border:none;color:#aaa;font-size:1.2rem;cursor:pointer;flex-shrink:0;">✕</button>
-        </div>
-
-        <!-- Cantidad -->
-        <div style="display:flex;align-items:center;gap:12px;margin-top:12px;">
-          <div style="font-size:0.8rem;font-weight:700;color:#555;">Cantidad:</div>
-          <button onclick="salidaCantidad(-1)" style="width:36px;height:36px;border-radius:50%;border:2px solid #ddd;background:white;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
-          <input id="salidaCantidad" type="number" min="1" value="1"
-            style="width:60px;text-align:center;padding:6px;border:2px solid #ddd;border-radius:10px;font-size:1rem;font-weight:700;">
-          <button onclick="salidaCantidad(1)" style="width:36px;height:36px;border-radius:50%;border:2px solid #ddd;background:white;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
-        </div>
+        <!-- v548: lista de productos a sacar (como el carrito) -->
+        <div style="font-size:0.8rem;font-weight:700;color:#555;margin-bottom:6px;">Productos a sacar: <span id="salidaCuenta"></span></div>
+        <div id="salidaLista" style="max-height:34vh;overflow-y:auto;"></div>
 
         <!-- Motivo -->
         <div style="margin-top:12px;">
@@ -14905,10 +14925,10 @@ abrirNuevoProducto = function() {
       <div style="display:flex;gap:8px;">
         <button onclick="selMetodoCobrarFiado('EFECTIVO')" id="cfMetEfectivo"
           style="flex:1;padding:10px;border:2px solid #ddd;border-radius:10px;background:white;cursor:pointer;font-size:0.85rem;">💵 Efectivo</button>
-        <button onclick="selMetodoCobrarFiado('QR')" id="cfMetQR"
-          style="flex:1;padding:10px;border:2px solid #ddd;border-radius:10px;background:white;cursor:pointer;font-size:0.85rem;">📱 QR</button>
+        <button onclick="selMetodoCobrarFiado('POSNET')" id="cfMetPosnet"
+          style="flex:1;padding:10px;border:2px solid #ddd;border-radius:10px;background:white;cursor:pointer;font-size:0.85rem;">💳 Posnet<br><span style="font-size:0.65rem;color:#777;">Mercado Pago</span></button>
         <button onclick="selMetodoCobrarFiado('TRANSFERENCIA')" id="cfMetTransf"
-          style="flex:1;padding:10px;border:2px solid #ddd;border-radius:10px;background:white;cursor:pointer;font-size:0.85rem;">🏦 Transf.</button>
+          style="flex:1;padding:10px;border:2px solid #ddd;border-radius:10px;background:white;cursor:pointer;font-size:0.85rem;">🏦 Transf.<br><span style="font-size:0.65rem;color:#777;">Brubank</span></button>
       </div>
     </div>
     <div style="display:flex;gap:10px;">
@@ -15889,8 +15909,8 @@ function abrirCobrarSeleccionados() {
 
 function selMetodoCobrarFiado(metodo) {
     _metodoCobroPendiente = metodo;
-    ['EFECTIVO','QR','TRANSFERENCIA'].forEach(m => {
-        const btn = document.getElementById('cfMet' + (m === 'EFECTIVO' ? 'Efectivo' : m === 'QR' ? 'QR' : 'Transf'));
+    ['EFECTIVO','POSNET','TRANSFERENCIA'].forEach(m => {
+        const btn = document.getElementById('cfMet' + (m === 'EFECTIVO' ? 'Efectivo' : m === 'POSNET' ? 'Posnet' : 'Transf'));
         if (btn) btn.style.border = m === metodo ? '2px solid #2e7d32' : '2px solid #ddd';
     });
 }
@@ -16009,7 +16029,7 @@ function _reenviarWAFiado(idFiado) {
 function _enviarWACobranzaFiado(f) {
     const tel = (f.telefono || '').replace(/\D/g, '');
     if (!tel || tel.length < 6) return;
-    const metodoEmoji = { EFECTIVO:'💵', QR:'📱', TRANSFERENCIA:'🏦' }[f.metodoPago||'EFECTIVO'] || '💵';
+    const metodoEmoji = { EFECTIVO:'💵', POSNET:'💳', QR:'📱', TRANSFERENCIA:'🏦' }[f.metodoPago||'EFECTIVO'] || '💵';
     const metodoTxt = (f.metodoPago||'Efectivo').charAt(0) + ((f.metodoPago||'Efectivo').slice(1).toLowerCase());
     const msg = [
         `✅ *PAGO DE FIADO — Almacén Copihue*`,
@@ -16219,7 +16239,9 @@ function abrirSalidaInterna() {
     document.getElementById('modalSalidaInterna').style.display = 'flex';
     document.getElementById('salidaBuscador').value = '';
     document.getElementById('salidaProductoSelWrap').style.display = 'none';
-    _salidaProducto = null;
+    _salidaProducto = null; _salidaItems = [];
+    document.getElementById('salidaObs').value = '';
+    document.querySelectorAll('.salida-motivo').forEach(b => { b.style.background = 'white'; b.style.borderColor = '#ddd'; b.style.color = '#333'; });
     _salidaMotivo   = null;
     _idOperacionSalidaActual = null; // sesión nueva del modal — id nuevo para la próxima salida
     _salidaHistorialCargado = false;
@@ -16249,7 +16271,7 @@ function cerrarSalidaInterna() {
     document.getElementById('salidaProductoSelWrap').style.display = 'none';
     document.getElementById('salidaHistorialWrap').style.display = 'none';
     document.getElementById('salidaHistorialFlecha').textContent = 'Tocá para ver ▾';
-    _salidaProducto = null;
+    _salidaProducto = null; _salidaItems = [];
     _salidaMotivo   = null;
     const btn = document.querySelector('#modalSalidaInterna button[onclick="confirmarSalidaInterna()"]');
     if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmar salida'; }
@@ -16298,41 +16320,65 @@ function salidaBuscar() {
     div.innerHTML = matches.map(p => _salidaFilaProducto(p)).join('');
 }
 
+// v548 — la salida es una LISTA de productos (como el carrito): un motivo y una observación para todos.
+var _salidaItems = [];   // [{p, cant, idOp}]
+
+function _salidaRender() {
+    const wrap = document.getElementById('salidaProductoSelWrap');
+    const lista = document.getElementById('salidaLista');
+    wrap.style.display = _salidaItems.length ? 'block' : 'none';
+    document.getElementById('salidaCuenta').textContent = _salidaItems.length ? '(' + _salidaItems.length + ')' : '';
+    lista.innerHTML = _salidaItems.map(it => `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:#f5f5f5;border-radius:10px;margin-bottom:6px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:0.85rem;color:#1a1a1a;">${it.p.name}</div>
+            <div style="font-size:0.7rem;color:#888;">Stock: ${it.p.stock}</div>
+          </div>
+          <button onclick="salidaCantItem(${it.p.id},-1)" style="width:30px;height:30px;border-radius:50%;border:2px solid #ddd;background:white;font-size:1.1rem;cursor:pointer;">−</button>
+          <input type="number" min="1" value="${it.cant}" onchange="salidaCantSet(${it.p.id},this.value)" class="salida-cant"
+            style="width:48px;text-align:center;padding:4px;border:2px solid #ddd;border-radius:8px;font-size:0.95rem;font-weight:700;">
+          <button onclick="salidaCantItem(${it.p.id},1)" style="width:30px;height:30px;border-radius:50%;border:2px solid #ddd;background:white;font-size:1.1rem;cursor:pointer;">+</button>
+          <button onclick="salidaQuitar(${it.p.id})" style="background:none;border:none;color:#e53935;font-size:1.1rem;cursor:pointer;">✕</button>
+        </div>`).join('');
+    const btn = document.querySelector('#modalSalidaInterna button[onclick="confirmarSalidaInterna()"]');
+    if (btn && !btn.disabled) btn.textContent = '✅ Confirmar salida' + (_salidaItems.length > 1 ? ' (' + _salidaItems.length + ' productos)' : '');
+}
+
 function salidaSeleccionar(id) {
-    _salidaProducto = productos.find(p => p.id === id);
-    if (!_salidaProducto) return;
-
-    document.getElementById('salidaBuscador').value = _salidaProducto.name;
-    document.getElementById('salidaResultados').innerHTML = '';
-    document.getElementById('salidaNombreProd').textContent = _salidaProducto.name;
-    const fotoEl = document.getElementById('salidaFotoProd');
-    fotoEl.style.display = '';
-    fotoEl.nextElementSibling.style.display = 'none';
-    fotoEl.src = _salidaProducto.image || '';
-    fotoEl.alt = _salidaProducto.name;
-    document.getElementById('salidaInfoProd').textContent =
-        'Stock: ' + _salidaProducto.stock + '  ·  $' + _salidaProducto.price.toLocaleString('es-AR');
-    document.getElementById('salidaCantidad').value = 1;
-    document.getElementById('salidaObs').value = '';
-    // Resetear motivos
-    document.querySelectorAll('.salida-motivo').forEach(b => {
-        b.style.background = 'white'; b.style.borderColor = '#ddd'; b.style.color = '#333';
-    });
-    _salidaMotivo = null;
-    document.getElementById('salidaProductoSelWrap').style.display = 'block';
+    const p = productos.find(x => x.id === id);
+    if (!p) return;
+    const it = _salidaItems.find(x => x.p.id === id);
+    if (it) {
+        if (it.cant + 1 > p.stock) { mostrarToast(`⚠️ Stock insuficiente (hay ${p.stock})`, 'rojo'); return; }
+        it.cant++;
+    } else {
+        _salidaItems.push({ p, cant: 1, idOp: null });
+    }
+    _salidaRender();
+    mostrarToast('➕ ' + p.name, 'verde');
 }
 
-function salidaDeseleccionar() {
-    _salidaProducto = null;
-    document.getElementById('salidaProductoSelWrap').style.display = 'none';
-    document.getElementById('salidaBuscador').value = '';
-    document.getElementById('salidaBuscador').focus();
+function salidaQuitar(id) {
+    _salidaItems = _salidaItems.filter(x => x.p.id !== id);
+    _salidaRender();
 }
 
-function salidaCantidad(delta) {
-    const input = document.getElementById('salidaCantidad');
-    const val = Math.max(1, (parseInt(input.value) || 1) + delta);
-    input.value = val;
+function salidaCantItem(id, delta) {
+    const it = _salidaItems.find(x => x.p.id === id);
+    if (!it) return;
+    const n = Math.max(1, it.cant + delta);
+    if (n > it.p.stock) { mostrarToast(`⚠️ Stock insuficiente (hay ${it.p.stock})`, 'rojo'); return; }
+    it.cant = n;
+    _salidaRender();
+}
+
+function salidaCantSet(id, val) {
+    const it = _salidaItems.find(x => x.p.id === id);
+    if (!it) return;
+    let n = Math.max(1, parseInt(val) || 1);
+    if (n > it.p.stock) { mostrarToast(`⚠️ Stock insuficiente (hay ${it.p.stock})`, 'rojo'); n = it.p.stock; }
+    it.cant = n;
+    _salidaRender();
 }
 
 function salidaSelMotivo(btn, motivo) {
@@ -16350,77 +16396,69 @@ function salidaSelMotivo(btn, motivo) {
 let _idOperacionSalidaActual = null;
 
 async function confirmarSalidaInterna() {
-    if (!_salidaProducto) { mostrarToast('⚠️ Seleccioná un producto', 'rojo'); return; }
-    if (!_salidaMotivo)   { mostrarToast('⚠️ Seleccioná un motivo', 'rojo'); return; }
+    if (!_salidaItems.length) { mostrarToast('⚠️ Agregá al menos un producto', 'rojo'); return; }
+    if (!_salidaMotivo)       { mostrarToast('⚠️ Seleccioná un motivo', 'rojo'); return; }
 
-    const cantidad = parseInt(document.getElementById('salidaCantidad').value) || 1;
-    const obs      = document.getElementById('salidaObs').value.trim();
+    const obs = document.getElementById('salidaObs').value.trim();
 
-    if (cantidad > _salidaProducto.stock) {
-        mostrarToast(`⚠️ Stock insuficiente (hay ${_salidaProducto.stock})`, 'rojo');
-        return;
-    }
-
-    if (!_idOperacionSalidaActual) {
-        _idOperacionSalidaActual = 'sal_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    // Validar TODO antes de mandar nada
+    for (const it of _salidaItems) {
+        if (it.cant > it.p.stock) { mostrarToast(`⚠️ ${it.p.name}: stock insuficiente (hay ${it.p.stock})`, 'rojo'); return; }
     }
 
     const btn = document.querySelector('#modalSalidaInterna button[onclick="confirmarSalidaInterna()"]');
-    if (btn && btn.disabled) return;   // v511: doble toque
+    if (btn && btn.disabled) return;   // doble toque
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Registrando...'; }
 
-    // v511 — la operación se arma una vez; si no hay respuesta queda en una cola
-    // (con su MISMO idOperacion) y se reenvía sola: el servidor la reconoce
-    // (yaExistia) y no descuenta el stock de nuevo.
-    const op = {
-        id: _idOperacionSalidaActual, ts: Date.now(),
-        idProducto: _salidaProducto.id, nombre: _salidaProducto.name, cantidad, motivo: _salidaMotivo, obs,
-        datos: {
-            id:        _salidaProducto.id,
-            nombre:    _salidaProducto.name,
-            cantidad,
-            motivo:    _salidaMotivo,
-            obs,
-            costo:     _salidaProducto.precioCosto || 0,
-            precio:    _salidaProducto.price,
-            vendedor:  vendedorActual || '',
-            idOperacion: _idOperacionSalidaActual
+    // v548 — cada producto es SU PROPIA salida con SU PROPIO idOperacion (se genera una vez por línea;
+    // si se reintenta, se reenvía el mismo id y el servidor responde "ya existía" sin descontar de nuevo).
+    // Misma cola y mismo _salEnviar de siempre (v511).
+    let ok = 0, enCola = 0, rechazos = [];
+    try {
+        for (const it of _salidaItems.slice()) {
+            if (!it.idOp) it.idOp = 'sal_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+            const p = it.p, cantidad = it.cant;
+            const op = {
+                id: it.idOp, ts: Date.now(),
+                idProducto: p.id, nombre: p.name, cantidad, motivo: _salidaMotivo, obs,
+                datos: { id: p.id, nombre: p.name, cantidad, motivo: _salidaMotivo, obs,
+                         costo: p.precioCosto || 0, precio: p.price, vendedor: vendedorActual || '', idOperacion: it.idOp }
+            };
+            _salColaAgregar(op);   // ANTES de enviar
+            const r = await _salEnviar(op);
+            if (r.tipo === 'ok') {
+                _salColaQuitar(op.id); ok++;
+                const ahora = new Date();
+                const hora  = ahora.getHours().toString().padStart(2,'0') + ':' + ahora.getMinutes().toString().padStart(2,'0');
+                _guardarSalidaLocal({ ts: ahora.getTime(), nombre: op.nombre, cantidad, motivo: op.motivo, obs, hora });
+                p.stock = Math.max(0, p.stock - cantidad);
+                _salidaItems = _salidaItems.filter(x => x !== it);
+            } else if (r.tipo === 'negocio') {
+                _salColaQuitar(op.id);
+                rechazos.push(op.nombre + ': ' + ((r.resp && r.resp.mensaje) || 'error al registrar'));
+                // queda en la lista para que lo veas / lo quites
+            } else {
+                // sin respuesta: queda en la cola con su id y se confirma sola
+                _salAjustarStockLocal(op.idProducto, -cantidad);
+                enCola++;
+                _salidaItems = _salidaItems.filter(x => x !== it);
+            }
         }
-    };
-
-    // Se guarda en la cola ANTES de enviar: si se cierra la página a mitad, se reenvía igual (mismo id).
-    _salColaAgregar(op);
-    let r;
-    try { r = await _salEnviar(op); }
-    finally {
-        // Siempre rehabilitar el botón — evita que quede trabado
+    } finally {
         if (btn && btn.disabled) { btn.disabled = false; btn.textContent = '✅ Confirmar salida'; }
     }
 
-    if (r.tipo === 'ok') {
-        _salColaQuitar(op.id);
-        const ahora = new Date();
-        const hora  = ahora.getHours().toString().padStart(2,'0') + ':' + ahora.getMinutes().toString().padStart(2,'0');
-        _guardarSalidaLocal({ ts: ahora.getTime(), nombre: op.nombre, cantidad, motivo: op.motivo, obs, hora });
-        _salidaProducto.stock = Math.max(0, _salidaProducto.stock - cantidad);
-        mostrarToast(r.resp.yaExistia ? '✅ Esta salida ya se había registrado antes' : `✅ Salida registrada — ${op.nombre} x${cantidad} (${op.motivo})`, 'verde');
-        _idOperacionSalidaActual = null; // confirmado — la próxima salida es una nueva
-        _cargarYRenderSalidaHistorial();
-        cerrarSalidaInterna();
-        renderResultados(_sortProductos(productos, new Set(ventaActual.map(i => i.esPeso ? i.idOriginal : i.id))));
-    } else if (r.tipo === 'negocio') {
-        _salColaQuitar(op.id);
-        mostrarToast('❌ ' + ((r.resp && r.resp.mensaje) || 'Error al registrar'), 'rojo');
-    } else {
-        // Sin respuesta / sin red / servidor ocupado: la salida puede haberse registrado igual.
-        // Queda en cola con su id y se confirma sola; se vuelve al catálogo como siempre.
-        _salAjustarStockLocal(op.idProducto, -cantidad);   // para no ofrecer de nuevo ese stock
-        _idOperacionSalidaActual = null;                   // la cola conserva el id de ESTA operación
-        mostrarToast('⏳ Salida enviada — se confirma sola', 'naranja');
-        cerrarSalidaInterna();
-        renderResultados(_sortProductos(productos, new Set(ventaActual.map(i => i.esPeso ? i.idOriginal : i.id))));
-        _salColaProgramar();
+    if (ok) _cargarYRenderSalidaHistorial();
+    if (enCola) _salColaProgramar();
+    if (rechazos.length) {
+        mostrarToast('❌ ' + rechazos.join(' · '), 'rojo');
+        _salidaRender();
+        if (ok || enCola) renderResultados(_sortProductos(productos, new Set(ventaActual.map(i => i.esPeso ? i.idOriginal : i.id))));
+        return;   // el modal sigue abierto con lo que no se pudo registrar
     }
+    mostrarToast(enCola ? `⏳ Salida enviada${ok ? ' (' + ok + ' ya registradas)' : ''} — se confirma sola` : `✅ Salida registrada — ${ok} producto${ok === 1 ? '' : 's'} (${_salidaMotivo})`, enCola ? 'naranja' : 'verde');
+    cerrarSalidaInterna();
+    renderResultados(_sortProductos(productos, new Set(ventaActual.map(i => i.esPeso ? i.idOriginal : i.id))));
 }
 
 // ── v511: COLA DE SALIDAS POR CONFIRMAR ─────────────────────────────────────
