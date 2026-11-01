@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v555</title>
+    <title>🛒 POS · Copihue v556</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2711,6 +2711,7 @@
             transition: all 0.15s;
         }
         .metodo-btn:active { transform: scale(0.97); }
+        .metodo-btn.dc-bloqueado { filter: grayscale(1); opacity: 0.45; }  /* v556: con deuda sumada, Fiado apagado */
         .metodo-btn.seleccionado.efectivo { border-color: #2e7d32; background: #e8f5e9; }
         .metodo-btn.seleccionado.posnet  { border-color: #1565c0; background: #e3f2fd; }
         .metodo-btn.seleccionado.transf  { border-color: #6a1b9a; background: #f3e5f5; }
@@ -7029,7 +7030,7 @@ function _dcSumar() {
     seleccionarMetodo(metodoPagoActual);   // refresca el QR con el total nuevo
 }
 function _dcQuitar() {
-    _dc = null; _dcResetUI();
+    _dc = null; _dcResetUI(); _dcFiadoGris();
     seleccionarMetodo(metodoPagoActual);
 }
 function _dcResetUI() {
@@ -7042,12 +7043,40 @@ function _dcResetUI() {
         const b = document.getElementById('dcSumarBtn'); if (b) b.style.display = 'none';
         const bl = document.getElementById('dcBloque'); if (bl) { bl.style.display = 'none'; bl.innerHTML = ''; }
     } catch (e) {}
+    _dcFiadoGris();   // v556
 }
 function _dcReset() { _dc = null; _dcResetUI(); }
+// v556 — con deuda sumada, Fiado se ve apagado (seleccionarMetodo ya lo frena con aviso)
+function _dcFiadoGris() {
+    try { const b = document.getElementById('btnFiado'); if (b) b.classList.toggle('dc-bloqueado', _dcMonto() > 0); } catch (e) {}
+}
+// v556 — antes de cobrar con deuda sumada: pregunta con el desglose. Sin deuda, no aparece.
+function _dcPedirConfirmacion() {
+    const venta = window._totalConRedondeo || _totalCarritoConDescuentosGrupales();
+    const deuda = _dcMonto();
+    const met = { efectivo: 'Efectivo', posnet: 'Posnet', transferencia: 'Transferencia' }[metodoPagoActual] || metodoPagoActual;
+    let ov = document.getElementById('dcConfirmOv'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'dcConfirmOv';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:6000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px;';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#fff;border-radius:16px;padding:18px;max-width:360px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.35);';
+    box.innerHTML = '<div style="font-weight:900;font-size:1.05rem;color:#e65100;margin-bottom:8px;">⚠️ Cobro de compra + deuda</div>'
+        + '<div class="dcQ" style="font-size:.9rem;color:#444;margin-bottom:10px;"></div>'
+        + '<div style="display:flex;justify-content:space-between;font-size:.9rem;"><span>Compra</span><strong>' + _fiadoFmt(venta) + '</strong></div>'
+        + '<div style="display:flex;justify-content:space-between;font-size:.9rem;color:#e65100;"><span>Deuda</span><strong>+' + _fiadoFmt(deuda) + '</strong></div>'
+        + '<div style="display:flex;justify-content:space-between;font-size:1.15rem;font-weight:900;color:#1b5e20;border-top:1px dashed #e65100;margin-top:6px;padding-top:6px;"><span>TOTAL (' + met + ')</span><span>' + _fiadoFmt(venta + deuda) + '</span></div>'
+        + '<div style="display:flex;gap:8px;margin-top:14px;"><button type="button" id="dcConfNo" style="flex:1;padding:12px;border:2px solid #ccc;border-radius:10px;background:#fff;font-weight:700;font-size:.9rem;">Volver</button>'
+        + '<button type="button" id="dcConfSi" style="flex:1.4;padding:12px;border:none;border-radius:10px;background:#2e7d32;color:#fff;font-weight:800;font-size:.9rem;">Sí, cobrar todo</button></div>';
+    box.querySelector('.dcQ').textContent = 'Vas a cobrar esta compra Y la deuda de ' + _dc.cliente + '.';
+    ov.appendChild(box); document.body.appendChild(ov);
+    document.getElementById('dcConfNo').onclick = () => ov.remove();
+    document.getElementById('dcConfSi').onclick = () => { ov.remove(); window._dcConfirmado = true; confirmarVenta(); };
+}
 // Muestra/actualiza el bloque "Deuda + TOTAL A COBRAR". El TOTAL de arriba (la venta) NO cambia.
 function _dcRefrescar() {
     const bl = document.getElementById('dcBloque'); if (!bl) return;
     const m = _dcMonto();
+    _dcFiadoGris();   // v556
     if (!m) { bl.style.display = 'none'; bl.innerHTML = ''; return; }
     const venta = window._totalConRedondeo || _totalCarritoConDescuentosGrupales();
     bl.style.display = 'block';
@@ -7586,6 +7615,10 @@ async function confirmarVenta() {
         abrirModalFiado();
         return;
     }
+
+    // v556 — con deuda sumada: pedir confirmación (desglose) antes de procesar
+    if (_dcMonto() > 0 && !window._dcConfirmado) { _dcPedirConfirmacion(); return; }
+    window._dcConfirmado = false;
 
     const _dcSnap = _dcCongelar(); // v553: deuda sumada (null si no hay) — se congela ANTES de tocar nada
     const btn = document.getElementById('btnOkConfirm');
