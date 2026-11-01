@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v560</title>
+    <title>🛒 POS · Copihue v561</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -7240,7 +7240,9 @@ function _vdRenderResumen() {
     const b = document.getElementById('pmVdBtn');
     if (!_vd) { el.textContent = ''; if (b) b.textContent = '💳 Aplicar vuelto a deuda'; return; }
     const t = _vdTotales();
-    el.textContent = 'Se aplican ' + _fiadoFmt(t.aplicado) + ' a la deuda · Vuelto en efectivo: ' + _fiadoFmt(t.efectivo) + ' · Deuda que queda: ' + _fiadoFmt(t.restante);
+    // v561 — antes no se veía la deuda de partida; ahora: Deuda total → Se aplican → Queda (solo texto, mismos montos)
+    el.style.whiteSpace = 'pre-line';
+    el.textContent = 'Deuda total: ' + _fiadoFmt(t.deuda) + '\nSe aplican: ' + _fiadoFmt(t.aplicado) + ' a la deuda\nQueda: ' + _fiadoFmt(t.restante) + '\nVuelto en efectivo: ' + _fiadoFmt(t.efectivo);
     if (b) b.textContent = t.aplicado > 0 ? '💳 Vuelto → deuda de ' + _vd.cliente + ': ' + _fiadoFmt(t.aplicado) : '💳 Aplicar vuelto a deuda';
 }
 function _vdRender() {
