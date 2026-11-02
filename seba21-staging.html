@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v566</title>
+    <title>🛒 POS · Copihue v567</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -7617,7 +7617,8 @@ async function confirmarVentaMixta() {
         const ventaPayload = {
             items: ventaData, metodoPago: metodoPagoTexto, vendedor: vendedorActual, idVenta, detallePagos,
             clienteFiado: pagoFiado ? pagoFiado.cliente : '',
-            telefonoFiado: pagoFiado ? (pagoFiado.telefono || '') : ''
+            telefonoFiado: pagoFiado ? (pagoFiado.telefono || '') : '',
+            ..._drCampo(totalV - total)   // v567
         };
 
         try {
@@ -7636,7 +7637,7 @@ async function confirmarVentaMixta() {
         if (!stockOk) {
             try {
                 const pendientes = JSON.parse(localStorage.getItem('ventas_pendientes') || '[]');
-                pendientes.push({ items: ventaData, metodoPago: metodoPagoTexto, vendedor: vendedorActual, idVenta, ts: Date.now() });
+                pendientes.push({ items: ventaData, metodoPago: metodoPagoTexto, vendedor: vendedorActual, idVenta, ts: Date.now(), ..._drCampo(totalV - total) });   // v567
                 localStorage.setItem('ventas_pendientes', JSON.stringify(pendientes));
                 _actualizarBadgePendientes();
                 _autoProgramar(); // v510
@@ -7860,7 +7861,7 @@ async function confirmarVenta() {
         // Agregar método de pago al request
         metodoPagoFinal = metodoPagoActual.toUpperCase();
         idVenta = 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-        const ventaPayload = { items: ventaData, metodoPago: metodoPagoFinal, vendedor: vendedorActual, idVenta };
+        const ventaPayload = { items: ventaData, metodoPago: metodoPagoFinal, vendedor: vendedorActual, idVenta, ..._drCampo(descuentoRedondeo) };   // v567
         const dataEncoded = encodeURIComponent(JSON.stringify(ventaPayload));
         const url = API_URL + '?action=vender&data=' + dataEncoded;
         const resp = await _apiFetchUrl('vender', url);
@@ -7883,7 +7884,8 @@ async function confirmarVenta() {
             metodoPago: metodoPagoFinal || metodoPagoActual,
             vendedor: vendedorActual,
             idVenta,
-            ts: Date.now()
+            ts: Date.now(),
+            ..._drCampo(descuentoRedondeo)   // v567
         };
         // Encolar en localStorage para reintento
         const pendientes = JSON.parse(localStorage.getItem('ventas_pendientes') || '[]');
@@ -9398,7 +9400,7 @@ async function _reenviarVentasPendientes() {
                 continue;
             }
             try {
-                const payload = { items: venta.items, metodoPago: venta.metodoPago, vendedor: venta.vendedor, idVenta: venta.idVenta };
+                const payload = { items: venta.items, metodoPago: venta.metodoPago, vendedor: venta.vendedor, idVenta: venta.idVenta, ..._drCampo(venta.descuentoRedondeo) };   // v567
                 const url = API_URL + '?action=vender&data=' + encodeURIComponent(JSON.stringify(payload));
                 const resp = await _apiFetchUrl('vender', url);
                 if (resp.success) {
@@ -17451,6 +17453,8 @@ async function _confirmarFiadoSinTel() {
 // Seguridad: si algo del grupo no es el caso simple (producto por peso, precio ya modificado, precio
 // distinto al de lista, cantidades/precios no enteros, o la suma no cierra) NO se toca ese grupo y
 // queda igual que antes. Solo lee; no cambia el carrito ni lo que se muestra o cobra.
+// v567 — el redondeo aplicado viaja a la planilla (Code.gs v11.3): la fila TOTAL guarda lo COBRADO. Solo se agrega el campo si hubo redondeo.
+function _drCampo(d) { d = Math.round(Number(d) || 0); return d > 0 ? { descuentoRedondeo: d } : {}; }
 function _itemsParaServidor(lista) {
     const fila = (i, qty, precioVenta, modif, orig) => ({
         id: i.esPeso ? i.idOriginal : i.id, name: i.name, qty: qty,
@@ -17787,7 +17791,8 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
             items: ventaData, metodoPago: 'FIADO', vendedor: vendedorActual,
             clienteFiado: datosFiado.cliente || '',
             telefonoFiado: datosFiado.telefono || '',
-            idVenta: idVentaFiado  // ← deduplicación GAS
+            idVenta: idVentaFiado,  // ← deduplicación GAS
+            ..._drCampo(totalOriginal - total)   // v567
         };
         const url = API_URL + '?action=vender&data=' + encodeURIComponent(JSON.stringify(ventaPayload));
         const resp = await _apiFetchUrl('vender', url);
@@ -17802,7 +17807,7 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
             const pendientes = JSON.parse(localStorage.getItem('ventas_pendientes') || '[]');
             pendientes.push({
                 items: ventaDataRetry, metodoPago: 'FIADO', vendedor: vendedorActual,
-                idVenta: idVentaFiado, idFiado: datosFiado.idFiado, ts: Date.now()
+                idVenta: idVentaFiado, idFiado: datosFiado.idFiado, ts: Date.now(), ..._drCampo(totalOriginal - total)   // v567
             });
             localStorage.setItem('ventas_pendientes', JSON.stringify(pendientes));
             _fiadoEncolado = true;
