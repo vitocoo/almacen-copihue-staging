@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v567</title>
+    <title>🛒 POS · Copihue v568</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -7720,7 +7720,7 @@ async function confirmarVentaMixta() {
         _uv.fechaVenta = _t.toLocaleDateString('es-AR');
         if (ticketNum) _uv.nroTicket = String(ticketNum);
         const _tkProm = ticketNum ? Promise.resolve(String(ticketNum))
-            : ((_datosFiadoMixto || _vdSnap) ? _buscarTicketVenta(idVenta, [0, 3000, 5000, 8000, 12000, 15000, 20000], null) : Promise.resolve(''));
+            : _buscarTicketVenta(idVenta, (_datosFiadoMixto || _vdSnap) ? [0, 3000, 5000, 8000, 12000, 15000, 20000] : [3000, 8000, 15000, 20000], null);   // v568: también sin fiado/vuelto (solo lectura): antes, si vender daba timeout, el ticket salía sin N°
         _tkProm.then(tk => { if (tk) _uv.nroTicket = tk; }).catch(() => {});
 
         // v538 — aplicar el vuelto a la deuda (en segundo plano, con idOperacion)
@@ -7940,6 +7940,10 @@ async function confirmarVenta() {
             fechaVenta: _t.toLocaleDateString('es-AR')
         };
         _dcLanzar(window._ultimaVenta); // v553
+        if (!_tkNormal && !_dcSnap) {   // v568 — venta simple sin N° de ticket (vender dio timeout): se busca por idVenta en segundo plano (solo lectura)
+            const _uvS = window._ultimaVenta;
+            _buscarTicketVenta(idVenta, [3000, 8000, 15000, 20000], null).then(tk => { if (tk) _uvS.nroTicket = tk; }).catch(() => {});
+        }
         try { _dcReset(); } catch (e) {} // v553
 
         actualizarRanking(); // recalcular ranking después de confirmar venta
