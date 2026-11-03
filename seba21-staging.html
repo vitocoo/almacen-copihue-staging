@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v570</title>
+    <title>🛒 POS · Copihue v571</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15335,7 +15335,7 @@ abrirNuevoProducto = function() {
 
 <!-- ========== MODAL SALIDA INTERNA ========== -->
 <div id="modalSalidaInterna" style="display:none;position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,0.75);align-items:flex-start;justify-content:center;">
-  <div style="background:white;width:100%;height:100%;max-width:600px;display:flex;flex-direction:column;overflow:hidden;">
+  <div style="background:white;width:100%;height:100%;max-width:600px;display:flex;flex-direction:column;overflow:hidden;position:relative;">
     <!-- Header -->
     <div style="padding:16px 20px 12px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:white;">
       <div>
@@ -15345,50 +15345,48 @@ abrirNuevoProducto = function() {
       <button onclick="cerrarSalidaInterna()" style="background:#f44336;color:white;border:none;border-radius:50%;width:32px;height:32px;font-size:1rem;cursor:pointer;">✕</button>
     </div>
 
+    <!-- v571: envoltorio relativo para anclar el botón flotante de confirmar -->
+    <div style="position:relative;flex:1;min-height:0;display:flex;flex-direction:column;">
     <!-- Scroll area -->
     <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:0;">
 
       <!-- Buscador -->
       <div style="padding:12px 16px 8px;border-bottom:1px solid #f0f0f0;flex:1;display:flex;flex-direction:column;min-height:0;">
-        <input id="salidaBuscador" type="text" placeholder="Buscar producto..."
+        <input id="salidaBuscador" type="text" placeholder="Buscar · tocar suma · deslizar ← resta"
           oninput="salidaBuscar()"
           style="width:100%;padding:10px 14px;border:2px solid #ddd;border-radius:12px;font-size:0.95rem;box-sizing:border-box;flex-shrink:0;">
-        <div id="salidaResultados" style="flex:1;overflow-y:auto;margin-top:6px;min-height:0;"></div>
+        <div id="salidaResultados" style="flex:1;overflow-y:auto;margin-top:6px;min-height:0;padding-bottom:70px;box-sizing:border-box;"></div>
       </div>
 
-      <!-- Producto seleccionado -->
-      <div id="salidaProductoSelWrap" style="display:none;padding:12px 16px;border-bottom:1px solid #f0f0f0;">
-        <!-- v548: lista de productos a sacar (como el carrito) -->
-        <div style="font-size:0.8rem;font-weight:700;color:#555;margin-bottom:6px;">Productos a sacar: <span id="salidaCuenta"></span> <span style="font-weight:400;color:#999;font-size:0.7rem;">· tocar suma · deslizar ← resta</span></div>
-        <div id="salidaLista" style="max-height:34vh;overflow-y:auto;"></div>
-
-        <!-- Motivo -->
-        <div style="margin-top:12px;">
-          <div style="font-size:0.8rem;font-weight:700;color:#555;margin-bottom:8px;">Motivo:</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;" id="salidaMotivosBtns">
-            <button onclick="salidaSelMotivo(this,'CONSUMO')"    class="salida-motivo" style="padding:7px 14px;border-radius:20px;border:2px solid #ddd;background:white;font-size:0.82rem;cursor:pointer;">🍽️ Consumo</button>
-            <button onclick="salidaSelMotivo(this,'MERMA')"      class="salida-motivo" style="padding:7px 14px;border-radius:20px;border:2px solid #ddd;background:white;font-size:0.82rem;cursor:pointer;">📉 Merma</button>
-            <button onclick="salidaSelMotivo(this,'VENCIDO')"    class="salida-motivo" style="padding:7px 14px;border-radius:20px;border:2px solid #ddd;background:white;font-size:0.82rem;cursor:pointer;">⏰ Vencido</button>
-            <button onclick="salidaSelMotivo(this,'REGALO')"     class="salida-motivo" style="padding:7px 14px;border-radius:20px;border:2px solid #ddd;background:white;font-size:0.82rem;cursor:pointer;">🎁 Regalo</button>
-            <button onclick="salidaSelMotivo(this,'ROTURA')"     class="salida-motivo" style="padding:7px 14px;border-radius:20px;border:2px solid #ddd;background:white;font-size:0.82rem;cursor:pointer;">💥 Rotura</button>
-            <button onclick="salidaSelMotivo(this,'USO_INTERNO')" class="salida-motivo" style="padding:7px 14px;border-radius:20px;border:2px solid #ddd;background:white;font-size:0.82rem;cursor:pointer;">🏪 Uso interno</button>
-          </div>
+      <!-- Producto seleccionado — v571: franja compacta (motivo colapsado + observación colapsada) -->
+      <div id="salidaProductoSelWrap" style="display:none;padding:8px 16px;border-bottom:1px solid #f0f0f0;">
+        <span id="salidaCuenta" style="display:none"></span><div id="salidaLista" style="display:none"></div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button id="salidaMotivoChip" onclick="salidaToggleMotivos()" style="padding:7px 14px;border-radius:20px;border:2px solid #546e7a;background:#546e7a;color:white;font-size:0.85rem;font-weight:700;cursor:pointer;">🍽️ Consumo ▾</button>
+          <button id="salidaObsBtn" onclick="salidaToggleObs()" title="Observación" style="position:relative;width:38px;height:34px;border-radius:17px;border:2px solid #ddd;background:white;font-size:1rem;cursor:pointer;">📝<span id="salidaObsDot" style="display:none;position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:5px;background:#e53935;"></span></button>
         </div>
-
-        <!-- Observación -->
-        <div style="margin-top:10px;">
-          <textarea id="salidaObs" placeholder="Observación opcional..."
+        <div style="display:none;flex-wrap:wrap;gap:6px;margin-top:8px;" id="salidaMotivosBtns">
+          <button onclick="salidaSelMotivo(this,'CONSUMO')"    class="salida-motivo" style="padding:7px 14px;border-radius:20px;border:2px solid #ddd;background:white;font-size:0.82rem;cursor:pointer;">🍽️ Consumo</button>
+          <button onclick="salidaSelMotivo(this,'MERMA')"      class="salida-motivo" style="padding:7px 14px;border-radius:20px;border:2px solid #ddd;background:white;font-size:0.82rem;cursor:pointer;">📉 Merma</button>
+          <button onclick="salidaSelMotivo(this,'VENCIDO')"    class="salida-motivo" style="padding:7px 14px;border-radius:20px;border:2px solid #ddd;background:white;font-size:0.82rem;cursor:pointer;">⏰ Vencido</button>
+          <button onclick="salidaSelMotivo(this,'REGALO')"     class="salida-motivo" style="padding:7px 14px;border-radius:20px;border:2px solid #ddd;background:white;font-size:0.82rem;cursor:pointer;">🎁 Regalo</button>
+          <button onclick="salidaSelMotivo(this,'ROTURA')"     class="salida-motivo" style="padding:7px 14px;border-radius:20px;border:2px solid #ddd;background:white;font-size:0.82rem;cursor:pointer;">💥 Rotura</button>
+          <button onclick="salidaSelMotivo(this,'USO_INTERNO')" class="salida-motivo" style="padding:7px 14px;border-radius:20px;border:2px solid #ddd;background:white;font-size:0.82rem;cursor:pointer;">🏪 Uso interno</button>
+        </div>
+        <div id="salidaObsWrap" style="display:none;margin-top:8px;">
+          <textarea id="salidaObs" placeholder="Observación opcional..." oninput="_salidaObsPunto()"
             style="width:100%;padding:9px 12px;border:2px solid #ddd;border-radius:10px;font-size:0.85rem;resize:none;height:52px;box-sizing:border-box;font-family:inherit;"></textarea>
         </div>
-
-        <!-- Confirmar -->
-        <button onclick="confirmarSalidaInterna()"
-          style="width:100%;margin-top:12px;padding:13px;border:none;border-radius:12px;background:#546e7a;color:white;font-weight:700;font-size:0.95rem;cursor:pointer;">
-          ✅ Confirmar salida
-        </button>
       </div>
 
     </div>
+
+    <!-- v571: botón flotante de confirmar (con el número de productos en un badge) -->
+    <div id="salidaFabWrap" style="display:none;position:absolute;right:14px;bottom:12px;z-index:5;">
+      <button id="salidaFab" onclick="salidaPedirConfirmacion()" style="padding:13px 18px;border:none;border-radius:28px;background:#546e7a;color:white;font-weight:800;font-size:0.92rem;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.35);">✅ Confirmar · Consumo</button>
+      <span id="salidaFabN" style="position:absolute;top:-8px;right:-4px;min-width:22px;height:22px;padding:0 5px;box-sizing:border-box;border-radius:11px;background:#e53935;color:#fff;font-weight:800;font-size:0.78rem;display:flex;align-items:center;justify-content:center;border:2px solid #fff;pointer-events:none;"></span>
+    </div>
+    </div><!-- /envoltorio v571 -->
 
     <!-- Historial — v432: pie FIJO al final del modal (fuera del área que
          scrollea el medio), siempre en el mismo lugar en vez de quedar
@@ -15405,6 +15403,18 @@ abrirNuevoProducto = function() {
                   padding:12px 16px;">
         <span>📋 Últimas salidas</span>
         <span id="salidaHistorialFlecha" style="font-size:0.75rem;color:#888;">Tocá para ver ▾</span>
+      </div>
+    </div>
+    <!-- v571: «¿Seguro?» antes de registrar la salida -->
+    <div id="salidaConfirmDlg" style="display:none;position:absolute;inset:0;z-index:30;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;padding:20px;box-sizing:border-box;">
+      <div style="background:white;border-radius:16px;padding:18px;width:100%;max-width:360px;">
+        <div id="salidaConfirmTitulo" style="font-weight:900;font-size:1.05rem;color:#1a1a1a;margin-bottom:8px;">¿Seguro que es Consumo?</div>
+        <div id="salidaConfirmResumen" style="font-size:0.85rem;color:#444;max-height:30vh;overflow-y:auto;margin-bottom:14px;line-height:1.5;"></div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="salidaCambiarMotivo()" style="flex:1;padding:12px;border-radius:12px;border:2px solid #ddd;background:white;font-weight:700;font-size:0.9rem;cursor:pointer;">Cambiar motivo</button>
+          <button onclick="salidaSiConfirmar()" style="flex:1;padding:12px;border:none;border-radius:12px;background:#2e7d32;color:white;font-weight:800;font-size:0.9rem;cursor:pointer;">✅ Sí, confirmar</button>
+        </div>
+        <button onclick="salidaCerrarConfirm()" style="width:100%;margin-top:8px;padding:8px;border:none;background:none;color:#888;font-size:0.85rem;cursor:pointer;">Volver</button>
       </div>
     </div>
   </div>
@@ -16794,6 +16804,7 @@ function abrirSalidaInterna() {
     document.getElementById('salidaObs').value = '';
     document.querySelectorAll('.salida-motivo').forEach(b => { b.style.background = 'white'; b.style.borderColor = '#ddd'; b.style.color = '#333'; });
     _salidaMotivo   = null;
+    _salidaMotivoPorDefecto();   // v571: Consumo por defecto (todo colapsado)
     _idOperacionSalidaActual = null; // sesión nueva del modal — id nuevo para la próxima salida
     _salidaHistorialCargado = false;
     salidaMostrarTodos(); // mostrar todos los productos con stock al abrir
@@ -16825,8 +16836,10 @@ function cerrarSalidaInterna() {
     document.getElementById('salidaHistorialFlecha').textContent = 'Tocá para ver ▾';
     _salidaProducto = null; _salidaItems = [];
     _salidaMotivo   = null;
-    const btn = document.querySelector('#modalSalidaInterna button[onclick="confirmarSalidaInterna()"]');
-    if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmar salida'; }
+    const _dlg = document.getElementById('salidaConfirmDlg'); if (_dlg) _dlg.style.display = 'none';   // v571
+    try { _salidaFabActualizar(); } catch (e) {}
+    const btn = document.getElementById('salidaFab');   // v571: botón flotante
+    if (btn) { btn.disabled = false; btn.textContent = _salidaFabTexto(); }
 }
 
 function salidaMostrarTodos() {
@@ -16908,14 +16921,13 @@ function _salidaRender() {
     const wrap = document.getElementById('salidaProductoSelWrap');
     const lista = document.getElementById('salidaLista');
     wrap.style.display = _salidaItems.length ? 'block' : 'none';
-    document.getElementById('salidaCuenta').textContent = _salidaItems.length ? '(' + _salidaItems.length + ')' : '';
     // v570 — ya no hay lista aparte: la cantidad se ve como badge en cada fila del catálogo
     lista.innerHTML = '';
     _salidaActualizarBadges();
     _salidaGestosInit(document.getElementById('salidaResultados'));
     _salidaProgramarOrden();
-    const btn = document.querySelector('#modalSalidaInterna button[onclick="confirmarSalidaInterna()"]');
-    if (btn && !btn.disabled) btn.textContent = '✅ Confirmar salida' + (_salidaItems.length > 1 ? ' (' + _salidaItems.length + ' productos)' : '');
+    const btn = document.getElementById('salidaFab');   // v571: botón flotante
+    _salidaFabActualizar();
 }
 
 // v570 — gestos sobre las filas del catálogo: tocar = +1, deslizar a la izquierda = −1 (con cantidad 1 quita el producto de la salida).
@@ -16990,12 +17002,71 @@ function salidaCantSet(id, val) {
     _salidaRender();
 }
 
+// ── v571: motivo colapsado (Consumo por defecto), observación colapsada, botón flotante y «¿Seguro?» ──
+var _SAL_MOTIVO_TXT = { CONSUMO: '🍽️ Consumo', MERMA: '📉 Merma', VENCIDO: '⏰ Vencido', REGALO: '🎁 Regalo', ROTURA: '💥 Rotura', USO_INTERNO: '🏪 Uso interno' };
+function _salidaMotivoPorDefecto() {
+    const primero = document.querySelector('#salidaMotivosBtns .salida-motivo');   // el primero es Consumo
+    if (primero) salidaSelMotivo(primero, 'CONSUMO'); else _salidaMotivo = 'CONSUMO';
+    const o = document.getElementById('salidaObsWrap'); if (o) o.style.display = 'none';
+    const ob = document.getElementById('salidaObs'); if (ob) ob.value = '';
+    _salidaObsPunto();
+}
+function salidaToggleMotivos() {
+    const c = document.getElementById('salidaMotivosBtns'); if (!c) return;
+    c.style.display = c.style.display === 'none' ? 'flex' : 'none';
+    _salidaFabPos();
+}
+function salidaToggleObs() {
+    const w = document.getElementById('salidaObsWrap'); if (!w) return;
+    w.style.display = w.style.display === 'none' ? 'block' : 'none';
+    if (w.style.display === 'block') { const t = document.getElementById('salidaObs'); if (t) t.focus(); }
+    _salidaFabPos();
+}
+function _salidaObsPunto() {
+    const t = document.getElementById('salidaObs'), d = document.getElementById('salidaObsDot');
+    if (t && d) d.style.display = t.value.trim() ? 'block' : 'none';
+}
+function _salidaFabTexto() { return '✅ Confirmar · ' + ((_SAL_MOTIVO_TXT[_salidaMotivo] || '').replace(/^\S+\s/, '') || 'Salida'); }
+function _salidaFabActualizar() {
+    const w = document.getElementById('salidaFabWrap'), b = document.getElementById('salidaFab'), n = document.getElementById('salidaFabN');
+    if (!w || !b) return;
+    w.style.display = _salidaItems.length ? 'block' : 'none';
+    if (n) n.textContent = _salidaItems.length || '';
+    if (!b.disabled) b.textContent = _salidaFabTexto();
+    _salidaFabPos();
+}
+// el botón flotante siempre queda por ENCIMA de la franja de motivo/observación (sigue su altura si se despliega algo)
+function _salidaFabPos() {
+    const w = document.getElementById('salidaFabWrap'), st = document.getElementById('salidaProductoSelWrap');
+    if (!w) return;
+    const h = (st && st.style.display !== 'none') ? st.offsetHeight : 0;
+    w.style.bottom = (h + 12) + 'px';
+}
+function salidaPedirConfirmacion() {
+    if (!_salidaItems.length) { mostrarToast('⚠️ Agregá al menos un producto', 'rojo'); return; }
+    if (!_salidaMotivo) { mostrarToast('⚠️ Seleccioná un motivo', 'rojo'); return; }
+    const nom = (_SAL_MOTIVO_TXT[_salidaMotivo] || _salidaMotivo).replace(/^\S+\s/, '');
+    document.getElementById('salidaConfirmTitulo').textContent = '¿Seguro que es ' + nom + '?';
+    document.getElementById('salidaConfirmResumen').innerHTML = _salidaItems.map(it => '• ' + it.p.name.replace(/</g, '&lt;') + ' <b>×' + it.cant + '</b>').join('<br>');
+    document.getElementById('salidaConfirmDlg').style.display = 'flex';
+}
+function salidaCerrarConfirm() { document.getElementById('salidaConfirmDlg').style.display = 'none'; }
+function salidaCambiarMotivo() {
+    salidaCerrarConfirm();
+    const c = document.getElementById('salidaMotivosBtns'); if (c) c.style.display = 'flex';
+    _salidaFabPos();
+}
+function salidaSiConfirmar() { salidaCerrarConfirm(); confirmarSalidaInterna(); }
+
 function salidaSelMotivo(btn, motivo) {
     _salidaMotivo = motivo;
     document.querySelectorAll('.salida-motivo').forEach(b => {
         b.style.background = 'white'; b.style.borderColor = '#ddd'; b.style.color = '#333';
     });
     btn.style.background = '#546e7a'; btn.style.borderColor = '#546e7a'; btn.style.color = 'white';
+    const chip = document.getElementById('salidaMotivoChip'); if (chip) chip.textContent = btn.textContent.trim() + ' ▾';   // v571
+    const cj = document.getElementById('salidaMotivosBtns'); if (cj) cj.style.display = 'none';   // v571: al elegir, se colapsa
+    _salidaFabActualizar();
 }
 
 // v19/09/2026 — BLINDAJE anti-duplicado, mismo criterio que confirmarVenta/
@@ -17015,7 +17086,7 @@ async function confirmarSalidaInterna() {
         if (it.cant > it.p.stock) { mostrarToast(`⚠️ ${it.p.name}: stock insuficiente (hay ${it.p.stock})`, 'rojo'); return; }
     }
 
-    const btn = document.querySelector('#modalSalidaInterna button[onclick="confirmarSalidaInterna()"]');
+    const btn = document.getElementById('salidaFab');   // v571: botón flotante
     if (btn && btn.disabled) return;   // doble toque
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Registrando...'; }
 
@@ -17054,7 +17125,7 @@ async function confirmarSalidaInterna() {
             }
         }
     } finally {
-        if (btn && btn.disabled) { btn.disabled = false; btn.textContent = '✅ Confirmar salida'; }
+        if (btn && btn.disabled) { btn.disabled = false; btn.textContent = _salidaFabTexto(); }
     }
 
     if (ok) _cargarYRenderSalidaHistorial();
