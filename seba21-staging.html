@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v568</title>
+    <title>🛒 POS · Copihue v569</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15359,7 +15359,7 @@ abrirNuevoProducto = function() {
       <!-- Producto seleccionado -->
       <div id="salidaProductoSelWrap" style="display:none;padding:12px 16px;border-bottom:1px solid #f0f0f0;">
         <!-- v548: lista de productos a sacar (como el carrito) -->
-        <div style="font-size:0.8rem;font-weight:700;color:#555;margin-bottom:6px;">Productos a sacar: <span id="salidaCuenta"></span></div>
+        <div style="font-size:0.8rem;font-weight:700;color:#555;margin-bottom:6px;">Productos a sacar: <span id="salidaCuenta"></span> <span style="font-weight:400;color:#999;font-size:0.7rem;">· tocar suma · deslizar ← resta</span></div>
         <div id="salidaLista" style="max-height:34vh;overflow-y:auto;"></div>
 
         <!-- Motivo -->
@@ -16879,20 +16879,54 @@ function _salidaRender() {
     const lista = document.getElementById('salidaLista');
     wrap.style.display = _salidaItems.length ? 'block' : 'none';
     document.getElementById('salidaCuenta').textContent = _salidaItems.length ? '(' + _salidaItems.length + ')' : '';
+    // v569 — fila compacta de UNA línea: nombre + badge con la cantidad + ✕. Tocar la fila suma 1; deslizar a la izquierda resta 1.
     lista.innerHTML = _salidaItems.map(it => `
-        <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:#f5f5f5;border-radius:10px;margin-bottom:6px;">
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:700;font-size:0.85rem;color:#1a1a1a;">${it.p.name}</div>
-            <div style="font-size:0.7rem;color:#888;">Stock: ${it.p.stock}</div>
-          </div>
-          <button onclick="salidaCantItem(${it.p.id},-1)" style="width:30px;height:30px;border-radius:50%;border:2px solid #ddd;background:white;font-size:1.1rem;cursor:pointer;">−</button>
-          <input type="number" min="1" value="${it.cant}" onchange="salidaCantSet(${it.p.id},this.value)" class="salida-cant"
-            style="width:48px;text-align:center;padding:4px;border:2px solid #ddd;border-radius:8px;font-size:0.95rem;font-weight:700;">
-          <button onclick="salidaCantItem(${it.p.id},1)" style="width:30px;height:30px;border-radius:50%;border:2px solid #ddd;background:white;font-size:1.1rem;cursor:pointer;">+</button>
-          <button onclick="salidaQuitar(${it.p.id})" style="background:none;border:none;color:#e53935;font-size:1.1rem;cursor:pointer;">✕</button>
+        <div data-sid="${it.p.id}" style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:#f5f5f5;border-radius:10px;margin-bottom:4px;touch-action:pan-y;user-select:none;-webkit-user-select:none;cursor:pointer;">
+          <div style="flex:1;min-width:0;font-weight:700;font-size:0.85rem;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.p.name}${it.cant >= it.p.stock ? ' <span style="font-weight:400;font-size:0.68rem;color:#c62828;">· stock ' + it.p.stock + '</span>' : ''}</div>
+          <div class="salida-badge" style="flex-shrink:0;min-width:26px;height:26px;padding:0 7px;box-sizing:border-box;border-radius:13px;background:#37474f;color:#fff;font-weight:800;font-size:0.85rem;display:flex;align-items:center;justify-content:center;">${it.cant}</div>
+          <button data-sx="1" onclick="salidaQuitar(${it.p.id})" style="background:none;border:none;color:#e53935;font-size:1.1rem;cursor:pointer;padding:0 2px;">✕</button>
         </div>`).join('');
+    _salidaGestosInit(lista);
     const btn = document.querySelector('#modalSalidaInterna button[onclick="confirmarSalidaInterna()"]');
     if (btn && !btn.disabled) btn.textContent = '✅ Confirmar salida' + (_salidaItems.length > 1 ? ' (' + _salidaItems.length + ' productos)' : '');
+}
+
+// v569 — gestos en la lista "Productos a sacar": tocar = +1, deslizar a la izquierda = −1 (con cantidad 1 no borra: avisa que uses la ✕).
+// Un solo escuchador delegado sobre la lista (se instala una vez); las filas se redibujan en cada cambio.
+var _salidaG = null;
+function _salidaGestosInit(lista) {
+    if (lista._gestosOk) return;
+    lista._gestosOk = true;
+    lista.addEventListener('pointerdown', function (e) {
+        if (e.target.closest('[data-sx]')) { _salidaG = null; return; }
+        const fila = e.target.closest('[data-sid]');
+        if (!fila) { _salidaG = null; return; }
+        _salidaG = { id: Number(fila.getAttribute('data-sid')), x: e.clientX, y: e.clientY, dx: 0, dy: 0, fila: fila };
+    });
+    lista.addEventListener('pointermove', function (e) {
+        if (!_salidaG) return;
+        _salidaG.dx = e.clientX - _salidaG.x; _salidaG.dy = e.clientY - _salidaG.y;
+        if (_salidaG.dx < -8 && Math.abs(_salidaG.dx) > Math.abs(_salidaG.dy) * 1.5) {
+            _salidaG.fila.style.transition = 'none';
+            _salidaG.fila.style.transform = 'translateX(' + Math.max(_salidaG.dx, -80) + 'px)';
+        }
+    });
+    const fin = function (e, cancelado) {
+        const g = _salidaG; _salidaG = null;
+        if (!g) return;
+        g.fila.style.transition = 'transform .15s'; g.fila.style.transform = '';
+        if (cancelado) return;
+        const dx = g.dx, dy = g.dy;
+        if (dx <= -40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+            const it = _salidaItems.find(x => x.p.id === g.id);
+            if (it && it.cant <= 1) mostrarToast('Usá la ✕ para quitar el producto', 'naranja');
+            else salidaCantItem(g.id, -1);
+        } else if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+            salidaCantItem(g.id, 1);
+        }
+    };
+    lista.addEventListener('pointerup', function (e) { fin(e, false); });
+    lista.addEventListener('pointercancel', function (e) { fin(e, true); });
 }
 
 function salidaSeleccionar(id) {
