@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v569</title>
+    <title>🛒 POS · Copihue v570</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16797,6 +16797,7 @@ function abrirSalidaInterna() {
     _idOperacionSalidaActual = null; // sesión nueva del modal — id nuevo para la próxima salida
     _salidaHistorialCargado = false;
     salidaMostrarTodos(); // mostrar todos los productos con stock al abrir
+    _salidaGestosInit(document.getElementById('salidaResultados'));   // v570: tocar/deslizar en el catálogo desde el primer toque
     setTimeout(() => document.getElementById('salidaBuscador').focus(), 100);
 }
 
@@ -16830,8 +16831,8 @@ function cerrarSalidaInterna() {
 
 function salidaMostrarTodos() {
     const div = document.getElementById('salidaResultados');
-    const todos = productos.filter(p => p.stock > 0)
-        .sort((a,b) => a.name.localeCompare(b.name, 'es'));
+    const todos = _salidaOrdenarElegidos(productos.filter(p => p.stock > 0)
+        .sort((a,b) => a.name.localeCompare(b.name, 'es')));
     if (!todos.length) { div.innerHTML = '<div style="padding:10px;color:#aaa;font-size:0.85rem;">Sin productos con stock</div>'; return; }
     div.innerHTML = todos.map(p => _salidaFilaProducto(p)).join('');
 }
@@ -16840,9 +16841,10 @@ function salidaMostrarTodos() {
 // tener que leer nombres uno por uno (pedido: "fotos de producto para
 // facilitar la búsqueda visual").
 function _salidaFilaProducto(p) {
+    const _it = _salidaItems.find(x => x.p.id === p.id);   // v570: badge con la cantidad elegida
     return `
-        <div onclick="salidaSeleccionar(${p.id})"
-          style="padding:8px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;display:flex;align-items:center;gap:10px;background:#f1f9f2;">
+        <div data-pid="${p.id}"
+          style="padding:8px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;display:flex;align-items:center;gap:10px;background:#f1f9f2;touch-action:pan-y;user-select:none;-webkit-user-select:none;">
           <div style="position:relative;flex-shrink:0;width:38px;height:38px;">
             <img src="${p.image}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
                  alt="${p.name}" style="width:38px;height:38px;border-radius:8px;object-fit:cover;display:block;">
@@ -16853,7 +16855,35 @@ function _salidaFilaProducto(p) {
             <div style="font-size:0.7rem;color:#888;">Stock: ${p.stock}</div>
           </div>
           <div style="font-size:0.85rem;color:#555;flex-shrink:0;">$${p.price.toLocaleString('es-AR')}</div>
+          <div class="salida-badge" style="flex-shrink:0;min-width:26px;height:26px;padding:0 7px;box-sizing:border-box;border-radius:13px;background:${_it && _it.cant >= p.stock ? '#c62828' : '#37474f'};color:#fff;font-weight:800;font-size:0.85rem;display:${_it ? 'flex' : 'none'};align-items:center;justify-content:center;">${_it ? _it.cant : ''}</div>
         </div>`;
+}
+
+// v570 — los productos ya elegidos suben al principio del catálogo (en el orden en que se eligieron); el resto queda como siempre.
+function _salidaOrdenarElegidos(arr) {
+    const idx = id => _salidaItems.findIndex(x => x.p.id === id);
+    const sel = arr.filter(p => idx(p.id) >= 0).sort((a, b) => idx(a.id) - idx(b.id));
+    return sel.concat(arr.filter(p => idx(p.id) < 0));
+}
+// v570 — actualiza SOLO los badges del catálogo (sin redibujar la lista: no se pierde el scroll)
+function _salidaActualizarBadges() {
+    document.querySelectorAll('#salidaResultados [data-pid]').forEach(function (f) {
+        const id = Number(f.getAttribute('data-pid')), it = _salidaItems.find(x => x.p.id === id), bd = f.querySelector('.salida-badge');
+        if (!bd) return;
+        if (it) { bd.textContent = it.cant; bd.style.display = 'flex'; bd.style.background = it.cant >= it.p.stock ? '#c62828' : '#37474f'; }
+        else { bd.style.display = 'none'; bd.textContent = ''; }
+    });
+}
+// v570 — 1 s después del último toque, los elegidos suben al principio y la lista vuelve arriba (mientras se toca seguido, nada se mueve)
+var _salidaOrdenTimer = null;
+function _salidaProgramarOrden() {
+    clearTimeout(_salidaOrdenTimer);
+    _salidaOrdenTimer = setTimeout(function () {
+        const m = document.getElementById('modalSalidaInterna');
+        if (!m || m.style.display === 'none') return;
+        salidaBuscar();
+        const div = document.getElementById('salidaResultados'); if (div) div.scrollTop = 0;
+    }, 1000);
 }
 
 function salidaBuscar() {
@@ -16868,7 +16898,7 @@ function salidaBuscar() {
         div.innerHTML = '<div style="padding:10px;color:#aaa;font-size:0.85rem;">Sin resultados</div>';
         return;
     }
-    div.innerHTML = matches.map(p => _salidaFilaProducto(p)).join('');
+    div.innerHTML = _salidaOrdenarElegidos(matches).map(p => _salidaFilaProducto(p)).join('');
 }
 
 // v548 — la salida es una LISTA de productos (como el carrito): un motivo y una observación para todos.
@@ -16879,31 +16909,26 @@ function _salidaRender() {
     const lista = document.getElementById('salidaLista');
     wrap.style.display = _salidaItems.length ? 'block' : 'none';
     document.getElementById('salidaCuenta').textContent = _salidaItems.length ? '(' + _salidaItems.length + ')' : '';
-    // v569 — fila compacta de UNA línea: nombre + badge con la cantidad + ✕. Tocar la fila suma 1; deslizar a la izquierda resta 1.
-    lista.innerHTML = _salidaItems.map(it => `
-        <div data-sid="${it.p.id}" style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:#f5f5f5;border-radius:10px;margin-bottom:4px;touch-action:pan-y;user-select:none;-webkit-user-select:none;cursor:pointer;">
-          <div style="flex:1;min-width:0;font-weight:700;font-size:0.85rem;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.p.name}${it.cant >= it.p.stock ? ' <span style="font-weight:400;font-size:0.68rem;color:#c62828;">· stock ' + it.p.stock + '</span>' : ''}</div>
-          <div class="salida-badge" style="flex-shrink:0;min-width:26px;height:26px;padding:0 7px;box-sizing:border-box;border-radius:13px;background:#37474f;color:#fff;font-weight:800;font-size:0.85rem;display:flex;align-items:center;justify-content:center;">${it.cant}</div>
-          <button data-sx="1" onclick="salidaQuitar(${it.p.id})" style="background:none;border:none;color:#e53935;font-size:1.1rem;cursor:pointer;padding:0 2px;">✕</button>
-        </div>`).join('');
-    _salidaGestosInit(lista);
+    // v570 — ya no hay lista aparte: la cantidad se ve como badge en cada fila del catálogo
+    lista.innerHTML = '';
+    _salidaActualizarBadges();
+    _salidaGestosInit(document.getElementById('salidaResultados'));
+    _salidaProgramarOrden();
     const btn = document.querySelector('#modalSalidaInterna button[onclick="confirmarSalidaInterna()"]');
     if (btn && !btn.disabled) btn.textContent = '✅ Confirmar salida' + (_salidaItems.length > 1 ? ' (' + _salidaItems.length + ' productos)' : '');
 }
 
-// v569 — gestos en la lista "Productos a sacar": tocar = +1, deslizar a la izquierda = −1 (con cantidad 1 no borra: avisa que uses la ✕).
-// Un solo escuchador delegado sobre la lista (se instala una vez); las filas se redibujan en cada cambio.
+// v570 — gestos sobre las filas del catálogo: tocar = +1, deslizar a la izquierda = −1 (con cantidad 1 quita el producto de la salida).
+// Un solo escuchador delegado (se instala una vez). El scroll vertical sigue siendo del navegador (touch-action: pan-y).
 var _salidaG = null;
-function _salidaGestosInit(lista) {
-    if (lista._gestosOk) return;
-    lista._gestosOk = true;
-    lista.addEventListener('pointerdown', function (e) {
-        if (e.target.closest('[data-sx]')) { _salidaG = null; return; }
-        const fila = e.target.closest('[data-sid]');
-        if (!fila) { _salidaG = null; return; }
-        _salidaG = { id: Number(fila.getAttribute('data-sid')), x: e.clientX, y: e.clientY, dx: 0, dy: 0, fila: fila };
+function _salidaGestosInit(cont) {
+    if (!cont || cont._gestosOk) return;
+    cont._gestosOk = true;
+    cont.addEventListener('pointerdown', function (e) {
+        const fila = e.target.closest('[data-pid]');
+        _salidaG = fila ? { id: Number(fila.getAttribute('data-pid')), x: e.clientX, y: e.clientY, dx: 0, dy: 0, fila: fila } : null;
     });
-    lista.addEventListener('pointermove', function (e) {
+    cont.addEventListener('pointermove', function (e) {
         if (!_salidaG) return;
         _salidaG.dx = e.clientX - _salidaG.x; _salidaG.dy = e.clientY - _salidaG.y;
         if (_salidaG.dx < -8 && Math.abs(_salidaG.dx) > Math.abs(_salidaG.dy) * 1.5) {
@@ -16911,22 +16936,21 @@ function _salidaGestosInit(lista) {
             _salidaG.fila.style.transform = 'translateX(' + Math.max(_salidaG.dx, -80) + 'px)';
         }
     });
-    const fin = function (e, cancelado) {
+    const fin = function (cancelado) {
         const g = _salidaG; _salidaG = null;
         if (!g) return;
         g.fila.style.transition = 'transform .15s'; g.fila.style.transform = '';
         if (cancelado) return;
-        const dx = g.dx, dy = g.dy;
-        if (dx <= -40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-            const it = _salidaItems.find(x => x.p.id === g.id);
-            if (it && it.cant <= 1) mostrarToast('Usá la ✕ para quitar el producto', 'naranja');
-            else salidaCantItem(g.id, -1);
-        } else if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
-            salidaCantItem(g.id, 1);
+        const it = _salidaItems.find(x => x.p.id === g.id);
+        if (g.dx <= -40 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5) {
+            if (!it) return;
+            if (it.cant <= 1) salidaQuitar(g.id); else salidaCantItem(g.id, -1);
+        } else if (Math.abs(g.dx) < 10 && Math.abs(g.dy) < 10) {
+            if (it) salidaCantItem(g.id, 1); else salidaSeleccionar(g.id);
         }
     };
-    lista.addEventListener('pointerup', function (e) { fin(e, false); });
-    lista.addEventListener('pointercancel', function (e) { fin(e, true); });
+    cont.addEventListener('pointerup', function () { fin(false); });
+    cont.addEventListener('pointercancel', function () { fin(true); });
 }
 
 function salidaSeleccionar(id) {
