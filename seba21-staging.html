@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v571</title>
+    <title>🛒 POS · Copihue v572</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15355,15 +15355,20 @@ abrirNuevoProducto = function() {
         <input id="salidaBuscador" type="text" placeholder="Buscar · tocar suma · deslizar ← resta"
           oninput="salidaBuscar()"
           style="width:100%;padding:10px 14px;border:2px solid #ddd;border-radius:12px;font-size:0.95rem;box-sizing:border-box;flex-shrink:0;">
-        <div id="salidaResultados" style="flex:1;overflow-y:auto;margin-top:6px;min-height:0;padding-bottom:70px;box-sizing:border-box;"></div>
+        <div id="salidaResultados" style="flex:1;overflow-y:auto;margin-top:6px;min-height:0;padding-bottom:4px;box-sizing:border-box;"></div>
       </div>
 
       <!-- Producto seleccionado — v571: franja compacta (motivo colapsado + observación colapsada) -->
       <div id="salidaProductoSelWrap" style="display:none;padding:8px 16px;border-bottom:1px solid #f0f0f0;">
         <span id="salidaCuenta" style="display:none"></span><div id="salidaLista" style="display:none"></div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <button id="salidaMotivoChip" onclick="salidaToggleMotivos()" style="padding:7px 14px;border-radius:20px;border:2px solid #546e7a;background:#546e7a;color:white;font-size:0.85rem;font-weight:700;cursor:pointer;">🍽️ Consumo ▾</button>
-          <button id="salidaObsBtn" onclick="salidaToggleObs()" title="Observación" style="position:relative;width:38px;height:34px;border-radius:17px;border:2px solid #ddd;background:white;font-size:1rem;cursor:pointer;">📝<span id="salidaObsDot" style="display:none;position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:5px;background:#e53935;"></span></button>
+        <div style="display:flex;align-items:center;gap:6px;padding-top:3px;">
+          <button id="salidaObsBtn" onclick="salidaToggleObs()" title="Observación" style="position:relative;flex-shrink:0;width:38px;height:36px;border-radius:18px;border:2px solid #ddd;background:white;font-size:1rem;cursor:pointer;">📝<span id="salidaObsDot" style="display:none;position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:5px;background:#e53935;"></span></button>
+          <button id="salidaMotivoChip" onclick="salidaToggleMotivos()" style="flex-shrink:0;white-space:nowrap;padding:7px 9px;border-radius:20px;border:2px solid #546e7a;background:#546e7a;color:white;font-size:0.82rem;font-weight:700;cursor:pointer;">🍽️ Consumo ▾</button>
+          <!-- v572: Confirmar va en la MISMA fila (con el badge de productos); ya no flota sobre el catálogo -->
+          <div id="salidaFabWrap" style="position:relative;flex:1;min-width:0;">
+            <button id="salidaFab" onclick="salidaPedirConfirmacion()" style="width:100%;padding:9px 4px;border:none;border-radius:20px;background:#2e7d32;color:white;font-weight:800;font-size:0.86rem;cursor:pointer;white-space:nowrap;">✅ Confirmar</button>
+            <span id="salidaFabN" style="position:absolute;top:-9px;right:-3px;min-width:21px;height:21px;padding:0 5px;box-sizing:border-box;border-radius:11px;background:#e53935;color:#fff;font-weight:800;font-size:0.75rem;display:flex;align-items:center;justify-content:center;border:2px solid #fff;pointer-events:none;"></span>
+          </div>
         </div>
         <div style="display:none;flex-wrap:wrap;gap:6px;margin-top:8px;" id="salidaMotivosBtns">
           <button onclick="salidaSelMotivo(this,'CONSUMO')"    class="salida-motivo" style="padding:7px 14px;border-radius:20px;border:2px solid #ddd;background:white;font-size:0.82rem;cursor:pointer;">🍽️ Consumo</button>
@@ -15381,11 +15386,6 @@ abrirNuevoProducto = function() {
 
     </div>
 
-    <!-- v571: botón flotante de confirmar (con el número de productos en un badge) -->
-    <div id="salidaFabWrap" style="display:none;position:absolute;right:14px;bottom:12px;z-index:5;">
-      <button id="salidaFab" onclick="salidaPedirConfirmacion()" style="padding:13px 18px;border:none;border-radius:28px;background:#546e7a;color:white;font-weight:800;font-size:0.92rem;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.35);">✅ Confirmar · Consumo</button>
-      <span id="salidaFabN" style="position:absolute;top:-8px;right:-4px;min-width:22px;height:22px;padding:0 5px;box-sizing:border-box;border-radius:11px;background:#e53935;color:#fff;font-weight:800;font-size:0.78rem;display:flex;align-items:center;justify-content:center;border:2px solid #fff;pointer-events:none;"></span>
-    </div>
     </div><!-- /envoltorio v571 -->
 
     <!-- Historial — v432: pie FIJO al final del modal (fuera del área que
@@ -17026,22 +17026,16 @@ function _salidaObsPunto() {
     const t = document.getElementById('salidaObs'), d = document.getElementById('salidaObsDot');
     if (t && d) d.style.display = t.value.trim() ? 'block' : 'none';
 }
-function _salidaFabTexto() { return '✅ Confirmar · ' + ((_SAL_MOTIVO_TXT[_salidaMotivo] || '').replace(/^\S+\s/, '') || 'Salida'); }
+function _salidaFabTexto() { return '✅ Confirmar'; }   // v572: el motivo ya se ve en el chip de al lado
 function _salidaFabActualizar() {
     const w = document.getElementById('salidaFabWrap'), b = document.getElementById('salidaFab'), n = document.getElementById('salidaFabN');
     if (!w || !b) return;
-    w.style.display = _salidaItems.length ? 'block' : 'none';
+    w.style.display = 'block';   // v572: la franja entera ya se muestra/oculta según haya productos
     if (n) n.textContent = _salidaItems.length || '';
     if (!b.disabled) b.textContent = _salidaFabTexto();
     _salidaFabPos();
 }
-// el botón flotante siempre queda por ENCIMA de la franja de motivo/observación (sigue su altura si se despliega algo)
-function _salidaFabPos() {
-    const w = document.getElementById('salidaFabWrap'), st = document.getElementById('salidaProductoSelWrap');
-    if (!w) return;
-    const h = (st && st.style.display !== 'none') ? st.offsetHeight : 0;
-    w.style.bottom = (h + 12) + 'px';
-}
+function _salidaFabPos() { /* v572: ya no flota — va dentro de la franja */ }
 function salidaPedirConfirmacion() {
     if (!_salidaItems.length) { mostrarToast('⚠️ Agregá al menos un producto', 'rojo'); return; }
     if (!_salidaMotivo) { mostrarToast('⚠️ Seleccioná un motivo', 'rojo'); return; }
