@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v572</title>
+    <title>🛒 POS · Copihue v574</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12563,6 +12563,7 @@ const OFERTAS_RELAMPAGO_SISTEMA = {
 
 // Helper: estado real del toggle cervecero
 function _esCerveceroActivo() {
+    _jcOverrideVigente(); // v574: el apagado/encendido manual vale solo por el día en que se hizo
     return _cerveceroOverride !== null ? _cerveceroOverride : _esCerveceroAutoActivo();
 }
 
@@ -13717,6 +13718,56 @@ if (_cerveceroOverride === 'true')  _cerveceroOverride = true;
 else if (_cerveceroOverride === 'false') _cerveceroOverride = false;
 else _cerveceroOverride = null;
 
+// v574 — el override manual vale SOLO por el día en que se hizo (hora Argentina).
+// Si la fecha guardada no es la de hoy (o no existe), se descarta y vuelve el automático.
+var _jcFechaCache = { t: 0, f: '' };
+var _jcTemp = false; // true mientras _repreciarCarritoCervecero compara estados (no vencer el override)
+function _jcHoy() {
+    var n = Date.now();
+    if (n - _jcFechaCache.t > 30000) {
+        _jcFechaCache = { t: n, f: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }) };
+    }
+    return _jcFechaCache.f;
+}
+function _jcOverrideVigente() {
+    if (_cerveceroOverride === null || _jcTemp) return;
+    var f = null;
+    try { f = localStorage.getItem('cervecero_override_fecha'); } catch (e) {}
+    if (f !== _jcHoy()) {
+        _cerveceroOverride = null;
+        try { localStorage.removeItem('cervecero_override'); localStorage.removeItem('cervecero_override_fecha'); } catch (e) {}
+    }
+}
+_jcOverrideVigente();
+
+// v574 — al prender/apagar el Jueves Cervecero, re-precia las cervezas que YA están en el carrito.
+// Solo toca líneas cuyo precio actual coincide con lo que daba el sistema en el estado anterior
+// (una línea con precio cambiado a mano con el lápiz NO se toca). Devuelve {cambiadas, manuales}.
+function _repreciarCarritoCervecero(estadoAnterior) {
+    var cambiadas = 0, manuales = 0;
+    (ventaActual || []).forEach(function (item) {
+        if (item.esPeso || !_poolCervecero.has(item.id)) return;
+        var p = productos.find(function (pr) { return pr.id === item.id; });
+        if (!p) return;
+        var nuevo = calcularOfertaPOS(p, item.qty);
+        var guardado = _cerveceroOverride;
+        _jcTemp = true; _cerveceroOverride = estadoAnterior;
+        var previo;
+        try { previo = calcularOfertaPOS(p, item.qty); } finally { _cerveceroOverride = guardado; _jcTemp = false; }
+        if (item.price !== previo.precioUnitario) { manuales++; return; }
+        if (nuevo.precioUnitario === item.price && (nuevo.etiqueta || null) === (item.ofertaEtiqueta || null)) return;
+        item.price            = nuevo.precioUnitario;
+        item.precioTotalCalc  = nuevo.precioTotal;
+        item.precioOriginal   = (nuevo.tipoOferta === 'normal' || nuevo.tipoOferta === 'combo' || nuevo.tipoOferta === 'promo') ? p.price : (nuevo.tieneOferta ? p.price : 0);
+        item.precioModificado = nuevo.tieneOferta;
+        item.ofertaEtiqueta   = nuevo.etiqueta || null;
+        item.ofertaTipo       = nuevo.tipoOferta || null;
+        cambiadas++;
+    });
+    if (cambiadas) { renderVenta(); guardarCarritoPendiente(); }
+    return { cambiadas: cambiadas, manuales: manuales };
+}
+
 let _jcHoraCierre = (typeof _horaCierreSistema !== 'undefined') ? _horaCierreSistema : 22; // se actualiza al cargar el pool cervecero
 
 function _esCerveceroAutoActivo() {
@@ -13744,6 +13795,7 @@ function _pintarToggleCervecero() {
 
 function toggleCervecero() {
     const autoActivo = _esCerveceroAutoActivo();
+    _jcOverrideVigente();
     const estadoActual = _cerveceroOverride !== null ? _cerveceroOverride : autoActivo;
 
     if (_cerveceroOverride === null) {
@@ -13755,16 +13807,23 @@ function toggleCervecero() {
     }
 
     // Guardar en localStorage
-    if (_cerveceroOverride === null) localStorage.removeItem('cervecero_override');
-    else localStorage.setItem('cervecero_override', String(_cerveceroOverride));
+    if (_cerveceroOverride === null) { localStorage.removeItem('cervecero_override'); localStorage.removeItem('cervecero_override_fecha'); }
+    else { localStorage.setItem('cervecero_override', String(_cerveceroOverride)); localStorage.setItem('cervecero_override_fecha', _jcHoy()); }
 
     _pintarToggleCervecero();
 
     const nuevoEstado = _cerveceroOverride !== null ? _cerveceroOverride : autoActivo;
+    var _rp = { cambiadas: 0, manuales: 0 };
+    try { _rp = _repreciarCarritoCervecero(estadoActual); } catch (eRp) { console.warn('⚠️ repreciar carrito cervecero:', eRp); }
     const msg = _cerveceroOverride === null
         ? '🔄 Cervecero en modo automático'
         : (nuevoEstado ? '🟢 🍺 Cervecero activado (manual)' : '🔴 🍺 Cervecero desactivado (manual)');
     mostrarToast(msg, nuevoEstado ? 'verde' : 'rojo');
+    if (_rp.cambiadas || _rp.manuales) {
+        setTimeout(function () {
+            mostrarToast('🍺 Carrito: ' + _rp.cambiadas + ' línea(s) actualizada(s)' + (_rp.manuales ? ' · ' + _rp.manuales + ' con precio a mano sin tocar' : ''), _rp.manuales ? 'naranja' : 'verde');
+        }, 1500);
+    }
     // Recargar pool cervecero y refrescar badges
     cargarPoolsOfertas().then(() => _refreshResultadosBadges());
 }
@@ -14604,6 +14663,11 @@ async function compartirFlyerAdminWA() {
         </div>
         <div id="fotosGHConfig" style="display:none;margin-top:14px;background:#f9f9f9;border:1.5px solid #e0e0e0;border-radius:14px;padding:14px;">
           <div style="font-size:0.8rem;font-weight:700;color:#333;margin-bottom:10px;">⚙️ Configurar GitHub (una sola vez)</div>
+          <input type="file" id="cfgGHFileInput" accept="application/json,.json" style="display:none" onchange="cargarConfigGHDesdeArchivo(event)">
+          <button onclick="document.getElementById('cfgGHFileInput').click()"
+                  style="width:100%;padding:10px;margin-bottom:10px;border:1.5px solid #24292e;border-radius:10px;background:white;color:#24292e;font-size:0.88rem;font-weight:700;cursor:pointer;">
+            📂 Cargar desde archivo .json
+          </button>
           <input type="text" id="ghOwner" placeholder="Usuario GitHub"
                  style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.88rem;margin-bottom:6px;box-sizing:border-box;">
           <input type="text" id="ghRepo" placeholder="Nombre del repo"
@@ -15855,6 +15919,30 @@ function guardarConfigGH(){
     document.getElementById('fotosGHConfig').style.display='none';
     mostrarToast('✅ Config guardada','verde');
     publicarEnGitHub();
+}
+
+// v573: cargar la configuración de GitHub desde un archivo .json (mismo formato que copihue-fotos: {owner,repo,branch,token[,anthropicKey]})
+function cargarConfigGHDesdeArchivo(event){
+    var file=event.target.files&&event.target.files[0]; if(!file) return;
+    var reader=new FileReader();
+    reader.onload=function(e){
+        var d;
+        try{ d=JSON.parse(e.target.result); }catch(err){ mostrarToast('⚠️ Archivo inválido (no es JSON)','naranja'); event.target.value=''; return; }
+        if(!d||typeof d!=='object'){ mostrarToast('⚠️ Archivo inválido','naranja'); event.target.value=''; return; }
+        function _g(){ for(var i=0;i<arguments.length;i++){ var v=d[arguments[i]]; if(typeof v==='string'&&v.trim()) return v.trim(); } return ''; }
+        var owner=_g('owner','usuario','user'), repo=_g('repo','repositorio'), branch=_g('branch','rama'),
+            token=_g('token','github_token','ghToken'), ak=_g('anthropicKey','anthropic_key','api_key','apiKey');
+        if(!owner&&!repo&&!token&&!ak){ mostrarToast('⚠️ El archivo no tiene datos conocidos (owner, repo, token)','naranja'); event.target.value=''; return; }
+        if(owner) document.getElementById('ghOwner').value=owner;
+        if(repo) document.getElementById('ghRepo').value=repo;
+        if(branch) document.getElementById('ghBranch').value=branch;
+        if(token) document.getElementById('ghToken').value=token;
+        if(ak) document.getElementById('anthropicKey').value=ak;
+        event.target.value='';
+        mostrarToast('✅ Datos cargados — tocá «Guardar configuración»','verde');
+    };
+    reader.onerror=function(){ mostrarToast('⚠️ No se pudo leer el archivo','naranja'); };
+    reader.readAsText(file);
 }
 
 function _mostrarConfigGH(){
