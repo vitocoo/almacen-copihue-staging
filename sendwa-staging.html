@@ -9,6 +9,18 @@
 <title>SendWA — Almacén Copihue</title>
 <!--
   CHANGELOG sendwa.html
+  v122: SENDWA = SOLO LO ACTIVO (decisión de Victor): se publica lo mismo que
+        cobra el POS en este momento. Publicar a la mañana una oferta que
+        abre a la tarde confunde a los clientes.
+        - getModoResolucion() y resolveOfertas() usan SIEMPRE 'activo'
+          (horario + interruptor del día). Afecta lista, chips por tipo,
+          texto de WA, collage/1 Foto, IA y "Sin oferta".
+        - Se quitó el chip "🔥 Pool". El pool completo es para EDITAR
+          ofertas → queda para un módulo aparte (configurador de ofertas).
+          construirPoolLocal() se mantiene: arma Multicompra desde el
+          listado (sin tope) y sirve de base para ese módulo.
+        - Chip de tipo vacío (ej. ⚡ Relámpago antes de las 21) muestra el
+          horario de hoy de ese tipo.
   v121: ETAPA 1 — filtros de ofertas (sin tocar Code.gs ni la planilla).
         - 🔥 Pool DE VERDAD: se arma con el listado de productos (columnas
           G/H/I + texto de la columna J, igual que la fórmula de la planilla),
@@ -1331,8 +1343,7 @@
   <div class="filter-panel-title">Tipo de oferta</div>
   <div class="filter-chips-wrap">
     <button class="filter-chip select-chip" data-filter="seleccionados" id="chip-seleccionados">✅ Solo seleccionados</button>
-    <button class="filter-chip oferta-chip" data-filter="oferta">🔥 Pool</button>
-    <button class="filter-chip oferta-chip" data-filter="activo">⏰ Activos ahora</button>
+    <button class="filter-chip oferta-chip" data-filter="activo">⏰ Todas las activas ahora</button>
     <button class="filter-chip oferta-chip" data-filter="relampago">⚡ Relámpago</button>
     <button class="filter-chip oferta-chip" data-filter="destacado">🔥 Destacado</button>
     <button class="filter-chip oferta-chip" data-filter="especial">💜 Especial</button>
@@ -1871,7 +1882,7 @@
 // pestaña y el badge del header se arman solos a partir de esta constante
 // (ver aplicarVersionUI() más abajo, llamada al final de init()).
 // ============================================================
-const APP_VERSION = 121;
+const APP_VERSION = 122;
 function aplicarVersionUI() {
   document.title = `SendWA — Almacén Copihue ver.${APP_VERSION}`;
   const badge = document.getElementById('ver-badge');
@@ -2442,7 +2453,7 @@ function parseProducts(data) {
 //   'pool'   → en el pool configurado (independiente de horario) — filtro "Con ofertas"
 //   'activo' → solo los activos AHORA según horario/forzados (igual que seba21) — filtro "Activos ahora"
 //   'collage'→ igual que 'pool' (para el canvas)
-function resolveOfertas(products, modo = 'pool') {
+function resolveOfertas(products, modo = 'activo') { // v122: por defecto SIEMPRE lo activo
   return products.map(p => {
     const pid = Number(p.id);
     // v121 — 2x1 REAL: máxima prioridad, pisa incluso a la personalizada
@@ -2564,8 +2575,8 @@ function interleavedSort(sorted) {
 
 // Modo de resolución según filtro actual
 function getModoResolucion() {
-  if (currentFilter === 'activo') return 'activo';
-  return 'pool';
+  // v122 — sendwa publica SOLO lo activo ahora (igual que cobra el POS).
+  return 'activo';
 }
 
 function applyFilter() {
@@ -2586,7 +2597,7 @@ function applyFilter() {
       // ── Sin oferta — precio normal puro (un recién llegado SÍ entra:
       //    no tiene descuento) ──
       case 'sinoferta': {
-        const enPool = resolveOfertas([p], 'pool')[0].catOferta;
+        const enPool = resolveOfertas([p], 'activo')[0].catOferta;
         return !esDescuento(enPool);
       }
       case 'dosxuno':       return p.catOferta === 'dosxuno';
@@ -2680,9 +2691,11 @@ function renderGrid() {
     // v121 — "Activos ahora" vacío: mostrar el horario de HOY de cada tipo,
     // leído de config_sistema (con minutos, ya no se cortan).
     const emptyEl = document.getElementById('empty-state');
-    if (currentFilter === 'activo') {
+    const _TIPO_CHIP = { relampago:'relampago', destacado:'destacadas', especial:'especiales', ultimas:'ultimas' };
+    if (currentFilter === 'activo' || currentFilter === 'oferta' || _TIPO_CHIP[currentFilter]) {
       const NOM = { relampago:'⚡ Relámpago', destacadas:'🔥 Destacadas', especiales:'💜 Especiales', ultimas:'🏷️ Últimas' };
-      const lineas = Object.keys(NOM).map(t => {
+      const tiposMostrar = _TIPO_CHIP[currentFilter] ? [_TIPO_CHIP[currentFilter]] : Object.keys(NOM);
+      const lineas = tiposMostrar.map(t => {
         const h = _horarioHoy(t);
         if (h.modo === 'off') return `${NOM[t]}: apagado hoy`;
         if (h.modo === 'on')  return `${NOM[t]}: todo el día`;
@@ -6740,7 +6753,9 @@ function _firmaActivos() {
   return act + '|' + ids(_poolRelampago) + '|' + ids(_poolDestacadas) + '|' + ids(_poolEspeciales) + '|' + ids(_poolUltimas);
 }
 function _rerenderSiActivos() {
-  if (currentFilter !== 'activo') return;
+  // v122: todo es "activo" → refrescar en cualquier vista de ofertas
+  if (!['activo','oferta','relampago','destacado','especial','ultimas','multicompra',
+        'dosxuno','personalizada','sinoferta'].includes(currentFilter)) return;
   const y = window.scrollY;
   applyFilter();
   window.scrollTo(0, y);
