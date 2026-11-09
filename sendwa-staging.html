@@ -9,6 +9,22 @@
 <title>SendWA — Almacén Copihue</title>
 <!--
   CHANGELOG sendwa.html
+  v124: STAGING ahora lee y escribe en el script de STAGING (AKfycbzQcc…, planilla
+        "Copia de Almacén Copihue - Base de Datos_Staging"). Hasta la v123 la copia
+        de staging usaba la misma URL que producción (AKfycbzWZz…). Único cambio.
+  v123: ESTILO PROMO — más simple y texto centrado.
+        - Se sacó la fila Normal/Explosivo (Normal = Ninguno). Queda una sola
+          fila "Badge: Ninguno / Explosión / Tarjeta" que arranca en Ninguno;
+          texto, color, tamaño y posición aparecen solo con Explosión/Tarjeta.
+          _promoEstilo queda fijo en 'explosivo' por dentro, así las 3
+          funciones de dibujo (Clásico, Expandido, 2H/2V) no cambian.
+        - Explosión: el texto ahora se centra de verdad (se mide cuántas
+          líneas ocupa y se centra el bloque, textBaseline 'middle'). Antes
+          quedaba arriba (y = cy - fs*0.4) y no compensaba 2 líneas.
+        - Letra más grande, se achica sola hasta entrar en el círculo
+          interior de la estrella (sin pisar las puntas).
+        - Borde fino automático en la estrella si el color es claro
+          (blanco/amarillo) para que no se pierda sobre la foto.
   v122: SENDWA = SOLO LO ACTIVO (decisión de Victor): se publica lo mismo que
         cobra el POS en este momento. Publicar a la mañana una oferta que
         abre a la tarde confunde a los clientes.
@@ -1753,17 +1769,13 @@
       <div id="promo-style-bar" class="acc" style="margin-top:8px;">
         <button type="button" class="acc-head">🎨 Estilo Promo <span class="acc-arrow">▾</span></button>
         <div class="acc-body" style="display:none;">
-          <div class="layout-row" id="promo-estilo-row">
-            <button class="layout-btn active" data-promo-estilo="normal">Normal</button>
-            <button class="layout-btn" data-promo-estilo="explosivo">💥 Explosivo</button>
+          <div class="layout-section-label">Badge con frase</div>
+          <div class="layout-row" id="promo-tipo-row">
+            <button class="layout-btn active" data-promo-tipo="ninguno">Ninguno</button>
+            <button class="layout-btn" data-promo-tipo="explosion">💥 Explosión</button>
+            <button class="layout-btn" data-promo-tipo="tarjeta">🏷️ Tarjeta</button>
           </div>
           <div id="promo-explosivo-opts" style="display:none;">
-            <div class="layout-section-label" style="margin-top:6px">Badge</div>
-            <div class="layout-row" id="promo-tipo-row">
-              <button class="layout-btn" data-promo-tipo="ninguno">Ninguno</button>
-              <button class="layout-btn active" data-promo-tipo="explosion">💥 Explosión</button>
-              <button class="layout-btn" data-promo-tipo="tarjeta">🏷️ Tarjeta</button>
-            </div>
             <div class="layout-section-label" style="margin-top:6px">Texto del badge</div>
             <input id="promo-texto-input" value="SOLO HOY" maxlength="20"
               style="width:100%;height:32px;border-radius:8px;border:1.5px solid var(--border);padding:0 10px;font-size:13px;font-weight:700;color:var(--text);background:var(--card-bg);">
@@ -1882,7 +1894,7 @@
 // pestaña y el badge del header se arman solos a partir de esta constante
 // (ver aplicarVersionUI() más abajo, llamada al final de init()).
 // ============================================================
-const APP_VERSION = 122;
+const APP_VERSION = 124;
 function aplicarVersionUI() {
   document.title = `SendWA — Almacén Copihue ver.${APP_VERSION}`;
   const badge = document.getElementById('ver-badge');
@@ -1910,7 +1922,9 @@ if (window.history && window.history.pushState) {
 // ============================================================
 // CONFIG
 // ============================================================
-const API_URL = 'https://script.google.com/macros/s/AKfycbzWZzDvdGfW8vd2-FpQolT852cdPMeHbfKugn9DBOlju75bE1D0SUNB5EKEDOsI2vP4lA/exec';
+// v124: STAGING apunta al script "almacen copihue STAGING" (planilla "Copia… _Staging").
+// Antes apuntaba a AKfycbzWZz… (la URL de sendwa de producción) → leía la planilla real.
+const API_URL = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 const WA_LIMIT_ESTADO = 30;
 const IMG_SIZE_MB = 0.15;
 
@@ -3840,8 +3854,10 @@ function drawPrecioBadge(ctx, p, oferta, x, y, W, IMGH) {
 }
 
 // ── Estilo Promo (badge explosivo) — solo aplica al formato 1:1 ──
-let _promoEstilo    = 'normal';    // 'normal' | 'explosivo'
-let _promoBadgeTipo = 'explosion'; // 'ninguno' | 'explosion' | 'tarjeta'
+// v123: _promoEstilo queda fijo en 'explosivo' (se sacó la fila Normal/Explosivo);
+// lo que prende/apaga el badge es _promoBadgeTipo ('ninguno' = antes "Normal").
+let _promoEstilo    = 'explosivo';
+let _promoBadgeTipo = 'ninguno';   // 'ninguno' | 'explosion' | 'tarjeta'
 let _promoTexto     = 'SOLO HOY';
 let _promoColor     = '#e53935';
 let _promoTamano    = 'medio';     // 'chico' | 'medio' | 'grande'
@@ -3865,13 +3881,30 @@ function drawPromoBadge(ctx, W, imgAreaY, IMGH, imgRect, oferta, p, xOffset = 0)
   const texto = (_promoTexto || 'SOLO HOY').toUpperCase();
 
   if (_promoBadgeTipo === 'explosion') {
-    drawStarburst(ctx, cx, cy, size, size * 0.58, 9, color);
-    ctx.textAlign = 'center'; ctx.fillStyle = _contrasteTexto(color);
-    let fs = Math.max(size * 0.19, 12);
-    ctx.font = `900 ${fs}px Segoe UI`;
-    const maxW = size * 1.25;
-    while (ctx.measureText(texto).width > maxW && fs > 8) { fs -= 1; ctx.font = `900 ${fs}px Segoe UI`; }
-    wrapText(ctx, texto, cx, cy - fs*0.4, maxW, fs*1.05, 2);
+    const rIn = size * 0.58;
+    drawStarburst(ctx, cx, cy, size, rIn, 9, color);
+    // v123 — borde fino si el color es claro (blanco/amarillo), para que la
+    // estrella no se pierda sobre la foto. Sin botones nuevos.
+    if (_contrasteTexto(color) === '#1a1a1a') _strokeStarburst(ctx, cx, cy, size, rIn, 9, 'rgba(0,0,0,.45)', Math.max(1.5, size * 0.02));
+    // v123 — texto centrado de verdad: se arma en 1 o 2 líneas, se achica
+    // hasta entrar en el círculo interior, y se centra el bloque completo.
+    ctx.save();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = _contrasteTexto(color);
+    // Ancho útil = cuerda del círculo interior a la altura del bloque de
+    // texto (una sola línea baja puede usar casi todo el diámetro).
+    const anchoUtil = altoBloque => 2 * Math.sqrt(Math.max(0, rIn*rIn - (altoBloque/2)*(altoBloque/2))) * 0.94;
+    let fs = Math.round(size * 0.34), lineas = [texto];
+    for (; fs >= 8; fs--) {
+      ctx.font = `900 ${fs}px Segoe UI`;
+      lineas = _partirEnLineas(ctx, texto, rIn * 1.8, 2);
+      const w = anchoUtil(lineas.length * fs * 1.05);
+      if (w > 0 && lineas.every(l => ctx.measureText(l).width <= w)) break;
+    }
+    const lh = fs * 1.05;
+    const y0 = cy - (lineas.length - 1) * lh / 2;
+    lineas.forEach((l, i) => ctx.fillText(l, cx, y0 + i * lh));
+    ctx.restore();
   } else if (_promoBadgeTipo === 'tarjeta') {
     const cw = size * 1.7, ch = size * 1.35;
     const cxL = Math.max(xOffset + 6, Math.min(xOffset + W - cw - 6, cx - cw/2));
@@ -3903,6 +3936,36 @@ function drawPromoBadge(ctx, W, imgAreaY, IMGH, imgRect, oferta, p, xOffset = 0)
       ctx.fillText(oferta.etiqueta.toUpperCase(), cxL + cw/2, cyT + ch*0.86);
     }
   }
+}
+// v123 — parte un texto en hasta maxLines líneas (por palabras). Si no entra,
+// la última línea se lleva el resto (después se achica la letra).
+function _partirEnLineas(ctx, text, maxW, maxLines) {
+  const words = String(text).split(' ').filter(Boolean);
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxW && line && lines.length < maxLines - 1) { lines.push(line); line = w; }
+    else line = test;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+// v123 — contorno de la estrella (mismo trazado que drawStarburst)
+function _strokeStarburst(ctx, cx, cy, rOuter, rInner, points, color, width) {
+  ctx.save();
+  ctx.beginPath();
+  const step = Math.PI / points;
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 === 0 ? rOuter : rInner;
+    const a = i * step - Math.PI / 2;
+    const px = cx + r * Math.cos(a), py = cy + r * Math.sin(a);
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round';
+  ctx.stroke();
+  ctx.restore();
 }
 // Blanco o negro según qué contraste más con el color de fondo (para que el
 // texto del badge se lea bien con cualquier color elegido, incluido blanco)
@@ -3936,19 +3999,13 @@ document.getElementById('layout-format-row').onclick = e => {
 };
 
 // ── Estilo Promo: wiring ──
-document.getElementById('promo-estilo-row').onclick = e => {
-  const btn = e.target.closest('.layout-btn');
-  if (!btn) return;
-  _promoEstilo = btn.dataset.promoEstilo;
-  document.querySelectorAll('#promo-estilo-row .layout-btn').forEach(b => b.classList.toggle('active', b===btn));
-  document.getElementById('promo-explosivo-opts').style.display = _promoEstilo === 'explosivo' ? 'block' : 'none';
-  renderCollageMode();
-};
 document.getElementById('promo-tipo-row').onclick = e => {
   const btn = e.target.closest('.layout-btn');
   if (!btn) return;
   _promoBadgeTipo = btn.dataset.promoTipo;
   document.querySelectorAll('#promo-tipo-row .layout-btn').forEach(b => b.classList.toggle('active', b===btn));
+  // v123 — opciones (texto/color/tamaño/posición) solo si hay badge
+  document.getElementById('promo-explosivo-opts').style.display = _promoBadgeTipo === 'ninguno' ? 'none' : 'block';
   renderCollageMode();
 };
 document.getElementById('promo-texto-presets').addEventListener('click', e => {
