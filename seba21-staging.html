@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v574</title>
+    <title>🛒 POS · Copihue v576</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -4013,6 +4013,9 @@
                            display:flex;align-items:center;justify-content:center;gap:8px;">
                 <span style="font-size:1.2rem;">📲</span> <span id="btnEnviarTicketWATxt">Enviar ticket al cliente</span>
             </button>
+            <!-- v576 — solo se ve cuando el ticket va directo al número del cliente -->
+            <div id="lnkTicketOtroContacto" onclick="enviarTicketWA(true)"
+                 style="display:none;text-align:center;margin-top:8px;font-size:0.85rem;color:#128C7E;text-decoration:underline;cursor:pointer;">Elegir otro contacto</div>
         </div>
     </div>
 </div>
@@ -5403,11 +5406,26 @@ function cambiarCantidad(id, delta) {
 // hay ningún cálculo ni conexión a la planilla — cero impacto en velocidad.
 const FAB_PLEGADO_KEY = 'copihue_fab_plegado';
 
+// v575 — cuando Cobrar/Vaciar están OCULTOS, el botón para volver a mostrarlos se ve
+// grande y verde con «$» (antes: circulito gris de 30px, difícil de reconocer).
+// Cuando están visibles queda chico y gris como siempre. Solo apariencia.
+function _pintarFabToggle(plegado) {
+    const t = document.getElementById('fabTogglePliegue');
+    if (!t) return;
+    t.textContent = plegado ? '$' : '▾';
+    t.title = plegado ? 'Mostrar Cobrar' : 'Ocultar Cobrar';
+    t.style.width = t.style.height = plegado ? '46px' : '30px';
+    t.style.background = plegado ? '#2e7d32' : 'rgba(0,0,0,0.4)';
+    t.style.border = plegado ? '2px solid #fff' : 'none';
+    t.style.boxShadow = plegado ? '0 3px 10px rgba(0,0,0,0.45)' : 'none';
+    t.style.fontSize = plegado ? '1.5rem' : '0.9rem';
+}
+
 function _toggleFabColapso() {
     const cont = document.getElementById('fabColapsable');
     const plegar = cont.style.display !== 'none';
     cont.style.display = plegar ? 'none' : 'flex';
-    document.getElementById('fabTogglePliegue').textContent = plegar ? '▸' : '▾';
+    _pintarFabToggle(plegar);
     localStorage.setItem(FAB_PLEGADO_KEY, plegar ? '1' : '0');
 }
 
@@ -5417,7 +5435,7 @@ function _aplicarEstadoFabColapso() {
     const toggle = document.getElementById('fabTogglePliegue');
     if (!cont || !toggle) return;
     cont.style.display = plegado ? 'none' : 'flex';
-    toggle.textContent = plegado ? '▸' : '▾';
+    _pintarFabToggle(plegado);
 }
 
 // v520 — SEÑAL AL VACIAR EL CARRITO: antes el botón parecía no hacer nada hasta que el redibujado terminaba.
@@ -7315,12 +7333,34 @@ async function _buscarTicketVenta(idVenta, esperas, log) {
 }
 // v541 — el botón "Enviar ticket" queda deshabilitado con el avance mientras se aplican los abonos a la deuda.
 // txt=null → vuelve a la normalidad. Solo cambia la parte visual: no toca ventas, abonos ni montos.
+// v576 — ¿a qué número va el ticket? Teléfono del fiado de la venta mixta o del cliente elegido en el cobro.
+// Solo lectura: no toca la venta, el fiado ni el texto del ticket.
+function _tkDestino() {
+    try {
+        var v = window._ultimaVenta || {};
+        var d = v.fiadoMixto && v.fiadoMixto.datos;
+        var tel = (d && d.telefono) || (_clienteActual && _clienteActual.telefono) || '';
+        var nom = (d && d.telefono && d.cliente) || (_clienteActual && _clienteActual.nombre) || '';
+        tel = String(tel || '').replace(/\D/g, '');
+        if (tel.length < 8) return { tel: '', nombre: '' };
+        return { tel: tel, nombre: String(nom || '').trim() };
+    } catch (e) { return { tel: '', nombre: '' }; }
+}
+function _tkPintarDestino() {
+    try {
+        var b = document.getElementById('btnEnviarTicketWA'), t = document.getElementById('btnEnviarTicketWATxt'), l = document.getElementById('lnkTicketOtroContacto');
+        if (!b || !t || b.disabled) return;   // mientras muestra el avance de los abonos no se pisa
+        var dst = _tkDestino();
+        t.textContent = dst.tel ? ('Enviar ticket a ' + (dst.nombre ? dst.nombre.substring(0, 22) + ' · ' : '') + dst.tel) : 'Enviar ticket al cliente';
+        if (l) l.style.display = dst.tel ? 'block' : 'none';
+    } catch (e) {}
+}
 function _ticketBtnEstado(txt) {
     try {
         const b = document.getElementById('btnEnviarTicketWA'), t = document.getElementById('btnEnviarTicketWATxt');
         if (!b || !t) return;
         if (txt) { t.textContent = txt; b.disabled = true; b.style.opacity = '0.6'; b.style.cursor = 'default'; }
-        else { t.textContent = 'Enviar ticket al cliente'; b.disabled = false; b.style.opacity = ''; b.style.cursor = 'pointer'; }
+        else { t.textContent = 'Enviar ticket al cliente'; b.disabled = false; b.style.opacity = ''; b.style.cursor = 'pointer'; _tkPintarDestino(); }
     } catch (e) {}
 }
 // ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -7731,6 +7771,7 @@ async function confirmarVentaMixta() {
         if (_datosFiadoMixto) {
             const _vRef = window._ultimaVenta;
             _vRef.fiadoMixto = { datos: _datosFiadoMixto, monto: Math.round(_datosFiadoMixto.total), estado: 'calculando', deuda: null };
+            _tkPintarDestino(); // v576
             // v535 — línea de diagnóstico TEMPORAL (se saca al terminar la prueba)
             const _dbgTk = (t) => {
                 try {
@@ -7795,6 +7836,7 @@ async function confirmarVentaMixta() {
         actualizarRanking();
 
         const btnTicket = document.getElementById('btnTicketWA');
+        _tkPintarDestino(); // v576
         if (btnTicket) { btnTicket.style.display = 'block'; setTimeout(() => { try { btnTicket.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e) {} }, 200); } // v534
         if (btn) { btn.textContent = '✅ Cobro confirmado'; btn.disabled = true; }
         const btnCancelar = document.querySelector('.btn-cancelar-confirm');
@@ -7950,6 +7992,7 @@ async function confirmarVenta() {
 
         // Mostrar botón ticket en el modal antes de cerrarlo
         const btnTicket = document.getElementById('btnTicketWA');
+        _tkPintarDestino(); // v576
         if (btnTicket) { btnTicket.style.display = 'block'; setTimeout(() => { try { btnTicket.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e) {} }, 200); } // v534
         const btnOk = document.getElementById('btnOkConfirm');
         if (btnOk) { btnOk.textContent = '✅ Cobro confirmado'; btnOk.disabled = true; }
@@ -8053,7 +8096,7 @@ function abrirWABusiness(texto, telefono) {
 // Alias vacíos — modal eliminado
 function cerrarModalWA() {}
 
-function enviarTicketWA() {
+function enviarTicketWA(elegirContacto) {   // v576: elegirContacto=true → como antes (elegir el contacto en WhatsApp)
     var v = window._ultimaVenta;
     if (!v) return;
     var hoy = new Date();
@@ -8144,12 +8187,14 @@ function enviarTicketWA() {
         metodoLabel + bloqueDeuda + saludo;
 
     // Si hay cliente seleccionado → abrir WA Business con su número
+    // v576 — si la venta tiene el teléfono del cliente, el ticket abre el chat DIRECTO de ese número
+    // (aunque no esté agendado). «Elegir otro contacto» mantiene el comportamiento anterior.
+    var _dstTk = elegirContacto === true ? { tel: '' } : _tkDestino();
     if (_clienteActual && _clienteActual.telefono) {
         actualizarEstadisticaCliente(_clienteActual.telefono, v);
-        abrirWABusiness(mensaje);
-    } else {
-        abrirWABusiness(mensaje);
     }
+    if (_dstTk.tel) abrirWABusiness(mensaje, _dstTk.tel);
+    else abrirWABusiness(mensaje);
 }
 
 function cerrarConfirm() {
@@ -12253,10 +12298,12 @@ function seleccionarCliente(tel, nombre) {
     const sel = document.getElementById('clienteSeleccionado');
     document.getElementById('clienteSelNombre').textContent = '✅ ' + nombre + ' · ' + tel;
     sel.style.display = 'flex';
+    _tkPintarDestino(); // v576
 }
 
 function deseleccionarCliente() {
     _clienteActual = null;
+    _tkPintarDestino(); // v576
     document.getElementById('clienteBuscador').value = '';
     document.getElementById('clienteSeleccionado').style.display = 'none';
 }
