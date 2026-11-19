@@ -238,7 +238,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 <div id="toast"></div>
 
 <script>
-const APP_VERSION=47;
+const APP_VERSION=48;
 const API_URL='https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 
 // ── Estado ─────────────────────────────────────────
@@ -258,6 +258,21 @@ function safeEnc(s){try{return encodeURIComponent(s);}catch(e){return encodeURIC
 function sanitizeWA(s){return(s||'').replace(/◆/g,'-').replace(/·/g,'-').replace(/[^\x20-\x7E\u00C0-\u024F\u00A0\n]/g,' ').replace(/\s{2,}/g,' ').trim();}
 function normTel(t){const d=String(t||'').replace(/\D/g,'');if(d.length===10)return'549'+d;if(d.length>=11)return d;return'';}
 
+// v48 — hora del pago ('yyyy-MM-dd HH:mm' que ahora devuelve el servidor). Medianoche = sin hora conocida.
+function _horaDe(s){const m=/^\d{4}-\d{2}-\d{2}[ T](\d{2}):(\d{2})/.exec(String(s||''));return (m&&!(m[1]==='00'&&m[2]==='00'))?m[1]+':'+m[2]:'';}
+// v48 — última compra y último pago de un cliente (de todos sus fiados, pagados o no). Solo lectura.
+function _ultCli(nom){
+  const k=String(nom||'').trim().toUpperCase();let compra='',pago='';
+  _todos.forEach(f=>{
+    if(String(f.cliente||'').trim().toUpperCase()!==k)return;
+    if(f.fecha&&f.fecha>compra)compra=f.fecha;
+    if(f.fechaPago&&f.fechaPago>pago)pago=f.fechaPago;
+    String(f.abonos||'').replace(/(\d{2})\/(\d{2})\/(\d{4})/g,(x,d,m,y)=>{const iso=y+'-'+m+'-'+d;if(iso>pago)pago=iso;return x;});
+  });
+  const corta=iso=>{if(!iso)return'';const[y,m,d]=iso.slice(0,10).split('-');return d+'/'+m+(y!==String(new Date().getFullYear())?'/'+y.slice(2):'');};
+  if(!compra&&!pago)return'';
+  return `<div style="font-size:.68rem;color:#666;margin-top:2px">${compra?'🛒 Últ. compra '+corta(compra):''}${compra&&pago?' · ':''}${pago?'💵 Últ. pago '+corta(pago):''}</div>`;
+}
 function _normFecha(s){
   if(!s)return'';const str=String(s).trim();
   // YYYY-MM-DD
@@ -302,7 +317,7 @@ async function cargar(){
       _api('listarClientes')
     ]);
     if(!dFia.ok)throw new Error(dFia.error||'Error al cargar');
-    _todos=(dFia.fiados||[]).map(f=>({...f,fecha:_normFecha(f.fecha),fechaPago:_normFecha(f.fechaPago),fechaVencimiento:_normFecha(f.fechaVencimiento)}));
+    _todos=(dFia.fiados||[]).map(f=>({...f,fechaPagoHora:_horaDe(f.fechaPago),fecha:_normFecha(f.fecha),fechaPago:_normFecha(f.fechaPago),fechaVencimiento:_normFecha(f.fechaVencimiento)}));
     _todosClientes=(dCli.ok&&dCli.clientes)||[];
     renderClientes();
   }catch(e){
@@ -437,7 +452,7 @@ function renderClientesLista(clis,sinDeuda,pend,totG,q){
       const prox=c.fiados.filter(f=>{if(!f.fechaVencimiento)return false;const d=new Date(f.fechaVencimiento+'T12:00:00');const dias=Math.round((d-hoy)/86400000);return dias>=0&&dias<=3;}).length;
       const bdg=venc>0?`<span class="bdg bdg-r">🔴 ${venc} vencido${venc>1?'s':''}</span>`:prox>0?`<span class="bdg bdg-o">⏰ Vence pronto</span>`:`<span class="bdg bdg-v">${c.fiados.length} fiado${c.fiados.length>1?'s':''}</span>`;
       const bordeCli=venc>0?'rgba(198,40,40,.4)':'rgba(46,125,50,.5)';
-      html+=`<div class="cli-card" data-idx="${idx}" style="border-color:${bordeCli}"><div><div class="cli-nombre">${c.nom}</div><div class="cli-tel">${c.tel?'📞 '+c.tel:'Sin teléfono'} <button onclick="event.stopPropagation();abrirEditCli('${safeEnc(c.nom)}','${c.tel||''}')" style="background:none;border:none;cursor:pointer;font-size:.8rem;padding:0 4px;color:var(--vd)">✏️</button></div><div style="margin-top:3px">${bdg}</div></div><div class="cli-deuda">${fmt(c.tot)}</div></div>`;
+      html+=`<div class="cli-card" data-idx="${idx}" style="border-color:${bordeCli}"><div><div class="cli-nombre">${c.nom}</div><div class="cli-tel">${c.tel?'📞 '+c.tel:'Sin teléfono'} <button onclick="event.stopPropagation();abrirEditCli('${safeEnc(c.nom)}','${c.tel||''}')" style="background:none;border:none;cursor:pointer;font-size:.8rem;padding:0 4px;color:var(--vd)">✏️</button></div>${_ultCli(c.nom)}<div style="margin-top:3px">${bdg}</div></div><div class="cli-deuda">${fmt(c.tot)}</div></div>`;
     });
   } else if(!q){
     html+='<div class="empty"><div class="icon">✅</div>No hay fiados pendientes</div>';
@@ -455,7 +470,7 @@ function renderClientesLista(clis,sinDeuda,pend,totG,q){
     } else {
       sinDeuda.forEach((c,idx)=>{
         const nom=c.nombre||'';const tel=c.telefono||'';
-        html+=`<div class="cli-card" style="opacity:.9;cursor:pointer" data-sin="${idx}"><div><div class="cli-nombre">${nom}</div><div class="cli-tel">${tel?'📞 '+tel:'Sin teléfono'} <button onclick="event.stopPropagation();abrirEditCli('${safeEnc(nom)}','${tel}')" style="background:none;border:none;cursor:pointer;font-size:.8rem;padding:0 4px;color:var(--vd)">✏️</button></div></div><div style="font-size:.72rem;color:#aaa;text-align:right">Sin deuda<div style="color:var(--vd);font-weight:800;margin-top:2px">🎫 Ver ventas ›</div></div></div>`;
+        html+=`<div class="cli-card" style="opacity:.9;cursor:pointer" data-sin="${idx}"><div><div class="cli-nombre">${nom}</div><div class="cli-tel">${tel?'📞 '+tel:'Sin teléfono'} <button onclick="event.stopPropagation();abrirEditCli('${safeEnc(nom)}','${tel}')" style="background:none;border:none;cursor:pointer;font-size:.8rem;padding:0 4px;color:var(--vd)">✏️</button></div>${_ultCli(nom)}</div><div style="font-size:.72rem;color:#aaa;text-align:right">Sin deuda<div style="color:var(--vd);font-weight:800;margin-top:2px">🎫 Ver ventas ›</div></div></div>`;
       });
     }
   }
@@ -600,7 +615,7 @@ function renderFiados(){
     const descLine=tkt
       ?`<div class="fc-desc">🎫 Ticket #${f.ticket}</div>`
       :(f.descripcion?`<div class="fc-desc">📦 ${f.descripcion}</div>`:'');
-    const pagoLine=!esPend?`<div class="fc-pago">✅ Cobrado el ${_fmt(f.fechaPago)}${f.metodoPago?' · '+f.metodoPago:''}</div>`:'';
+    const pagoLine=!esPend?`<div class="fc-pago">✅ Cobrado el ${_fmt(f.fechaPago)}${f.fechaPagoHora?' '+f.fechaPagoHora:''}${f.metodoPago?' · '+f.metodoPago:''}</div>`:'';
     const abonoLine=(esPend&&f.totalAbonado>0)
       ?`<div class="fc-pago" style="color:var(--naranja)">💵 Abonado: ${fmt(f.totalAbonado)} · Saldo: ${fmt(f.total)}</div>`+
         (f.abonos?`<div class="fc-pago" style="color:#000;font-size:.66rem;font-weight:400">🗓️ ${f.abonos}</div>`:'')
@@ -710,7 +725,7 @@ async function abrirDet(ticket,idFiado){
     if(!d.ok)throw new Error(d.error||'No encontrado');
     const fiad=_cliData.find(f=>f.idFiado===idFiado);
     const pagoInfo=fiad&&fiad.estado==='PAGADO'
-      ?`<div class="det-pagado">✅ Cobrado el ${_fmt(fiad.fechaPago)}${fiad.metodoPago?' · '+fiad.metodoPago:''}</div>`:'';
+      ?`<div class="det-pagado">✅ Cobrado el ${_fmt(fiad.fechaPago)}${fiad.fechaPagoHora?' '+fiad.fechaPagoHora:''}${fiad.metodoPago?' · '+fiad.metodoPago:''}</div>`:'';
     const abonoInfo=fiad&&fiad.totalAbonado>0&&fiad.estado!=='PAGADO'
       ?`<div class="det-pagado" style="background:#fff8e1;color:#e65100;border-color:#ffe082">💵 Abonado: ${fmt(fiad.totalAbonado)} · Saldo pendiente: ${fmt(fiad.total)}</div>`+
         (fiad.abonos?`<div style="font-size:.7rem;color:#000;padding:2px 0 0 2px">🗓️ ${fiad.abonos}</div>`:'')
@@ -720,12 +735,17 @@ async function abrirDet(ticket,idFiado){
     const _totFiado=fiad?(parseFloat(fiad.totalOriginal)||0):0;
     const _desc=(_totFiado>0&&(d.total-_totFiado)>=1)?Math.round(d.total-_totFiado):0;
     const totalFinal=_desc?d.total-_desc:d.total;
+    // v48 — venta MIXTA (parte pagada en el momento + parte fiada): la diferencia NO es un descuento,
+    // es lo que se pagó en el momento; y el total que queda es lo FIADO. Solo cambia el texto.
+    const _mixto=_desc>0&&/MIXTO/i.test(String(d.metodoPago||''));
+    const _lblDesc=_mixto?'💵 Pagado en el momento':'🏷️ Descuento multicompra';
+    const _lblTot=_mixto?'📒 Quedó fiado':'💰 Total';
     let itemsHtml='';
     (d.items||[]).forEach(it=>{
       const cant=String(it.cantidad||'').replace(/\.0$/,'');
       itemsHtml+=`<div class="item-row"><div class="item-nom">${it.nombre}</div><div class="item-cant">${cant}</div><div class="item-precio">${fmt(it.subtotal)}</div></div>`;
     });
-    if(_desc)itemsHtml+=`<div class="item-row"><div class="item-nom">🏷️ Descuento multicompra</div><div class="item-cant"></div><div class="item-precio" style="color:#c62828">-${fmt(_desc)}</div></div>`;
+    if(_desc)itemsHtml+=`<div class="item-row"><div class="item-nom">${_lblDesc}</div><div class="item-cant"></div><div class="item-precio" style="color:${_mixto?'#2e7d32':'#c62828'}">-${fmt(_desc)}</div></div>`;
 
     // Armar mensaje WA igual que copihue-reportes
     const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -777,8 +797,8 @@ async function abrirDet(ticket,idFiado){
       '📅 '+fLabel+(hLabel?' · '+hLabel+'hs':'')+'\n\n'+
       (d.items||[]).map(p=>String(p.cantidad||'').replace(/\.0$/,'')+'× '+p.nombre.substring(0,22)+'  '+fmt(p.subtotal)).join('\n')+
       '\n─────────────────\n'+
-      (_desc?'🏷️ Descuento multicompra  -'+fmt(_desc)+'\n':'')+
-      '*💰 Total: '+fmt(totalFinal)+'*\n'+
+      (_desc?_lblDesc+'  -'+fmt(_desc)+'\n':'')+
+      '*'+_lblTot+': '+fmt(totalFinal)+'*\n'+
       (d.metodoPago?sanitizeWA(d.metodoPago)+'\n':'')+
       '👤 '+_cliNom+'\n\n'+
       '¡Gracias por tu compra! 🙏'
@@ -796,7 +816,7 @@ async function abrirDet(ticket,idFiado){
         ${pagoInfo}${abonoInfo}
       </div>
       ${itemsHtml}
-      <div class="total-row"><span class="tl">💰 Total</span><span class="tm">${fmt(totalFinal)}</span></div>
+      <div class="total-row"><span class="tl">${_lblTot}</span><span class="tm">${fmt(totalFinal)}</span></div>
       <button class="btn-enviar-ticket" onclick="window.location.href='${waHref}'">📲 Enviar copia ${telNum?'a '+_cliNom+' · '+_telF:'(elegir contacto)'}</button>
       ${fiad&&(fiad.estado==='PAGADO'||fiad.totalAbonado>0)?`<button class="btn-enviar-ticket" style="background:#fff;color:var(--vd);border:2px solid var(--vd)" onclick="reenviarComprobante('${String(idFiado).replace(/'/g,"\\'")}')">💳 Reenviar comprobante de ${fiad.estado==='PAGADO'?'pago':'abono'}</button>`:''}`;
   }catch(e){
@@ -941,7 +961,7 @@ async function confirmarCob(){
     // Recargar fiados y abrir recordatorio
     const data=await _api('listarFiados');
     if(data.ok){
-      _todos=(data.fiados||[]).map(f=>({...f,fecha:_normFecha(f.fecha),fechaPago:_normFecha(f.fechaPago),fechaVencimiento:_normFecha(f.fechaVencimiento)}));
+      _todos=(data.fiados||[]).map(f=>({...f,fechaPagoHora:_horaDe(f.fechaPago),fecha:_normFecha(f.fecha),fechaPago:_normFecha(f.fechaPago),fechaVencimiento:_normFecha(f.fechaVencimiento)}));
       _cliData=_todos.filter(f=>f.cliente===_cliNom);
       _sel.clear();renderFiados();
     }
@@ -970,7 +990,7 @@ function _txtComprobante(f){
   const detAb=abonosTxt.length?['','🗓️ Pagos registrados:'].concat(abonosTxt.map(x=>'  • '+x)):[];
   if(f.estado==='PAGADO'){
     return ['✅ *PAGO RECIBIDO — Almacén Copihue* (copia)','',
-      `📅 Fecha de pago: ${_fmt(f.fechaPago)}`,
+      `📅 Fecha de pago: ${_fmt(f.fechaPago)}${f.fechaPagoHora?' '+f.fechaPagoHora:''}`,
       `👤 Cliente: ${_cliNom}`,'',
       `  🧾 ${ref} · ${fmt(orig)} ✅ Pagado`].concat(detAb,['',
       `💰 *Total de la compra: ${fmt(orig)}*`,
@@ -1125,7 +1145,7 @@ async function recargarCli(){
   try{
     const [dFia,dCli]=await Promise.all([_api('listarFiados'),_api('listarClientes')]);
     if(!dFia.ok)throw new Error(dFia.error);
-    _todos=(dFia.fiados||[]).map(f=>({...f,fecha:_normFecha(f.fecha),fechaPago:_normFecha(f.fechaPago),fechaVencimiento:_normFecha(f.fechaVencimiento)}));
+    _todos=(dFia.fiados||[]).map(f=>({...f,fechaPagoHora:_horaDe(f.fechaPago),fecha:_normFecha(f.fecha),fechaPago:_normFecha(f.fechaPago),fechaVencimiento:_normFecha(f.fechaVencimiento)}));
     _todosClientes=(dCli.ok&&dCli.clientes)||[];
     _cliData=_todos.filter(f=>f.cliente===_cliNom);
     _sel.clear();
