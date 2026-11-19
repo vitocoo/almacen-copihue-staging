@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>🧪 STAGING · ver.36 · Copihue · Reportes</title>
+<title>🧪 STAGING · ver.38 · Copihue · Reportes</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -376,7 +376,7 @@ let aniosAbiertos=new Set(); // años anteriores expandidos en el selector
 let metActivos=new Set(['TODOS']);
 let vendActivos=new Set(['TODOS']);
 let topOrden='venta'; // 'venta' | 'ganancia'
-let showVenc=false, showDiaSem=false, showHoras=false, showPDias=false, showGanDias=false, showMetodos=false, showVendedores=false, showTopProd=false, showMejDias=false, showCompMeses=false;
+let showVenc=false, showDiaSem=false, showHoras=false, showPDias=false, showGanDias=false, showMetodos=true, showVendedores=false, showTopProd=false, showMejDias=false, showCompMeses=true;
 let prodSelIdx=-1; // índice del producto seleccionado en el top (-1 = ninguno)
 // v36 — top: ver todos los productos y ordenar
 let topTodos=false;      // false = top 15 | true = todos los productos del período
@@ -529,6 +529,41 @@ function filtrar(dias){
     items: its.filter(i=>tksOk.has(i.fechaStr+'_'+i.ticket)),
     totals: totsF.filter(t=>tksOk.has(t.fechaStr+'_'+t.ticket))
   };
+}
+
+// ver.38 — pagos reales de un cliente a partir de la columna N (abonos) + fecha/método de pago del fiado.
+function _pagosDeCliente(fiados){
+  const ops={}, orden=[];
+  const add=(key,parte,info)=>{
+    if(!ops[key]){ops[key]={key,monto:0,partes:[],fecha:'',hora:'',metodo:'',cobrador:''};orden.push(key);}
+    const o=ops[key]; o.partes.push(parte); o.monto+=parte.monto;
+    if(info.fecha&&(!o.fecha||info.hora)){ if(!o.hora||info.hora){o.fecha=info.fecha; if(info.hora)o.hora=info.hora;} }
+    if(info.metodo&&!o.metodo)o.metodo=info.metodo;
+    if(info.cobrador&&!o.cobrador)o.cobrador=info.cobrador;
+  };
+  fiados.forEach(f=>{
+    const pagado=(f.estado||'').toUpperCase()==='PAGADO';
+    const etq=f.ticket?'#'+f.ticket:String(f.descripcion||'fiado').replace(/^🔀\s*/,'').substring(0,34);
+    const segs=String(f.abonos||'').split('|').map(x=>x.trim()).filter(Boolean);
+    let fin=null, ultAb=-1;
+    segs.forEach((sg,i)=>{ if(/Abono \$/.test(sg)) ultAb=i; });
+    segs.forEach((sg,i)=>{
+      const id=(sg.match(/\[([^\]]+)\]/)||[])[1]||'';
+      const cob=((sg.match(/· cobró ([^\[|]+)/)||[])[1]||'').trim();
+      const m=sg.match(/Abono \$([\d.,]+)\s*\(([^)]*)\)\s*(\d{2})\/(\d{2})\/(\d{4})/);
+      if(m){
+        const monto=parseFloat(String(m[1]).replace(',','.'))||0;
+        const completo=pagado&&(f.total||0)<=0.5&&i===ultAb;
+        const fAb=m[5]+'-'+m[4]+'-'+m[3], fpH=String(f.fechaPago||'').match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
+        add(id||('ab_'+f.idFiado+'_'+i),{etiqueta:etq,monto,tipo:'abono',completo},{fecha:fAb,hora:(completo&&fpH&&fpH[1]===fAb)?fpH[2]:'',metodo:m[2],cobrador:cob});
+      } else if(id||cob){ fin={id,cob}; }
+    });
+    if(pagado&&(f.total||0)>0.5){
+      const fp=String(f.fechaPago||''); const mm=fp.match(/^(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}:\d{2}))?/);
+      add((fin&&fin.id)||('pg_'+f.idFiado),{etiqueta:etq,monto:f.total,tipo:'pago',completo:true},{fecha:mm?mm[1]:fp.substring(0,10),hora:mm&&mm[2]?mm[2]:'',metodo:f.metodoPago||'',cobrador:fin?fin.cob:''});
+    }
+  });
+  return orden.map(k=>ops[k]).sort((a,b)=>((b.fecha||'')+(b.hora||'')).localeCompare((a.fecha||'')+(a.hora||'')));
 }
 
 function calcStats(its,tots){
@@ -926,6 +961,33 @@ function renderApp(){
     '</div>';
   }).join('');
 
+  // ── ver.37 — GRÁFICOS (solo visual, mismos datos) ──
+  const _gK=v=>{const a=Math.abs(v);return (v<0?'-':'')+'$'+(a>=1e6?(a/1e6).toFixed(1)+'M':a>=1000?Math.round(a/1000)+'k':Math.round(a));};
+  const _g12=Object.keys(vXMes).sort().slice(-12);
+  const _gMax=Math.max(..._g12.map(m=>Math.max(vXMes[m]||0,gXMes[m]||0)),1);
+  const graf12H=_g12.length<2?'':
+    '<div class="tar"><div class="tar-t">📊 Mes por mes <span style="font-size:.58rem;color:var(--gris)">🟩 venta 🟧 ganancia</span></div>'+
+      '<div style="display:flex;align-items:flex-end;gap:4px;height:150px;border-bottom:1px solid var(--borde);padding-top:4px">'+
+      _g12.map(m=>{const v=vXMes[m]||0,g=Math.max(0,gXMes[m]||0);const [a,mo]=m.split('-');
+        return '<div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%" title="'+MESES[parseInt(mo)-1]+' '+a+': venta '+fmt(v)+' · ganancia '+fmt(gXMes[m]||0)+'">'+
+          '<div style="font-size:.5rem;color:var(--gris);white-space:nowrap;margin-bottom:2px">'+(v?_gK(v):'')+'</div>'+
+          '<div style="display:flex;align-items:flex-end;gap:1px;width:100%;justify-content:center">'+
+            '<div style="width:45%;max-width:14px;height:'+Math.round(v/_gMax*120)+'px;background:linear-gradient(180deg,#66bb6a,var(--vd));border-radius:3px 3px 0 0"></div>'+
+            '<div style="width:45%;max-width:14px;height:'+Math.round(g/_gMax*120)+'px;background:linear-gradient(180deg,#ffd54f,var(--naranja));border-radius:3px 3px 0 0"></div>'+
+          '</div></div>';}).join('')+
+      '</div>'+
+      '<div style="display:flex;gap:4px">'+_g12.map(m=>{const [a,mo]=m.split('-');return '<div style="flex:1;min-width:0;text-align:center;font-size:.55rem;color:var(--gris)">'+MESES[parseInt(mo)-1].substring(0,3)+'</div>';}).join('')+'</div>'+
+    '</div>';
+  const _gCols=['#2e7d32','#1565c0','#f9a825','#6a1b9a','#00838f','#9e9e9e'];
+  const _gSegs=_metNormales.map(([m,t])=>({lbl:m,val:t})).concat(_totalFiado>0?[{lbl:'📋 FIADO',val:_totalFiado}]:[]).filter(x=>x.val>0).sort((a,b)=>b.val-a.val);
+  const _gTot=_gSegs.reduce((a,x)=>a+x.val,0);
+  let _gAcc=0;
+  const tortaMetH=!_gTot?'':
+    '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:2px 0 8px">'+
+      '<div style="width:105px;height:105px;border-radius:50%;flex:none;background:conic-gradient('+_gSegs.map((x,i)=>{const a=_gAcc;_gAcc+=x.val/_gTot*360;const c=/FIADO/i.test(x.lbl)?'#f57c00':_gCols[i%_gCols.length];x.col=c;return c+' '+a+'deg '+_gAcc+'deg';}).join(',')+')"></div>'+
+      '<div style="flex:1;min-width:130px">'+_gSegs.map(x=>'<div style="display:flex;justify-content:space-between;gap:6px;font-size:.72rem;padding:2px 0"><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:3px;display:inline-block;background:'+x.col+'"></span>'+x.lbl+'</span><b>'+Math.round(x.val/_gTot*100)+'%</b></div>').join('')+'</div>'+
+    '</div>';
+
   // Vencimientos — separados en dos grupos, sin stock 0
   const venc=raw.vencProximos||[];
   const vencVencidos=venc.filter(v=>v.vencido&&v.stock>0);
@@ -1131,13 +1193,14 @@ function renderApp(){
         :'')+
       // Resumen
       cardsH+
+      graf12H+   // ver.37
       // ── Separador ──
       '<div style="height:1px;background:var(--borde);margin:8px 0 10px"></div>'+
       // Métodos (colapsable)
       '<button class="toggle-btn" onclick="showMetodos=!showMetodos;renderApp()" style="margin-bottom:6px">'+
         (showMetodos?'▲':'▼')+' 💳 Por método de pago'+
       '</button>'+
-      (showMetodos&&Object.keys(stats.metodos).length?'<div class="tar">'+metRowsH+'</div>':'')+
+      (showMetodos&&Object.keys(stats.metodos).length?'<div class="tar">'+tortaMetH+metRowsH+'</div>':'')+
       // Vendedores (colapsable)
       (Object.keys(stats.vendedores).length>1?
         '<button class="toggle-btn" onclick="showVendedores=!showVendedores;renderApp()" style="margin-bottom:6px">'+
@@ -1704,7 +1767,12 @@ function renderClientes(){
       const nom=(f.cliente||'Sin nombre').trim();
       if(!pagMap[nom]) pagMap[nom]={nombre:nom,items:[],total:0};
       pagMap[nom].items.push(f);
-      pagMap[nom].total+=(f.total||0);
+    });
+    // ver.38 — PAGOS AGRUPADOS: un mismo pago puede cubrir varios fiados (la planilla lo reparte y deja el
+    // mismo código [fia_…]/[cp_…]/[vd_…] en cada uno). Se arma la lista de pagos reales del cliente.
+    Object.values(pagMap).forEach(c=>{
+      c.pagos=_pagosDeCliente(rawFiados.filter(f=>(f.cliente||'Sin nombre').trim()===c.nombre));
+      c.total=c.pagos.reduce((a,p)=>a+p.monto,0);
     });
     const pagLista=Object.values(pagMap).sort((a,b)=>b.total-a.total);
     const qp=clientesBusqueda.toLowerCase().trim();
@@ -1722,22 +1790,29 @@ function renderClientes(){
           '<div class="cli-card-hdr">'+
             '<div>'+
               '<div class="cli-nom">'+c.nombre+'</div>'+
-              '<div class="cli-meta">'+c.items.length+' cobrado'+(c.items.length>1?'s':'')+(ultFechaLabel?' · último: '+ultFechaLabel:'')+'</div>'+
+              '<div class="cli-meta">'+c.pagos.length+' pago'+(c.pagos.length!==1?'s':'')+' · '+c.items.length+' fiado'+(c.items.length>1?'s':'')+' saldado'+(c.items.length>1?'s':'')+(ultFechaLabel?' · último: '+ultFechaLabel:'')+'</div>'+
             '</div>'+
             '<div class="cli-total pagado">'+fmt(c.total)+'</div>'+
           '</div>'+
           '<div class="cli-body" id="cli-body-pag'+ci+'">'+
-            c.items.map(f=>{
-              const fp2=f.fechaPago?new Date(f.fechaPago):null;
-              const fPagoLabel=fp2&&!isNaN(fp2)?fp2.getDate()+' '+MNOM3p[fp2.getMonth()]+' '+fp2.getFullYear():String(f.fechaPago||'').substring(0,10);
+            c.pagos.map(p=>{   // ver.38
+              const fp2=p.fecha?new Date(p.fecha+'T12:00:00'):null;
+              const fLbl=fp2&&!isNaN(fp2)?fp2.getDate()+' '+MNOM3p[fp2.getMonth()]+' '+fp2.getFullYear():(p.fecha||'¿fecha?');
               return '<div class="cli-venta pagado">'+
                 '<div class="cli-vhdr">'+
                   '<div>'+
-                    '<div class="cli-vf">✅ Cobrado el '+fPagoLabel+'</div>'+
-                    '<div style="font-size:.68rem;color:var(--gris)">Ticket #'+f.ticket+(f.metodoPago?' · '+f.metodoPago:'')+'</div>'+
+                    '<div class="cli-vf">💵 Pago'+(p.partes.length>1?' repartido':'')+'</div>'+
+                    '<div style="font-size:.68rem;color:var(--gris)">'+fLbl+(p.hora?' · '+p.hora:'')+(p.metodo?' · '+p.metodo:'')+
+                      (p.cobrador?' · <b style="color:var(--vd)">🧑 cobró '+p.cobrador+'</b>':'')+'</div>'+
                   '</div>'+
-                  '<span style="font-size:.85rem;font-weight:900;color:#2e7d32">'+fmt(f.total)+'</span>'+
+                  '<span style="font-size:.85rem;font-weight:900;color:#2e7d32">'+fmt(p.monto)+'</span>'+
                 '</div>'+
+                (p.partes.length>1||p.partes[0].tipo==='abono'?
+                  '<div style="font-size:.7rem;color:var(--texto);margin-top:4px;padding-left:8px;border-left:2px solid #c8e6c9">'+
+                    (p.partes.length>1?'<div style="color:var(--gris);font-size:.64rem;margin-bottom:2px">Se repartió en '+p.partes.length+' fiados:</div>':'')+
+                    p.partes.map(x=>'<div>'+x.etiqueta+' · '+fmt(x.monto)+' '+(x.completo?'<span style="color:#2e7d32">✅ saldado</span>':'<span style="color:var(--naranja)">abono parcial</span>')+'</div>').join('')+
+                  '</div>'
+                :'<div style="font-size:.7rem;color:var(--gris);margin-top:2px">'+p.partes[0].etiqueta+' · ✅ saldado</div>')+
               '</div>';
             }).join('')+
           '</div>'+

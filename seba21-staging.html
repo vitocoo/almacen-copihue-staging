@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v579</title>
+    <title>🛒 POS · Copihue v581</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2835,6 +2835,7 @@
         <div style="display:flex;gap:4px;align-items:center;">
             <button id="btnWifiHeader" onclick="abrirWifiQR()" title="Compartir WiFi al cliente"
                     style="background:rgba(21,101,192,0.55);border:1.5px solid rgba(144,202,249,0.8);border-radius:12px;padding:6px 4px;color:white;font-size:0.8rem;cursor:pointer;line-height:1;">🛜</button>
+            <button id="btnVentasPerdidas" onclick="_vpAbrir()" title="Ventas perdidas (hoja VENTAS_PERDIDAS)" style="display:none;background:#c62828;border:1px solid #8e0000;border-radius:12px;padding:6px 10px;color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer;line-height:1;white-space:nowrap;">⚠️ ventas perdidas</button>
             <button id="btnPagosPendientes" onclick="_pgpAbrir()" title="Pagos pendientes (solo consulta)"
                     style="background:#ffb300;border:1px solid #ff8f00;border-radius:12px;padding:6px 10px;color:#3e2723;font-size:0.8rem;font-weight:700;cursor:pointer;line-height:1;white-space:nowrap;">Pagos pendientes (?)</button>
             <button onclick="limpiarVenta()" title="Limpiar venta"
@@ -7535,7 +7536,7 @@ function _vdPendReintentables() { return _vdPendLeer().filter(x => x && x.estado
 // Un intento. Devuelve { tipo: 'ok' | 'ocupado' | 'rechazado' | 'sinRespuesta', r?, error? }
 async function _vdEnviarAbono(idFiado, monto, metodo, idOp) {
     try {
-        const r = await _apiFetchUrl('abonarFiado', API_URL + '?action=abonarFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: idFiado, abono: monto, metodoPago: (metodo || 'EFECTIVO'), idOperacion: idOp })) + '&t=' + Date.now());
+        const r = await _apiFetchUrl('abonarFiado', API_URL + '?action=abonarFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: idFiado, abono: monto, metodoPago: (metodo || 'EFECTIVO'), idOperacion: idOp, cobrador: _fiadoCobrador() })) + '&t=' + Date.now());
         if (r && r.success === true) return { tipo: 'ok', r: r };
         if (r && r.ocupado === true) return { tipo: 'ocupado', r: r };
         return { tipo: 'rechazado', r: r };
@@ -7742,6 +7743,31 @@ function _pmRenderResumen() {
 // a vender() por cada método. El detalle completo viaja junto en
 // detallePagos. Si hay fiado, es una segunda llamada aparte (guardarFiado),
 // coordinada con cola de reintento idempotente si falla — nunca silenciosa.
+// v581 — detalle del fiado: nombres COMPLETOS (antes se cortaban en 15 letras: «COMIDA DE GATO»),
+// hasta 6 productos y como máximo ~160 letras (para que no se rompan los mensajes de WhatsApp).
+function _fiadoDescripcion(items, prefijo) {
+    const MAX = 160;
+    const parte = i => (i.esPeso ? i.gramos + 'gr' : i.qty + 'x') + ' ' + String(i.name || '').trim();
+    let txt = prefijo ? prefijo + ' · ' : '';
+    let n = 0;
+    for (const i of items.slice(0, 6)) {
+        const p = parte(i);
+        const sep = n ? ' · ' : '';
+        if (n && (txt + sep + p).length > MAX) break;
+        txt += sep + (p.length > MAX ? p.substring(0, MAX) : p);
+        n++;
+    }
+    if (items.length > n) txt += ' (+' + (items.length - n) + ')';
+    return txt;
+}
+// v581 — vencimiento por defecto a 7 días (fecha LOCAL, no UTC)
+function _fiadoVenc7() {
+    const d = new Date(); d.setDate(d.getDate() + 7);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+// v581 — quién cobra (va a la nota del fiado como «· cobró Nombre»)
+function _fiadoCobrador() { try { return String(vendedorActual || '').trim(); } catch (e) { return ''; } }
+
 async function confirmarVentaMixta() {
     const totalV = _totalCarritoConDescuentosGrupales();
     const total = window._totalConRedondeo || totalV;
@@ -7765,6 +7791,14 @@ async function confirmarVentaMixta() {
     try {
         const itemsSnapshot = [...ventaActual];
         const pagoFiado = _pagosMixtos.find(p => p.metodo === 'FIADO');
+        // v581 — texto «Parte fiada · Ticket N ($total, pagó $X EFECTIVO)» armado ANTES de que se limpie _pagosMixtos
+        let _fiadoMixtoPrefijo = '';
+        try {
+            if (pagoFiado) {
+                const otros = _pagosMixtos.filter(p => p.metodo !== 'FIADO').map(p => '$' + Math.round(p.equivalenteARS).toLocaleString('es-AR') + ' ' + (p.moneda && p.moneda !== 'ARS' ? p.metodo + ' ' + p.moneda : p.metodo).toLowerCase());
+                _fiadoMixtoPrefijo = '🔀 Parte fiada de venta de $' + Math.round(total).toLocaleString('es-AR') + (otros.length ? ' (pagó ' + otros.join(' + ') + ')' : '');
+            }
+        } catch (e) {}
         // v538 — vuelto aplicado a deuda: se congela lo elegido antes de que se limpie el panel
         let _vdSnap = null;
         if (_vd && !pagoFiado && vueltoARS > 0) {
@@ -7857,6 +7891,7 @@ async function confirmarVentaMixta() {
         let _fiadoMixtoGuardado = false, _datosFiadoMixto = null; // v533
         if (pagoFiado) {
             const idFiado = 'f_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+            if (ticketNum && _fiadoMixtoPrefijo) _fiadoMixtoPrefijo = _fiadoMixtoPrefijo.replace('🔀 Parte fiada de venta', '🔀 Parte fiada del ticket ' + ticketNum); // v581
             const datosFiado = {
                 idFiado,
                 cliente: pagoFiado.cliente,
@@ -7865,9 +7900,10 @@ async function confirmarVentaMixta() {
                 ticket: ticketNum,
                 items: itemsSnapshot.map(i => i.name + ' x' + i.qty).join(', '),
                 // v534 — mismo formato que el fiado normal (antes la planilla ponía "TICKET COMPLETO")
-                descripcion: itemsSnapshot.slice(0,3).map(i => (i.esPeso ? i.gramos + 'gr' : i.qty + 'x') + ' ' + i.name.substring(0,15)).join(' · ') + (itemsSnapshot.length > 3 ? ' (+' + (itemsSnapshot.length-3) + ')' : ''),
+                // v581 — detalle completo + aclara que es la parte fiada de una venta mixta
+                descripcion: _fiadoDescripcion(itemsSnapshot, _fiadoMixtoPrefijo),
                 cantItems: itemsSnapshot.length,
-                vencimiento: ''
+                vencimiento: _fiadoVenc7()                       // v581 — antes '' (nunca vencía)
             };
             _datosFiadoMixto = datosFiado; // v533
             try {
@@ -8970,7 +9006,7 @@ function _pgpEvaluarFiado(f) {
 // mismas filas/unidades/total, sin avisos), limpia el pendiente y la
 // advertencia "Stock por verificar" de ESTE dispositivo.
 // NUNCA reenvía la venta ni escribe en la planilla.
-const _AUTO = { ocupado: false, intentos: {} };
+const _AUTO = { ocupado: false, intentos: {}, estado: {} };   // v580: + estado de la última consulta por idVenta
 const _AUTO_MAX_INTENTOS = 6; // por venta y por sesión de la página
 
 function _autoMarcarStockLocal(idVenta) {
@@ -9000,7 +9036,7 @@ async function _autoVerificarVenta(cls, entrada) {
         let resp = await _apiFetchUrl('consultarEstadoOperacion', url);
         let val = _pgpValidarRespuesta(resp, cls.idVenta, cls.idFiado || '');
         if (!val.ok) return false;
-        if (resp.venta.estado !== 'REGISTRADA') return false;
+        if (resp.venta.estado !== 'REGISTRADA') { _AUTO.estado[cls.idVenta] = resp.venta.estado; return false; }   // v580
         const _loc = _pgpCalcLocal(entrada.items, entrada.descuentoRedondeo);   // v577
         let ev = _pgpEvaluarVenta(_loc, resp.venta);
         // v515 — SOLO FIADO: el aviso EN_MAPA_PERO_NO_EN_PROCESADAS (venta vieja que el servidor ya no
@@ -9051,7 +9087,7 @@ async function _autoConfirmarPendientes(forzar) {
                 _AUTO.intentos[cls.idVenta] = (_AUTO.intentos[cls.idVenta] || 0) + 1;
                 if (_AUTO.intentos[cls.idVenta] > _AUTO_MAX_INTENTOS) continue;
             }
-            if (!(await _autoVerificarVenta(cls, entrada))) continue;
+            if (!(await _autoVerificarVenta(cls, entrada))) { try { await _vpQuizasReportar(cls, entrada); } catch (eVp) {} continue; }   // v580
             _autoMarcarStockLocal(cls.idVenta);
             // v512: la venta de FIADO SOLO sale de la cola solo si venta + FIADO + ticket coinciden (ver _autoVerificarVenta).
             _autoQuitarPendiente(cls.idVenta, cls.tipo === 'VENTA_FIADO_SOLO');
@@ -9071,6 +9107,108 @@ try {
         const ms = (typeof window._AUTO_INICIO_MS === 'number') ? window._AUTO_INICIO_MS : 15000;
         setTimeout(() => { try { _autoConfirmarPendientes(true); } catch (e) {} }, ms);
     });
+} catch (e) {}
+
+// ===== v580 — VENTAS PERDIDAS (supervisión) =====
+// Si una venta pendiente lleva MÁS DE 30 MIN y la planilla dice que NO la tiene (INCIERTA / INCOMPLETA),
+// se avisa al servidor, que la anota en la hoja VENTAS_PERDIDAS (no registra la venta, no toca stock ni caja,
+// y antes de anotar vuelve a comprobar Ventas). Una sola vez por venta. Si falla, no pasa nada: se reintenta luego.
+const _VP_ESPERA_MS = 30 * 60 * 1000;
+function _vpTs(entrada, idVenta) {
+    const t = Number(entrada && entrada.ts);
+    if (t > 0) return t;
+    const m = /^[vf]_(\d{12,})/.exec(String(idVenta || ''));
+    return m ? Number(m[1]) : 0;
+}
+async function _vpQuizasReportar(cls, entrada) {
+    const est = _AUTO.estado[cls.idVenta];
+    if (est !== 'INCIERTA' && est !== 'INCOMPLETA') return;
+    if (entrada.perdidaReportada) return;
+    const ts = _vpTs(entrada, cls.idVenta);
+    if (!ts || Date.now() - ts < _VP_ESPERA_MS) return;
+    const loc = _pgpCalcLocal(entrada.items, entrada.descuentoRedondeo);
+    const prods = (entrada.items || []).map(it => (it && it.name || '?') + ' x' + (it && it.esPeso ? (it.gramos || 0) + 'g' : (it && it.qty))).join(', ');
+    const datos = { idVenta: cls.idVenta, ts: ts, vendedor: entrada.vendedor || '', metodo: entrada.metodoPago || (entrada.datosFiado ? 'FIADO' : ''),
+                    total: loc ? loc.total : 0, productos: prods.substring(0, 1200), dispositivo: (navigator.userAgent || '').substring(0, 110), motivo: est };
+    const r = await _apiFetchUrl('registrarVentaPerdida', API_URL + '?action=registrarVentaPerdida&data=' + encodeURIComponent(JSON.stringify(datos)));
+    if (r && r.success === true) {
+        try {
+            const lista = JSON.parse(localStorage.getItem('ventas_pendientes') || '[]');
+            lista.forEach(x => { if (x && x.idVenta === cls.idVenta) { x.perdidaReportada = Date.now(); x.perdidaFila = r.fila || ''; } });
+            localStorage.setItem('ventas_pendientes', JSON.stringify(lista));
+        } catch (e) {}
+        try { _vpRevisarAviso(true); } catch (e) {}
+    }
+}
+// Aviso arriba en el POS: «⚠️ N ventas perdidas» (lee la hoja, que es chica).
+let _vpUltimaLectura = 0, _vpItems = [];
+async function _vpRevisarAviso(forzar) {
+    if (!forzar && Date.now() - _vpUltimaLectura < 10 * 60 * 1000) return;
+    _vpUltimaLectura = Date.now();
+    try {
+        const r = await _apiFetchUrl('listarVentasPerdidas', API_URL + '?action=listarVentasPerdidas&data=%7B%7D');
+        if (!r || r.ok !== true) return;
+        _vpItems = r.items || [];
+        const b = document.getElementById('btnVentasPerdidas');
+        if (b) { b.style.display = r.pendientes > 0 ? '' : 'none'; b.textContent = '⚠️ ' + r.pendientes + (r.pendientes === 1 ? ' venta perdida' : ' ventas perdidas'); }
+        if (document.getElementById('vpOverlay')) _vpDibujar();
+    } catch (e) {}
+}
+function _vpAbrir() {
+    if (document.getElementById('vpOverlay')) return;
+    const ov = document.createElement('div');
+    ov.id = 'vpOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    ov.addEventListener('click', ev => { if (ev.target === ov) ov.remove(); });
+    document.body.appendChild(ov);
+    _vpDibujar();
+    _vpRevisarAviso(true);
+}
+function _vpDibujar() {
+    const ov = document.getElementById('vpOverlay'); if (!ov) return;
+    const pend = _vpItems.filter(x => x.estado === 'PENDIENTE'), res = _vpItems.filter(x => x.estado !== 'PENDIENTE');
+    const tarjeta = x => '<div style="border:1px solid ' + (x.estado === 'PENDIENTE' ? '#ef9a9a' : '#c8e6c9') + ';border-radius:12px;padding:10px;margin-bottom:8px;background:' + (x.estado === 'PENDIENTE' ? '#fff8f8' : '#f6fbf6') + ';">' +
+        '<div style="display:flex;justify-content:space-between;gap:8px;"><b>' + _pgpEsc(x.fechaVenta || '—') + ' · ' + _pgpEsc(x.vendedor || '—') + '</b><b>' + _pgpMoneda(x.total) + '</b></div>' +
+        '<div style="font-size:0.78rem;color:#444;margin-top:2px;">' + _pgpEsc(x.metodo || '—') + ' · ' + _pgpEsc(x.motivo || '') + ' · detectada ' + _pgpEsc(x.detectada || '') + '</div>' +
+        '<div style="font-size:0.76rem;color:#666;margin-top:2px;">' + _pgpEsc(x.productos || '') + '</div>' +
+        '<div style="font-size:0.68rem;color:#999;font-family:monospace;word-break:break-all;">' + _pgpEsc(x.idVenta) + '</div>' +
+        (x.estado === 'PENDIENTE'
+            ? '<button onclick="_vpResolver(\'' + _pgpEsc(x.idVenta) + '\')" style="margin-top:6px;padding:7px 12px;border-radius:8px;border:none;background:#2e7d32;color:#fff;font-weight:700;cursor:pointer;">✔ Marcar resuelta</button>'
+            : '<div style="font-size:0.76rem;color:#2e7d32;font-weight:700;margin-top:4px;">✅ RESUELTA' + (x.resolucion ? ': ' + _pgpEsc(x.resolucion) : '') + '</div>') + '</div>';
+    ov.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:520px;width:100%;max-height:88vh;overflow:auto;padding:14px;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;"><b style="font-size:1.05rem;">⚠️ Ventas perdidas</b><button onclick="document.getElementById(\'vpOverlay\').remove()" style="border:none;background:#eee;border-radius:8px;padding:6px 10px;cursor:pointer;">Cerrar</button></div>' +
+        '<div style="font-size:0.78rem;color:#555;margin:6px 0 10px;">Ventas cobradas que <b>no están en la planilla</b> (hoja VENTAS_PERDIDAS). Debería estar vacía. Revisalas antes de tocar stock o caja; cuando decidas qué hacer, marcalas como resueltas.</div>' +
+        (pend.length ? pend.map(tarjeta).join('') : '<div style="text-align:center;color:#2e7d32;padding:14px;">✅ No hay ventas perdidas pendientes</div>') +
+        (res.length ? '<details style="margin-top:8px;"><summary style="cursor:pointer;color:#2e7d32;font-weight:700;">Resueltas (' + res.length + ')</summary>' + res.map(tarjeta).join('') + '</details>' : '') + '</div>';
+}
+async function _vpResolver(idVenta) {
+    const nota = window.prompt('¿Qué se hizo con esta venta? (ej.: cargada de nuevo hoy / stock ajustado / era falsa)', '');
+    if (nota === null) return;
+    try {
+        const r = await _apiFetchUrl('resolverVentaPerdida', API_URL + '?action=resolverVentaPerdida&data=' + encodeURIComponent(JSON.stringify({ idVenta: idVenta, nota: nota })));
+        mostrarToast(r && r.success ? '✅ Marcada como resuelta' : '⚠️ No se pudo marcar: ' + ((r && r.mensaje) || 'sin respuesta'), r && r.success ? 'verde' : 'naranja');
+    } catch (e) { mostrarToast('⚠️ Sin conexión', 'naranja'); }
+    _vpRevisarAviso(true);
+}
+// Quitar el pendiente de ESTE teléfono: solo si la venta ya está copiada en VENTAS_PERDIDAS (se comprueba ahora).
+async function _vpQuitarDelTelefono(idVenta) {
+    try {
+        const r = await _apiFetchUrl('listarVentasPerdidas', API_URL + '?action=listarVentasPerdidas&data=%7B%7D');
+        if (!r || r.ok !== true || !(r.items || []).some(x => x.idVenta === idVenta)) { mostrarToast('⚠️ No se pudo confirmar que esté en VENTAS_PERDIDAS: no se quitó nada', 'naranja'); return; }
+    } catch (e) { mostrarToast('⚠️ Sin conexión: no se quitó nada', 'naranja'); return; }
+    _confirmModal('La venta ya está copiada en la hoja VENTAS_PERDIDAS para auditarla.\n\n¿Quitarla de los pendientes de ESTE teléfono?', () => {
+        try {
+            const lista = JSON.parse(localStorage.getItem('ventas_pendientes') || '[]');
+            localStorage.setItem('ventas_pendientes', JSON.stringify(lista.filter(x => !(x && x.idVenta === idVenta))));
+        } catch (e) {}
+        try { _actualizarBadgePendientes(); } catch (e) {}
+        try { _pgpActualizarContador(); _pgpDibujar(); } catch (e) {}
+        mostrarToast('🗑 Quitada de este teléfono (sigue en VENTAS_PERDIDAS)', 'verde');
+    });
+}
+try {
+    window.addEventListener('load', () => { setTimeout(() => { try { _vpRevisarAviso(true); } catch (e) {} }, (typeof window._AUTO_INICIO_MS === 'number' ? window._AUTO_INICIO_MS : 15000) + 5000); });
+    document.addEventListener('visibilitychange', () => { try { if (!document.hidden) _vpRevisarAviso(false); } catch (e) {} });
 } catch (e) {}
 
 // Tras encolar una venta: consulta a los 40 s, 2 min y 5 min (da tiempo al servidor lento).
@@ -9203,6 +9341,10 @@ function _pgpHtmlTarjeta(i, entrada, cls, rel) {
             h += '<div style="margin-top:8px;font-size:0.78rem;font-weight:700;color:#b71c1c;">' + _PGP_NO_HACER + '</div>';
         }
         h += '<div style="margin-top:8px;"><button data-pgp-consultar="' + i + '" style="padding:8px 12px;border-radius:8px;border:1px solid #1565c0;background:white;color:#1565c0;font-weight:700;cursor:pointer;">🔎 Consultar en la planilla</button></div>';
+    }
+    if (entrada && entrada.perdidaReportada) {   // v580
+        h += '<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:#fff3e0;border:1px solid #ffb74d;font-size:0.78rem;color:#e65100;">📋 Copiada a la hoja <b>VENTAS_PERDIDAS</b>' + (entrada.perdidaFila ? ' (fila ' + _pgpEsc(entrada.perdidaFila) + ')' : '') + ' el ' + _pgpEsc(new Date(entrada.perdidaReportada).toLocaleString('es-AR')) + '. Ya queda registrada para auditar.</div>';
+        h += '<div style="margin-top:6px;"><button onclick="_vpQuitarDelTelefono(\'' + _pgpEsc(cls.idVenta) + '\')" style="padding:8px 12px;border-radius:8px;border:1px solid #c62828;background:white;color:#c62828;font-weight:700;cursor:pointer;">🗑 Quitar de este teléfono</button></div>';
     }
     h += '</div>';
     return h;
@@ -16882,9 +17024,10 @@ async function confirmarCobroPendiente() {
     const btn = document.getElementById('btnConfirmarCobroPendiente');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Guardando...'; }
     try {
-        const fechaPago = new Date().toISOString().split('T')[0];
+        // v581 — ya no se manda fechaPago: era la fecha UTC (después de las 21 h quedaba el día siguiente) y sin hora.
+        // Ahora la pone la planilla con fecha Y hora locales. Se agrega quién cobró.
         for (const fiad of seleccionados) {
-            const datos = { idFiado: fiad.idFiado, metodoPago: _metodoCobroPendiente, fechaPago, idOperacion: window._idOpCobroPend || ('cp_' + Date.now()) }; // v560: idOperacion
+            const datos = { idFiado: fiad.idFiado, metodoPago: _metodoCobroPendiente, idOperacion: window._idOpCobroPend || ('cp_' + Date.now()), cobrador: _fiadoCobrador() }; // v560: idOperacion
             const resp = await _apiFetch('cobrarFiado', datos);
             if (!resp.success) {
                 // v560: "ocupado" y "ya estaba pagado" se explican tal cual (no es una falla de red ni un error genérico)
@@ -17888,9 +18031,7 @@ async function confirmarFiado() {
         String(now.getMinutes()).padStart(2,'0') +
         String(now.getSeconds()).padStart(2,'0');
 
-    const descripcion = itemsSnapshot.slice(0,3).map(i =>
-        (i.esPeso ? i.gramos + 'gr' : i.qty + 'x') + ' ' + i.name.substring(0,15)
-    ).join(' · ') + (itemsSnapshot.length > 3 ? ' (+' + (itemsSnapshot.length-3) + ')' : '');
+    const descripcion = _fiadoDescripcion(itemsSnapshot);   // v581 — nombres completos (antes cortaba en 15 letras)
 
     const datosFiado = {
         idFiado, cliente, telefono,
@@ -17948,9 +18089,7 @@ async function _confirmarFiadoSinTel() {
         String(now.getMinutes()).padStart(2,'0') +
         String(now.getSeconds()).padStart(2,'0');
 
-    const descripcion = itemsSnapshot.slice(0,3).map(i =>
-        (i.esPeso ? i.gramos + 'gr' : i.qty + 'x') + ' ' + i.name.substring(0,15)
-    ).join(' · ') + (itemsSnapshot.length > 3 ? ' (+' + (itemsSnapshot.length-3) + ')' : '');
+    const descripcion = _fiadoDescripcion(itemsSnapshot);   // v581 — nombres completos (antes cortaba en 15 letras)
 
     const datosFiado = {
         idFiado, cliente, telefono: '',

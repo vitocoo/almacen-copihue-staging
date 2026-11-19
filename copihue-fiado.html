@@ -238,7 +238,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 <div id="toast"></div>
 
 <script>
-const APP_VERSION=49;
+const APP_VERSION=50;
 const API_URL='https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 
 // ── Estado ─────────────────────────────────────────
@@ -932,6 +932,12 @@ async function abrirDet(ticket,idFiado){
 // idempotente para pago total, pero ahora también queda cubierto).
 // REQUIERE Code.gs v10.6+.
 let _idOpCobro = null;
+// v50 — quién cobra: la sesión del POS (misma pestaña) o el último vendedor elegido en este teléfono.
+// Va a la nota del fiado como «· cobró Nombre» (lo agrega la planilla). Si no se sabe, no se manda nada.
+function _cobrador(){
+  try{ const x=JSON.parse(sessionStorage.getItem('copihue_sesion')||'null'); if(x&&x.vendedor) return String(x.vendedor).trim(); }catch(e){}
+  try{ return String(localStorage.getItem('copihue_vendedor')||'').trim(); }catch(e){ return ''; }
+}
 
 function abrirCobrar(){
   if(_sel.size===0)return;
@@ -987,7 +993,7 @@ async function confirmarCob(){
   try{
     if(esAbono&&selArr.length===1){
       // Abono parcial — un solo fiado
-      const r=await _api('abonarFiado',{idFiado:selArr[0],abono:montoIngresado,metodoPago:_met,idOperacion:_idOpCobro});
+      const r=await _api('abonarFiado',{idFiado:selArr[0],abono:montoIngresado,metodoPago:_met,idOperacion:_idOpCobro,cobrador:_cobrador()});
       if(!r.success)throw new Error(r.mensaje||'Error al abonar');
       toast(r.yaExistia?'✅ Ese abono ya estaba registrado — no se descontó de nuevo':'✅ Abono registrado','v');
       // Recordatorio de abono
@@ -1015,13 +1021,13 @@ async function confirmarCob(){
         if(resta<=0.5)break;
         const ref=_refFiado(f);
         if(resta>=f.total-0.5){
-          const r=await _api('cobrarFiado',{idFiado:f.idFiado,metodoPago:_met,idOperacion:_idOpCobro});
+          const r=await _api('cobrarFiado',{idFiado:f.idFiado,metodoPago:_met,idOperacion:_idOpCobro,cobrador:_cobrador()});
           if(!r.success){err++;toast('❌ '+(r.mensaje||'Error'),'r');continue;}
           lineas.push(`  🧾 ${ref} · ${fmt(f.total)} ✅ Pagado`);
           resta-=f.total;
         }else{
           const abono=resta;
-          const r=await _api('abonarFiado',{idFiado:f.idFiado,abono,metodoPago:_met,idOperacion:_idOpCobro});
+          const r=await _api('abonarFiado',{idFiado:f.idFiado,abono,metodoPago:_met,idOperacion:_idOpCobro,cobrador:_cobrador()});
           if(!r.success){err++;toast('❌ '+(r.mensaje||'Error'),'r');continue;}
           lineas.push(`  🧾 ${ref} · ${fmt(abono)} de ${fmt(f.total)} 📋 Abonado (resta ${fmt(f.total-abono)})`);
           resta=0;
@@ -1038,7 +1044,7 @@ async function confirmarCob(){
       // Cobro total de todos los seleccionados
       let err=0;
       for(const id of selArr){
-        const r=await _api('cobrarFiado',{idFiado:id,metodoPago:_met,idOperacion:_idOpCobro});
+        const r=await _api('cobrarFiado',{idFiado:id,metodoPago:_met,idOperacion:_idOpCobro,cobrador:_cobrador()});
         if(!r.success){err++;toast('❌ '+(r.mensaje||'Error'),'r');}
       }
       if(err>0)throw new Error('Algunos cobros fallaron');
