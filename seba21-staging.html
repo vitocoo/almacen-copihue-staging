@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v578</title>
+    <title>🛒 POS · Copihue v579</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -4828,6 +4828,7 @@ function _htmlRecargarCatalogo() {
         '<div style="font-size:0.75rem;color:#999;margin-top:6px;">Si lo cargaste o renombraste hace poco en la planilla, puede no estar todavía en este teléfono.</div></div>';
 }
 
+let _rrSinSugerencias = false;   // v579
 let listadoCompletoVisible = false;
 function toggleListadoCompleto() {
     if (listadoCompletoVisible) {
@@ -4874,7 +4875,8 @@ function renderResultados(results, term = '') {
         // que existen pero no tienen precio, y un botón para recargar el catálogo y buscar de nuevo.
         const parecidos = term ? _buscarParecidos(term) : [];
         if (parecidos.length) {
-            renderResultados(parecidos, term);
+            _rrSinSugerencias = true;   // v579: esta lista YA son parecidos, no sumar «¿Buscabas…?»
+            try { renderResultados(parecidos, term); } finally { _rrSinSugerencias = false; }
             contenedor.insertAdjacentHTML('afterbegin', '<div style="padding:8px 12px;font-size:0.8rem;color:#e65100;font-weight:700;background:#fff3e0;">🔎 No hay «' + _hoyEsc(term) + '» exacto. ¿Quisiste decir…?</div>');
             return;
         }
@@ -5057,6 +5059,16 @@ function renderResultados(results, term = '') {
                             margin:4px 0 0;">❌ Sin stock</div>` + sinStock.map(cardHTML).join('');
     }
 
+    // v579 — pocos resultados exactos (menos de 5): debajo, hasta 5 productos parecidos (errores de tipeo).
+    // Los exactos quedan arriba, sin cambios. Con 5 o más exactos no se agrega nada.
+    if (termActivo.length >= 1 && !_rrSinSugerencias && results.length < 5) {
+        try {
+            const yaEstan = new Set(results.map(p => String(p.id)));
+            const extra = _buscarParecidos(termActivo).filter(p => !yaEstan.has(String(p.id))).slice(0, 5);
+            extra.forEach(p => { ofertaCache[p.id] = calcularOfertaPOS(p, Math.max(idsEnCarrito[p.id] || 0, 1)); });   // la tarjeta necesita su oferta calculada
+            if (extra.length) html += '<div style="padding:6px 10px 4px;font-size:0.65rem;font-weight:900;color:#e65100;text-transform:uppercase;letter-spacing:0.8px;background:#fff3e0;border-left:3px solid #e65100;margin:4px 0 0;">🔎 ¿Buscabas…?</div>' + extra.map(cardHTML).join('');
+        } catch (e) { console.warn('⚠️ sugerencias de búsqueda:', e); }
+    }
     if (termActivo.length >= 1) html += _htmlSinPrecio(termActivo);   // v578
     contenedor.innerHTML = html;
 
