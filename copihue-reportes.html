@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>🧪 STAGING · ver.38 · Copihue · Reportes</title>
+<title>🧪 STAGING · ver.39 · Copihue · Reportes</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -355,7 +355,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
   <a href="seba21-staging.html" class="btn-back" style="margin-left:0">← Volver</a>
 </div>
 
-<div id="app"><div class="ldg"><div class="spin"></div>Cargando reportes...</div></div>
+<div id="app"><div class="ldg"><div class="spin"></div>Cargando reportes... puede tardar hasta 1 minuto</div></div>
 
 <script>
 const API_URL='https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
@@ -444,11 +444,12 @@ const hoyStr=()=>{const h=new Date();return h.getFullYear()+'-'+String(h.getMont
 async function fetchReportesConReintento(intentos){
   for(let i=0;i<intentos;i++){
     try{
-      const r=await fetch(API_URL+'?action=getReportes',{redirect:'follow',signal:AbortSignal.timeout(35000)});
+      const r=await fetch(API_URL+'?action=getReportes',{redirect:'follow',signal:AbortSignal.timeout(75000)});
       return await r.json();
     }catch(e){
       const esTimeout=e.name==='TimeoutError'||e.name==='AbortError';
-      if(i<intentos-1){
+      // ver.39 — si se agotó el tiempo NO se reintenta: el servidor sigue trabajando y otro pedido igual lo hace más lento.
+      if(i<intentos-1&&!esTimeout){
         const elApp=document.getElementById('app');
         if(elApp) elApp.innerHTML='<div class="ldg"><div class="spin"></div>Reintentando carga'+(esTimeout?' (se tardó demasiado)':'')+'...</div>';
         continue;
