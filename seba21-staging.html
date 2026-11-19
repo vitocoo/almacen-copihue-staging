@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v576</title>
+    <title>🛒 POS · Copihue v577</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -7672,7 +7672,7 @@ async function confirmarVentaMixta() {
             console.warn('⚠️ No se pudo conectar con la planilla (venta mixta):', e);
         }
 
-        guardarVentaDia({ items: itemsSnapshot, total, hora, stockRebajado: stockOk, metodoPago: metodoPagoTexto, detallePagos, idVenta });
+        guardarVentaDia({ items: itemsSnapshot, total, hora, stockRebajado: stockOk, metodoPago: metodoPagoTexto, detallePagos, idVenta, ticket: ticketNum ? String(ticketNum) : '' });   // v577: + ticket
 
         if (!stockOk) {
             try {
@@ -7917,7 +7917,7 @@ async function confirmarVenta() {
     }
 
     // Guardar en historial local del día pase lo que pase
-    guardarVentaDia({ items: [...ventaActual], total, hora, stockRebajado: stockOk, metodoPago: metodoPagoFinal || metodoPagoActual, idVenta });
+    guardarVentaDia({ items: [...ventaActual], total, hora, stockRebajado: stockOk, metodoPago: metodoPagoFinal || metodoPagoActual, idVenta, ticket: _tkNormal ? String(_tkNormal) : '' });   // v577: + ticket
 
     // Si falló el stock — guardar para reintento automático en segundo plano
     if (!stockOk) {
@@ -8715,7 +8715,7 @@ function _pgpClasificar(e) {
 // Cálculo local con el mismo criterio que el backend: una fila por ítem;
 // unidades = cantidad (ítem por peso cuenta 1); total = precioVenta × cantidad
 // (ítem por peso: precioVenta). Devuelve null si algún dato no es confiable.
-function _pgpCalcLocal(items) {
+function _pgpCalcLocal(items, descuentoRedondeo) {   // v577: 2º dato opcional = redondeo de esa venta (se resta del total)
     if (!Array.isArray(items) || !items.length) return null;
     let unidades = 0, total = 0;
     for (const it of items) {
@@ -8732,7 +8732,12 @@ function _pgpCalcLocal(items) {
             total += precio * q;
         }
     }
-    return { filas: items.length, unidades: Math.round(unidades * 1000) / 1000, total: Math.round(total * 100) / 100 };
+    // v577 — la planilla guarda el total COBRADO (total − redondeo). Antes se comparaba sin restar el redondeo
+    // y las ventas redondeadas quedaban para siempre en «Requiere revisión». Solo se resta un entero válido
+    // (mayor que 0 y menor que el total); cualquier otra cosa se ignora y el total queda como antes.
+    const _dr = Math.round(Number(descuentoRedondeo) || 0);
+    const _red = (_dr > 0 && _dr < total) ? _dr : 0;
+    return { filas: items.length, unidades: Math.round(unidades * 1000) / 1000, total: Math.round((total - _red) * 100) / 100, redondeo: _red };
 }
 
 function _pgpIgual(a, b, tol) {
@@ -8847,6 +8852,7 @@ function _autoQuitarPendiente(idVenta, conFiado) {
     } catch (e) {}
 }
 
+// v577 — forzar=true (al abrir «Hoy», «Pagos pendientes» o el POS): no cuenta para el tope de 6 intentos.
 async function _autoVerificarVenta(cls, entrada) {
     try {
         const datos = { idVenta: cls.idVenta };
@@ -8856,13 +8862,15 @@ async function _autoVerificarVenta(cls, entrada) {
         let val = _pgpValidarRespuesta(resp, cls.idVenta, cls.idFiado || '');
         if (!val.ok) return false;
         if (resp.venta.estado !== 'REGISTRADA') return false;
-        const _loc = _pgpCalcLocal(entrada.items);
+        const _loc = _pgpCalcLocal(entrada.items, entrada.descuentoRedondeo);   // v577
         let ev = _pgpEvaluarVenta(_loc, resp.venta);
         // v515 — SOLO FIADO: el aviso EN_MAPA_PERO_NO_EN_PROCESADAS (venta vieja que el servidor ya no
         // recuerda) es el ÚNICO aviso tolerado, y solo si sin él la venta daría 'ok' (filas, unidades y
         // total coinciden). Cualquier otro aviso o diferencia sigue bloqueando. Después, más abajo, el
         // FIADO debe existir con el MISMO ticket que la venta (coherencia OK) o no se quita nada.
-        if (ev.nivel !== 'ok' && cls.idFiado && Array.isArray(resp.venta.advertencias) &&
+        // v577 — el mismo criterio vale para cualquier venta (no solo FIADO): el aviso dice que un REENVÍO no se
+        // detectaría como duplicado; acá NUNCA se reenvía, solo se quita el pendiente si todo lo demás coincide.
+        if (ev.nivel !== 'ok' && Array.isArray(resp.venta.advertencias) &&
             resp.venta.advertencias.length > 0 &&
             resp.venta.advertencias.every(a => typeof a === 'string' && a.indexOf('EN_MAPA_PERO_NO_EN_PROCESADAS') === 0)) {
             ev = _pgpEvaluarVenta(_loc, Object.assign({}, resp.venta, { advertencias: [] }));
@@ -8891,7 +8899,7 @@ async function _autoVerificarVenta(cls, entrada) {
     } catch (e) { return false; }
 }
 
-async function _autoConfirmarPendientes() {
+async function _autoConfirmarPendientes(forzar) {
     if (_AUTO.ocupado) return;
     _AUTO.ocupado = true;
     let cambio = false;
@@ -8900,8 +8908,10 @@ async function _autoConfirmarPendientes() {
         for (const entrada of lista) {
             const cls = _pgpClasificar(entrada);
             if (cls.tipo !== 'VENTA' && cls.tipo !== 'VENTA_MIXTA' && cls.tipo !== 'VENTA_FIADO_SOLO') continue;
-            _AUTO.intentos[cls.idVenta] = (_AUTO.intentos[cls.idVenta] || 0) + 1;
-            if (_AUTO.intentos[cls.idVenta] > _AUTO_MAX_INTENTOS) continue;
+            if (forzar !== true) {   // v577
+                _AUTO.intentos[cls.idVenta] = (_AUTO.intentos[cls.idVenta] || 0) + 1;
+                if (_AUTO.intentos[cls.idVenta] > _AUTO_MAX_INTENTOS) continue;
+            }
             if (!(await _autoVerificarVenta(cls, entrada))) continue;
             _autoMarcarStockLocal(cls.idVenta);
             // v512: la venta de FIADO SOLO sale de la cola solo si venta + FIADO + ticket coinciden (ver _autoVerificarVenta).
@@ -8913,8 +8923,16 @@ async function _autoConfirmarPendientes() {
     if (cambio) {
         try { _actualizarBadgePendientes(); } catch (e) {}
         try { if (document.getElementById('pgpOverlay')) { _pgpActualizarContador(); _pgpDibujar(); } } catch (e) {}
+        try { if (document.getElementById('modalResumen') && document.getElementById('modalResumen').classList.contains('open')) _hoyRedibujar(); } catch (e) {}   // v577
     }
 }
+// v577 — al abrir el POS también se revisan los pendientes (solo lectura), una vez cargado todo.
+try {
+    window.addEventListener('load', () => {
+        const ms = (typeof window._AUTO_INICIO_MS === 'number') ? window._AUTO_INICIO_MS : 15000;
+        setTimeout(() => { try { _autoConfirmarPendientes(true); } catch (e) {} }, ms);
+    });
+} catch (e) {}
 
 // Tras encolar una venta: consulta a los 40 s, 2 min y 5 min (da tiempo al servidor lento).
 function _autoProgramar() {
@@ -8936,7 +8954,7 @@ async function _pgpConsultar(cls, entrada, huella) {
         if (!val.ok) {
             res = { verificado: false, motivo: val.motivo, hora: Date.now() };
         } else {
-            const local = cls.idVenta ? _pgpCalcLocal(entrada.items) : null;
+            const local = cls.idVenta ? _pgpCalcLocal(entrada.items, entrada.descuentoRedondeo) : null;   // v577
             const out = { verificado: true, hora: Date.now(), venta: null, fiado: null, coherencia: null };
             if (cls.idVenta) out.venta = _pgpEvaluarVenta(local, resp.venta);
             if (cls.idFiado) out.fiado = _pgpEvaluarFiado(resp.fiado);
@@ -9014,10 +9032,10 @@ function _pgpHtmlTarjeta(i, entrada, cls, rel) {
     } else if (cls.tipo === 'DESCONOCIDO') {
         h += '<div style="margin-top:6px;color:#c62828;font-weight:700;">Requiere revisión: la entrada no tiene el formato esperado. No se consulta.</div>';
     } else {
-        const loc = _pgpCalcLocal(entrada.items);
+        const loc = _pgpCalcLocal(entrada.items, entrada.descuentoRedondeo);   // v577
         h += '<div style="font-size:0.82rem;color:#333;margin-top:4px;">Vendedor: <b>' + _pgpEsc(entrada.vendedor || '—') + '</b> · Método: <b>' + _pgpEsc(entrada.metodoPago || '—') + '</b></div>';
         h += loc
-            ? '<div style="font-size:0.82rem;color:#333;">' + loc.filas + ' fila' + (loc.filas === 1 ? '' : 's') + ' · ' + loc.unidades + ' unidad' + (loc.unidades === 1 ? '' : 'es') + ' · Total <b>' + _pgpMoneda(loc.total) + '</b></div>'
+            ? '<div style="font-size:0.82rem;color:#333;">' + loc.filas + ' fila' + (loc.filas === 1 ? '' : 's') + ' · ' + loc.unidades + ' unidad' + (loc.unidades === 1 ? '' : 'es') + ' · Total <b>' + _pgpMoneda(loc.total) + '</b>' + (loc.redondeo ? ' <span style="color:#666;">(redondeo −' + _pgpMoneda(loc.redondeo) + ')</span>' : '') + '</div>'
             : '<div style="font-size:0.82rem;color:#c62828;">No se pudo calcular el contenido local.</div>';
         const nombres = entrada.items.slice(0, 8).map(it => _pgpEsc((it && it.name) || '?') + ' ×' + _pgpEsc(it && it.esPeso ? ((it.gramos || 0) + ' g') : (it && it.qty))).join(', ');
         h += '<div style="font-size:0.76rem;color:#666;margin-top:2px;">' + nombres + (entrada.items.length > 8 ? ' …' : '') + '</div>';
@@ -9124,7 +9142,7 @@ function _pgpHtmlOperacion(x, idsViejos) {
     const colorG = completa ? '#2e7d32' : (x.general === 'PARCIAL' ? '#e65100' : '#c62828');
     const rotG = completa ? 'Completa' : (x.general === 'PARCIAL' ? 'Parcial' : 'Sin confirmar');
     const df = op.datosFiado && typeof op.datosFiado === 'object' ? op.datosFiado : {};
-    const loc = _pgpCalcLocal(op.items);
+    const loc = _pgpCalcLocal(op.items, op.descuentoRedondeo);   // v577
     const tk = t => _pgpHayTicket(t) ? 'ticket ' + _pgpEsc(t) : 'sin ticket';
     const r = _PGP.resultados[op.idVenta];
     const huellaActual = _pgpHuella(x.crudo);
@@ -9376,6 +9394,7 @@ function _pgpAbrir() {
         overlay.addEventListener('click', ev => { if (ev.target === overlay) _pgpCerrar(); });
         document.body.appendChild(overlay);
         _pgpDibujar();
+        setTimeout(() => { try { _autoConfirmarPendientes(true); } catch (e) {} }, 300);   // v577
     } catch (e) { console.warn('⚠️ Panel Pagos pendientes:', e); }
 }
 
@@ -9517,6 +9536,17 @@ async function _reenviarVentasPendientes() {
 }
 
 function guardarVentaDia(venta) {
+    // v577 — se anota el stock que mostraba ESTE POS antes de la venta (para «Hoy»). Se llama siempre ANTES
+    // de que el POS descuente su stock local. Si algo falla, la venta se guarda igual, sin ese dato.
+    try {
+        if (venta && Array.isArray(venta.items) && typeof productos !== 'undefined') {
+            venta.items = venta.items.map(i => {
+                const p = productos.find(pr => pr.id === (i.esPeso ? i.idOriginal : i.id));
+                const st = p ? Number(p.stock) : NaN;
+                return isFinite(st) ? Object.assign({}, i, { stockAntes: st }) : i;
+            });
+        }
+    } catch (e) {}
     const ventas = getVentasHoy();
     ventas.push(venta);
     localStorage.setItem(getHoyKey(), JSON.stringify(ventas));
@@ -9591,14 +9621,114 @@ function abrirResumen() {
                         <span class="resumen-venta-total">$${v.total.toLocaleString('es-AR')}</span>
                     </div>
                     <div class="resumen-venta-detalle">
-                        ${v.items.map(i => `${i.qty}× ${i.name.substring(0, 30)}`).join(' · ')}
+                        ${v.items.map(i => `${i.esPeso ? (i.gramos || 0) + 'g' : i.qty + '×'} ${_hoyEsc(i.name.substring(0, 30))}${_hoyBadgeStock(i)}`).join(' · ')}
                     </div>
-                    ${!v.stockRebajado ? '<div style="font-size:0.7rem;color:#f57c00;margin-top:3px;">⚠️ Stock por verificar. No descontar nuevamente sin comprobar la planilla.</div>' : ''}
+                    ${_hoyEstadoHtml(v)}
                 </div>
             `).join('');
     }
 
+    // v577 — explicación del «stock a → b» (solo si alguna venta lo tiene)
+    try {
+        if (ventas.some(v => (v.items || []).some(i => typeof i.stockAntes === 'number'))) {
+            document.getElementById('resumenLista').insertAdjacentHTML('afterbegin',
+                '<div style="font-size:0.72rem;color:#666;background:#f5f5f5;border-radius:8px;padding:6px 8px;margin-top:8px;">📦 <b>stock a → b</b>: el stock que mostraba ESTE POS antes de la venta → el que debería quedar. Si en el catálogo ves otro número, puede ser otra venta (u otro teléfono) en el medio.</div>');
+        }
+    } catch (e) {}
     document.getElementById('modalResumen').classList.add('open');
+    try { _hoyVerificarPendientes(); } catch (e) {}   // v577
+}
+
+// ===== v577 — «Hoy»: estado de cada venta en la planilla (SOLO LECTURA) =====
+// Pregunta con consultarEstadoOperacion (la misma consulta de «Pagos pendientes»). Nunca reenvía ni escribe.
+// Si la planilla tiene la venta (REGISTRADA), el servidor ya descontó el stock: procesarVenta descuenta el
+// stock ANTES de escribir las filas en Ventas.
+function _hoyEsc(t) { return String(t === null || t === undefined ? '' : t).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
+function _hoyFmtStock(n) { return (Math.round(n * 1000) / 1000).toLocaleString('es-AR'); }
+function _hoyBadgeStock(i) {
+    if (!i || typeof i.stockAntes !== 'number' || !isFinite(i.stockAntes)) return '';
+    const antes = i.stockAntes;
+    const despues = i.esPeso ? Math.round((antes - (i.gramos || 0) / 1000) * 1000) / 1000 : antes - (Number(i.qty) || 0);
+    const color = despues < 0 ? '#c62828' : (despues === 0 ? '#e65100' : '#555');
+    const extra = despues < 0 ? ' ⚠️' : (despues === 0 ? ' (agotado)' : '');
+    return ' <span style="display:inline-block;font-size:0.68rem;font-weight:700;color:' + color + ';background:#eeeeee;border-radius:6px;padding:0 5px;white-space:nowrap;">📦 ' +
+        _hoyFmtStock(antes) + ' → ' + _hoyFmtStock(despues) + (i.esPeso ? ' kg' : '') + extra + '</span>';
+}
+function _hoyEstadoHtml(v) {
+    const id = _hoyEsc(v.idVenta || '');
+    const tk = v.ticket ? 'Ticket #' + _hoyEsc(v.ticket) + ' en planilla' : 'En planilla';
+    if (v.stockRebajado) {
+        return '<div style="font-size:0.72rem;color:#2e7d32;margin-top:3px;">✅ ' + tk + ' · stock descontado</div>';
+    }
+    if (v.verifEstado === 'difTotal') {
+        return '<div style="font-size:0.72rem;color:#e65100;margin-top:3px;">⚠️ ' + tk + ' (stock descontado), pero el total no coincide: POS $' +
+            Number(v.total).toLocaleString('es-AR') + ' / planilla $' + Number(v.planillaTotal).toLocaleString('es-AR') + '. Revisalo en la planilla.</div>';
+    }
+    let h = '<div style="font-size:0.72rem;color:#f57c00;margin-top:3px;">⚠️ Sin confirmar en la planilla. No descontar stock a mano sin comprobar.';
+    if (v.verifMotivo) h += '<br><span style="color:#888;">Última consulta: ' + _hoyEsc(v.verifMotivo) + '</span>';
+    h += '</div>';
+    if (v.idVenta) h += '<button data-hoy-verif="' + id + '" onclick="_hoyVerificarAhora(this.getAttribute(\'data-hoy-verif\'))" style="margin-top:5px;padding:5px 10px;border-radius:8px;border:1px solid #1565c0;background:#fff;color:#1565c0;font-size:0.75rem;font-weight:700;cursor:pointer;">🔎 Verificar ahora</button>';
+    return h;
+}
+const _HOY_VERIF = { ocupado: false };
+async function _hoyVerificar(idVenta) {
+    let estado = 'sin', motivo = '', ticket = '', planillaTotal = null;
+    try {
+        const url = API_URL + '?action=consultarEstadoOperacion&data=' + encodeURIComponent(JSON.stringify({ idVenta: idVenta })) + '&t=' + Date.now();
+        const r = await _apiFetchUrl('consultarEstadoOperacion', url);
+        const val = _pgpValidarRespuesta(r, idVenta, '');
+        if (!val.ok) motivo = val.motivo;
+        else if (r.venta.estado !== 'REGISTRADA') motivo = ({ EN_PROCESO: 'se está registrando, probá en unos minutos', INCOMPLETA: 'rastro incompleto en la planilla', INCIERTA: 'no se encontró en la planilla' })[r.venta.estado] || r.venta.estado;
+        else {
+            ticket = String(r.venta.ticket);
+            planillaTotal = (r.venta.ventas && typeof r.venta.ventas.importeTotal === 'number') ? r.venta.ventas.importeTotal : null;
+            estado = 'registrada';
+        }
+    } catch (e) { motivo = 'sin conexión'; }
+    try {
+        const k = getHoyKey();
+        const arr = JSON.parse(localStorage.getItem(k) || '[]');
+        let ch = false;
+        arr.forEach(v => {
+            if (!v || v.idVenta !== idVenta) return;
+            ch = true;
+            if (estado === 'registrada') {
+                v.ticket = ticket; v.planillaTotal = planillaTotal;
+                if (planillaTotal !== null && Math.abs(planillaTotal - Number(v.total)) <= 0.01) { v.stockRebajado = true; v.verifEstado = 'ok'; v.verifMotivo = ''; }
+                else { v.verifEstado = 'difTotal'; v.verifMotivo = ''; }
+            } else { v.verifEstado = 'sin'; v.verifMotivo = motivo; }
+        });
+        if (ch) localStorage.setItem(k, JSON.stringify(arr));
+    } catch (e) {}
+    return estado;
+}
+async function _hoyVerificarPendientes() {
+    if (_HOY_VERIF.ocupado) return;
+    _HOY_VERIF.ocupado = true;
+    let hubo = false;
+    try {
+        const ids = getVentasHoy().filter(v => v && v.idVenta && !v.stockRebajado && v.verifEstado !== 'difTotal').map(v => v.idVenta).slice(-8);
+        for (const id of ids) { await _hoyVerificar(id); hubo = true; }
+    } catch (e) {} finally { _HOY_VERIF.ocupado = false; }
+    if (hubo) {
+        try { _autoConfirmarPendientes(true); } catch (e) {}
+        try { if (document.getElementById('modalResumen').classList.contains('open')) _hoyRedibujar(); } catch (e) {}
+    }
+}
+async function _hoyVerificarAhora(idVenta) {
+    try {
+        const b = document.querySelector('[data-hoy-verif="' + String(idVenta).replace(/"/g, '') + '"]');
+        if (b) { b.disabled = true; b.textContent = '⏳ Consultando…'; }
+    } catch (e) {}
+    const est = await _hoyVerificar(idVenta);
+    mostrarToast(est === 'registrada' ? '✅ Está en la planilla' : '⚠️ No se pudo confirmar todavía', est === 'registrada' ? 'verde' : 'naranja');
+    try { _autoConfirmarPendientes(true); } catch (e) {}
+    _hoyRedibujar();
+}
+// Redibuja «Hoy» sin volver a disparar la verificación automática.
+function _hoyRedibujar() {
+    const o = _HOY_VERIF.ocupado; _HOY_VERIF.ocupado = true;
+    try { abrirResumen(); } catch (e) {} finally { _HOY_VERIF.ocupado = o; }
 }
 
 function cerrarResumen() {
@@ -18151,7 +18281,7 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
     }
 
     // 3. Guardar historial local (usando snapshot)
-    guardarVentaDia({ items: itemsSnapshot, total, hora, stockRebajado: stockOk, metodoPago: 'FIADO', idVenta: idVentaFiado });
+    guardarVentaDia({ items: itemsSnapshot, total, hora, stockRebajado: stockOk, metodoPago: 'FIADO', idVenta: idVentaFiado, ticket: ticketNum ? String(ticketNum) : '' });   // v577: + ticket
 
     // 4. Actualizar stock local (usando snapshot)
     itemsSnapshot.forEach(item => {
