@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v577</title>
+    <title>🛒 POS · Copihue v578</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2975,6 +2975,8 @@
     <button onclick="descartarVentaPendiente()" style="background:rgba(0,0,0,0.2);color:white;border:none;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.8rem;">✕</button>
 </div>
 
+<!-- v578 — aviso de catálogo viejo (oculto si está al día) -->
+<div id="catalogoAviso" style="display:none;background:#fff3e0;color:#e65100;padding:6px 14px;font-size:0.8rem;font-weight:700;flex-shrink:0;"></div>
 <!-- RESULTADOS BÚSQUEDA -->
 <div class="resultados" id="resultados"></div>
 
@@ -4499,40 +4501,15 @@ async function forzarActualizacion() {
         if (btn) { btn.textContent = '🔄'; btn.disabled = false; }
     }
 }
-let _ultimaCargaTs = 0;
-const _MIN_ENTRE_CARGAS = 5 * 60 * 1000;
-async function _recargaSilenciosa() {
-    const ahora = Date.now();
-    if (ahora - _ultimaCargaTs < _MIN_ENTRE_CARGAS) return;
-    if (typeof productos === 'undefined' || productos.length === 0) return;
-    _ultimaCargaTs = ahora;
-    try {
-        const r = await fetch(API_URL + '?cache=' + ahora, { redirect: 'follow', signal: _timeoutSignal(API_TIMEOUT_MS) });
-        const data = await r.json();
-        const arr = data.productos || data;
-        if (!arr || arr.length === 0) return;
-        const map = {};
-        arr.forEach(p => { map[p.id] = p; });
-        productos = productos.map(p => { const f=map[p.id]; return f ? {...p,stock:_stockLeido(p,f.stock),price:parseInt(f.price)||p.price} : p; });
-        const ind = document.getElementById('indicadorCarga');
-        if (ind) { ind.classList.remove('cargando'); ind.classList.add('ok'); }
-    } catch(e) { console.warn('Recarga silenciosa:', e.message); }
-}
 
-async function cargarProductos(intento = 1) {
-    const MAX_INTENTOS_CATALOGO = 3;
-    const ind = document.getElementById('indicadorCarga');
-    if (ind) {
-        ind.classList.remove('ok');
-        ind.classList.add('cargando');
-        ind.title = intento > 1 ? `Reintentando... (${intento}/${MAX_INTENTOS_CATALOGO})` : 'Cargando...';
-    }
-    try {
-        const r = await fetch(API_URL + '?cache=' + Date.now(), { redirect: 'follow', signal: _timeoutSignal(API_TIMEOUT_MS) });
-        const data = await r.json();
-        const arr = data.productos || data;
-        productos = arr
-            .filter(p => p.name && p.price > 0)
+// ===== v578 — CATÁLOGO: armado único + actualización que suma productos nuevos =====
+// Mismo armado que hacía cargarProductos (sin cambios en los campos). Los productos sin precio NO entran
+// a la venta (como siempre), pero se guardan aparte para avisar en la búsqueda que existen.
+let _productosSinPrecio = [];
+let _catalogoTs = 0;
+function _mapearCatalogo(arr) {
+    return arr
+        .filter(p => p.name && p.price > 0)
             .map(p => ({
                 id: p.id,
                 name: String(p.name).trim(),
@@ -4562,6 +4539,92 @@ async function cargarProductos(intento = 1) {
                 // v18/09/2026 — 2x1 REAL (columna AL de inventario, ver code.gs)
                 oferta2x1: Boolean(p.oferta2x1)
             }));
+}
+function _catalogoActualizado(arr) {
+    try {
+        _productosSinPrecio = (arr || []).filter(p => p && p.name && !(parseInt(p.price) > 0))
+            .map(p => ({ id: p.id, name: String(p.name).trim(), category: String(p.category || '').trim().toUpperCase() }));
+    } catch (e) { _productosSinPrecio = []; }
+    _catalogoTs = Date.now();
+    try { _catalogoPintarAviso(); } catch (e) {}
+}
+// Aviso «catálogo viejo»: si pasan más de 3 h sin poder actualizar la lista.
+const _CATALOGO_VIEJO_MS = 3 * 60 * 60 * 1000;
+function _catalogoPintarAviso() {
+    const el = document.getElementById('catalogoAviso');
+    if (!el) return;
+    const ind = document.getElementById('indicadorCarga');
+    if (!_catalogoTs) { el.style.display = 'none'; return; }
+    const min = Math.round((Date.now() - _catalogoTs) / 60000);
+    const txt = min < 60 ? min + ' min' : (Math.round(min / 6) / 10).toLocaleString('es-AR') + ' h';
+    if (ind) ind.title = productos.length + ' productos · catálogo de hace ' + txt;
+    if (Date.now() - _catalogoTs > _CATALOGO_VIEJO_MS) {
+        el.innerHTML = '⚠️ Catálogo de hace ' + txt + ': puede faltar algún producto nuevo. <span onclick="_catalogoRecargarYBuscar()" style="text-decoration:underline;cursor:pointer;font-weight:900;">🔄 Actualizar</span>';
+        el.style.display = 'block';
+    } else el.style.display = 'none';
+}
+setInterval(() => { try { _catalogoPintarAviso(); } catch (e) {} }, 60000);
+// Recarga COMPLETA del catálogo (misma función que al abrir) y repite la búsqueda escrita.
+async function _catalogoRecargarYBuscar() {
+    mostrarToast('🔄 Actualizando catálogo…', 'naranja');
+    await cargarProductos();
+    try { await cargarPoolsOfertas(); } catch (e) {}
+    try { _refreshScroll(); } catch (e) {}
+    mostrarToast('✅ Catálogo actualizado: ' + productos.length + ' productos', 'verde');
+}
+let _ultimaCargaTs = 0;
+const _MIN_ENTRE_CARGAS = 5 * 60 * 1000;
+async function _recargaSilenciosa() {
+    const ahora = Date.now();
+    if (ahora - _ultimaCargaTs < _MIN_ENTRE_CARGAS) return;
+    if (typeof productos === 'undefined' || productos.length === 0) return;
+    _ultimaCargaTs = ahora;
+    try {
+        const r = await fetch(API_URL + '?cache=' + ahora, { redirect: 'follow', signal: _timeoutSignal(API_TIMEOUT_MS) });
+        const data = await r.json();
+        const arr = data.productos || data;
+        if (!arr || arr.length === 0) return;
+        const map = {};
+        arr.forEach(p => { map[p.id] = p; });
+        // v578 — antes solo actualizaba precio/stock de los que ya tenía (por número de fila). Si en la
+        // planilla se agregó, renombró o movió algo, la lista quedaba vieja o mezclaba datos de otra fila.
+        const _cantAntes = productos.length;
+        const _nn = x => String(x || '').trim().toUpperCase();
+        const cambioFilas = productos.some(p => map[p.id] && _nn(map[p.id].name) !== _nn(p.name));
+        if (cambioFilas) {
+            productos = _mapearCatalogo(arr);
+            try { await cargarPoolsOfertas(); } catch (e) {}
+            mostrarToast('🔄 Catálogo actualizado (cambiaron nombres u orden en la planilla)', 'naranja');
+        } else {
+            productos = productos.map(p => { const f=map[p.id]; return f ? {...p,stock:_stockLeido(p,f.stock),price:parseInt(f.price)||p.price} : p; });
+            const conocidos = new Set(productos.map(p => String(p.id)));
+            const nuevos = _mapearCatalogo(arr.filter(p => !conocidos.has(String(p.id))));
+            if (nuevos.length) {
+                productos = productos.concat(nuevos);
+                mostrarToast('🆕 ' + nuevos.length + ' producto' + (nuevos.length === 1 ? '' : 's') + ' nuevo' + (nuevos.length === 1 ? '' : 's') + ' en el catálogo', 'verde');
+            }
+        }
+        _catalogoActualizado(arr);
+        if (cambioFilas || productos.length !== _cantAntes) { try { _refreshScroll(); } catch (e) {} }   // solo si cambió la lista
+        const ind = document.getElementById('indicadorCarga');
+        if (ind) { ind.classList.remove('cargando'); ind.classList.add('ok'); }
+    } catch(e) { console.warn('Recarga silenciosa:', e.message); }
+}
+
+async function cargarProductos(intento = 1) {
+    const MAX_INTENTOS_CATALOGO = 3;
+    const ind = document.getElementById('indicadorCarga');
+    if (ind) {
+        ind.classList.remove('ok');
+        ind.classList.add('cargando');
+        ind.title = intento > 1 ? `Reintentando... (${intento}/${MAX_INTENTOS_CATALOGO})` : 'Cargando...';
+    }
+    try {
+        const r = await fetch(API_URL + '?cache=' + Date.now(), { redirect: 'follow', signal: _timeoutSignal(API_TIMEOUT_MS) });
+        const data = await r.json();
+        const arr = data.productos || data;
+        productos = _mapearCatalogo(arr);   // v578: mismo armado de siempre, ahora en una función
+        _catalogoActualizado(arr);           // v578
         const indOk = document.getElementById('indicadorCarga');
         if (indOk) { indOk.classList.remove('cargando'); indOk.classList.add('ok'); indOk.title = `${productos.length} productos cargados`; }
         console.log(`✅ ${productos.length} productos cargados`);
@@ -4710,6 +4773,61 @@ function buscarProductos(term, incluirSinStock = true) {
         .slice(0, 25);
 }
 
+// ===== v578 — búsqueda que perdona errores de tipeo (solo cuando no hay ningún resultado exacto) =====
+function _distLev(a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return max + 1;
+    let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+        const cur = [i]; let minFila = i;
+        for (let j = 1; j <= b.length; j++) {
+            cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+            if (cur[j] < minFila) minFila = cur[j];
+        }
+        if (minFila > max) return max + 1;
+        prev = cur;
+    }
+    return prev[b.length];
+}
+// ¿la palabra escrita se parece a alguna palabra del nombre? (entera o como comienzo de palabra)
+function _palabraParecida(t, palabras) {
+    if (t.length < 4) return palabras.some(p => p.startsWith(t));
+    const max = t.length >= 8 ? 2 : 1;
+    return palabras.some(p => {
+        if (p.includes(t)) return true;
+        if (_distLev(t, p, max) <= max) return true;
+        for (const L of [t.length - 1, t.length, t.length + 1]) {   // «hamburgesa» vs «hamburguesas…»
+            if (L >= 4 && L <= p.length && _distLev(t, p.slice(0, L), max) <= max) return true;
+        }
+        return false;
+    });
+}
+function _buscarParecidos(term) {
+    const palabrasT = normalizarBusqueda(term).split(/\s+/).filter(Boolean);
+    if (!palabrasT.length || !palabrasT.some(w => w.length >= 4)) return [];
+    return productos
+        .filter(p => { const ws = normalizarBusqueda(p.name).split(/\s+/); return palabrasT.every(t => _palabraParecida(t, ws)); })
+        .sort((a, b) => (b.stock > 0) - (a.stock > 0))
+        .slice(0, 12);
+}
+// Productos que existen en la planilla pero sin precio: se muestran en gris, NO se pueden vender.
+function _htmlSinPrecio(term) {
+    try {
+        const grupos = normalizarBusqueda(term).split(/\s+/).filter(Boolean).map(w => expandirTerminos(w));
+        if (!grupos.length || !_productosSinPrecio.length) return '';
+        const lista = _productosSinPrecio.filter(p => {
+            const n = normalizarBusqueda(p.name);
+            return grupos.every(g => scoreBusqueda(n, g) > 0);
+        }).slice(0, 10);
+        if (!lista.length) return '';
+        return '<div style="padding:6px 10px 4px;font-size:0.65rem;font-weight:900;color:#c62828;text-transform:uppercase;letter-spacing:0.8px;background:#fff8f8;margin:4px 0 0;">💲 Existen pero SIN PRECIO (no se pueden vender)</div>' +
+            lista.map(p => '<div class="resultado-item" style="opacity:0.75;padding:10px 14px;border-bottom:1px solid #eee;background:#fafafa;"><div style="font-weight:700;color:#777;">' + _hoyEsc(p.name) + '</div><div style="font-size:0.75rem;color:#c62828;font-weight:700;">SIN PRECIO — cargá el precio en la planilla</div></div>').join('');
+    } catch (e) { return ''; }
+}
+function _htmlRecargarCatalogo() {
+    return '<div style="text-align:center;padding:0 1rem 1.5rem;"><button onclick="_catalogoRecargarYBuscar()" style="padding:10px 16px;border-radius:10px;border:2px solid #1565c0;background:#fff;color:#1565c0;font-weight:800;font-size:0.9rem;cursor:pointer;">🔄 Recargar catálogo y buscar de nuevo</button>' +
+        '<div style="font-size:0.75rem;color:#999;margin-top:6px;">Si lo cargaste o renombraste hace poco en la planilla, puede no estar todavía en este teléfono.</div></div>';
+}
+
 let listadoCompletoVisible = false;
 function toggleListadoCompleto() {
     if (listadoCompletoVisible) {
@@ -4752,7 +4870,15 @@ function renderResultados(results, term = '') {
     const contenedor = document.getElementById('resultados');
 
     if (results.length === 0) {
-        contenedor.innerHTML = `<div style="text-align:center;padding:2rem;color:#bbb;">Sin resultados${term ? ` para "<b>${term}</b>"` : ''}</div>`;
+        // v578 — en vez de «Sin resultados» a secas: productos parecidos (errores de tipeo), productos
+        // que existen pero no tienen precio, y un botón para recargar el catálogo y buscar de nuevo.
+        const parecidos = term ? _buscarParecidos(term) : [];
+        if (parecidos.length) {
+            renderResultados(parecidos, term);
+            contenedor.insertAdjacentHTML('afterbegin', '<div style="padding:8px 12px;font-size:0.8rem;color:#e65100;font-weight:700;background:#fff3e0;">🔎 No hay «' + _hoyEsc(term) + '» exacto. ¿Quisiste decir…?</div>');
+            return;
+        }
+        contenedor.innerHTML = `<div style="text-align:center;padding:2rem 1rem;color:#bbb;">Sin resultados${term ? ` para "<b>${_hoyEsc(term)}</b>"` : ''}</div>` + (term ? _htmlSinPrecio(term) + _htmlRecargarCatalogo() : '');
         mostrarResultados();
         return;
     }
@@ -4931,6 +5057,7 @@ function renderResultados(results, term = '') {
                             margin:4px 0 0;">❌ Sin stock</div>` + sinStock.map(cardHTML).join('');
     }
 
+    if (termActivo.length >= 1) html += _htmlSinPrecio(termActivo);   // v578
     contenedor.innerHTML = html;
 
     // Swipe delegado — un listener en el contenedor, no uno por card
