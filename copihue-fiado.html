@@ -238,7 +238,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 <div id="toast"></div>
 
 <script>
-const APP_VERSION=48;
+const APP_VERSION=49;
 const API_URL='https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 
 // ── Estado ─────────────────────────────────────────
@@ -438,7 +438,7 @@ function renderClientesLista(clis,sinDeuda,pend,totG,q){
       const activo=_ordenClientes===crit;
       const flecha=activo?(_ordenAsc?' ↑':' ↓'):'';
       return `<button onclick="_cambiarOrden('${crit}')" style="flex:1;padding:6px 4px;border-radius:9px;border:1.5px solid ${activo?'var(--verde)':'var(--borde)'};background:${activo?'var(--verde)':'#fff'};color:${activo?'#fff':'#555'};font-size:.72rem;font-weight:600;cursor:pointer">${lbl}${flecha}</button>`;
-    }).join('')+_btnCobros;
+    }).join('')+_btnCobros+'<button onclick="abrirResumenFiados()" style="flex:1;padding:6px 4px;border-radius:9px;border:1.5px solid #1565c0;background:#e3f2fd;color:#1565c0;font-size:.72rem;font-weight:700;cursor:pointer">📊 Resumen</button>';   // v49
   }
 
   // Resumen
@@ -557,6 +557,103 @@ function _pintarCobros(){
     h+=`<div class="cli-card" onclick="cobrosAbrirCli(decodeURIComponent('${safeEnc(e.cli)}'))"><div><div class="cli-nombre">${esc(e.cli)}</div><div class="cli-tel">${e.ticket?'🎫 #'+esc(e.ticket)+' · ':''}${esc(_ml(e.met))}${e.tipo==='abono'?' · abono':e.tipo==='saldado'?' · saldado ✅':' · pago total'}</div></div><div class="cli-deuda" style="color:var(--vd)">${fmt(e.monto)}</div></div>`;
   });
   h+='</div>';
+  ov.innerHTML=h;
+}
+
+// ── v49 — 📊 RESUMEN DE FIADOS (solo lectura) ─────────────────
+// Todo se calcula en este teléfono con los fiados que ya trajo listarFiados (_todos). No escribe nada,
+// no agrega fórmulas a la planilla y no le pide nada nuevo al servidor. Gráficos hechos con CSS (sin librerías).
+const _RF_COL={pagado:'#2e7d32',pendiente:'#f57c00',vencido:'#c62828'};
+const _RF_MET={Transferencia:'#1565c0',Efectivo:'#2e7d32',Posnet:'#f9a825',Qr:'#6a1b9a',QR:'#6a1b9a'};
+function abrirResumenFiados(){
+  let ov=document.getElementById('ovResumenF');
+  if(!ov){ov=document.createElement('div');ov.id='ovResumenF';ov.style.cssText='position:fixed;inset:0;z-index:900;background:var(--bg);overflow-y:auto';document.body.appendChild(ov);}
+  ov.style.display='block';
+  _pintarResumenF();
+}
+function cerrarResumenFiados(){const ov=document.getElementById('ovResumenF');if(ov)ov.style.display='none';}
+function _rfDatos(){
+  const hoy=_hoyAR();
+  const num=v=>parseFloat(v)||0;
+  const esVenc=f=>f.estado!=='PAGADO'&&(f.estado==='VENCIDO'||(!!f.fechaVencimiento&&f.fechaVencimiento<hoy));
+  const R={n:_todos.length,emitido:0,saldo:0,vencido:0,pendiente:0,nVenc:0,nPend:0,meses:{},deud:{},metodos:{},dias:[],diasCli:{}};
+  _todos.forEach(f=>{
+    const orig=num(f.totalOriginal)||num(f.total);
+    const saldo=f.estado==='PAGADO'?0:num(f.total);
+    R.emitido+=orig;R.saldo+=saldo;
+    const v=saldo>0&&esVenc(f);
+    if(saldo>0){if(v){R.vencido+=saldo;R.nVenc++;}else{R.pendiente+=saldo;R.nPend++;}}
+    const mes=String(f.fecha||'').slice(0,7);
+    if(/^\d{4}-\d{2}$/.test(mes)){
+      const M=R.meses[mes]||(R.meses[mes]={pagado:0,pendiente:0,vencido:0});
+      M.pagado+=Math.max(0,orig-saldo);if(v)M.vencido+=saldo;else M.pendiente+=saldo;
+    }
+    if(saldo>0){const D=R.deud[f.cliente]||(R.deud[f.cliente]={pendiente:0,vencido:0,n:0});D.n++;if(v)D.vencido+=saldo;else D.pendiente+=saldo;}
+    if(f.estado==='PAGADO'&&f.fecha&&f.fechaPago){
+      const d=Math.round((new Date(f.fechaPago+'T12:00:00')-new Date(String(f.fecha).slice(0,10)+'T12:00:00'))/86400000);
+      if(isFinite(d)&&d>=0){R.dias.push(d);(R.diasCli[f.cliente]||(R.diasCli[f.cliente]=[])).push(d);}
+    }
+  });
+  _cobrosLista().forEach(e=>{const k=_ml(e.met);R.metodos[k]=(R.metodos[k]||0)+e.monto;});
+  R.cobrado=Math.max(0,R.emitido-R.saldo);
+  const s=[...R.dias].sort((a,b)=>a-b);
+  R.mediana=s.length?(s.length%2?s[(s.length-1)/2]:(s[s.length/2-1]+s[s.length/2])/2):null;
+  R.promedio=s.length?s.reduce((a,b)=>a+b,0)/s.length:null;
+  return R;
+}
+function _pintarResumenF(){
+  const ov=document.getElementById('ovResumenF');if(!ov)return;
+  const esc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const R=_rfDatos();
+  const dec=x=>(Math.round(x*10)/10).toLocaleString('es-AR');   // 6,5 (coma decimal)
+  const pct=(a,b)=>b>0?dec(a/b*100):'0';
+  const card=(lbl,val,sub,col)=>`<div style="flex:1 1 45%;background:#fff;border-radius:12px;padding:10px 12px;box-shadow:0 1px 4px rgba(0,0,0,.07)"><div style="font-size:.7rem;color:#777;font-weight:700">${lbl}</div><div style="font-size:1.25rem;font-weight:900;color:${col||'#222'}">${val}</div>${sub?`<div style="font-size:.68rem;color:#888">${sub}</div>`:''}</div>`;
+  const caja=(tit,cont)=>`<div style="background:#fff;border-radius:14px;padding:12px;margin-top:12px;box-shadow:0 1px 4px rgba(0,0,0,.07)"><div style="font-weight:800;font-size:.9rem;margin-bottom:8px">${tit}</div>${cont}</div>`;
+  const ley=(col,txt)=>`<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;font-size:.72rem"><span style="width:10px;height:10px;border-radius:3px;background:${col};display:inline-block"></span>${txt}</span>`;
+  let h=`<div style="background:var(--verde);color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:2"><button class="btn-back" onclick="cerrarResumenFiados()">← Volver</button><div style="flex:1;font-weight:800">📊 Resumen de fiados</div></div><div style="padding:10px 12px 30px">`;
+  // Tarjetas
+  h+=`<div style="display:flex;flex-wrap:wrap;gap:8px">`+
+    card('💰 Deuda total',fmt(R.saldo),(R.nVenc+R.nPend)+' fiados sin cobrar','var(--rojo)')+
+    card('✅ Cobrado',pct(R.cobrado,R.emitido)+'%',fmt(R.cobrado)+' de '+fmt(R.emitido),'var(--vd)')+
+    card('🔴 Vencido',fmt(R.vencido),R.nVenc+' fiado'+(R.nVenc!==1?'s':'')+' con fecha pasada','var(--rojo)')+
+    card('🟠 Por vencer',fmt(R.pendiente),R.nPend+' fiado'+(R.nPend!==1?'s':''),'var(--naranja)')+
+    card('⏱️ Tardan en pagar',R.mediana==null?'—':dec(R.mediana)+' días','mitad de los pagos (promedio '+(R.promedio==null?'—':dec(R.promedio))+' días)')+
+    card('🧾 Fiados registrados',R.n,'',null)+`</div>`;
+  // Torta: medios de pago
+  const mets=Object.entries(R.metodos).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
+  const totMet=mets.reduce((s,x)=>s+x[1],0);
+  if(totMet>0){
+    let acc=0;const seg=mets.map(([k,v])=>{const c=_RF_MET[k]||'#9e9e9e';const a=acc;acc+=v/totMet*360;return `${c} ${a}deg ${acc}deg`;}).join(',');
+    h+=caja('🥧 ¿Cómo te pagan los fiados?',`<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="width:130px;height:130px;border-radius:50%;background:conic-gradient(${seg});flex:none"></div><div style="flex:1;min-width:150px">`+
+      mets.map(([k,v])=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:.8rem;padding:3px 0">${ley(_RF_MET[k]||'#9e9e9e',esc(k))}<b>${fmt(v)} · ${pct(v,totMet)}%</b></div>`).join('')+`</div></div>`);
+  }
+  // Barras apiladas por mes (últimos 8)
+  const meses=Object.keys(R.meses).sort().slice(-8);
+  if(meses.length){
+    const max=Math.max(...meses.map(m=>{const M=R.meses[m];return M.pagado+M.pendiente+M.vencido;}),1);
+    const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    h+=caja('📅 Fiado por mes (y cuánto falta cobrar)',`<div style="display:flex;align-items:flex-end;gap:6px;height:170px;border-bottom:1px solid #ddd;padding-top:6px">`+
+      meses.map(m=>{const M=R.meses[m];const t=M.pagado+M.pendiente+M.vencido;const hh=v=>Math.round(v/max*140);
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%" title="${m}: ${fmt(t)}"><div style="font-size:.58rem;color:#666;margin-bottom:2px">${t>=1000?Math.round(t/1000)+'k':Math.round(t)}</div><div style="width:100%;max-width:34px;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden"><div style="height:${hh(M.pagado)}px;background:${_RF_COL.pagado}"></div><div style="height:${hh(M.pendiente)}px;background:${_RF_COL.pendiente}"></div><div style="height:${hh(M.vencido)}px;background:${_RF_COL.vencido}"></div></div></div>`;}).join('')+
+      `</div><div style="display:flex;gap:6px">`+meses.map(m=>`<div style="flex:1;text-align:center;font-size:.6rem;color:#777">${MES[+m.slice(5,7)-1]} ${m.slice(2,4)}</div>`).join('')+`</div>`+
+      `<div style="margin-top:6px">${ley(_RF_COL.pagado,'Cobrado')}${ley(_RF_COL.pendiente,'Por vencer')}${ley(_RF_COL.vencido,'Vencido')}</div>`);
+  }
+  // Top 10 deudores
+  const deu=Object.entries(R.deud).map(([c,d])=>({c,...d,t:d.pendiente+d.vencido})).sort((a,b)=>b.t-a.t).slice(0,10);
+  if(deu.length){
+    const mx=deu[0].t||1;
+    h+=caja('🏆 Quién debe más',deu.map(d=>`<div style="margin:5px 0"><div style="display:flex;justify-content:space-between;font-size:.76rem"><span style="font-weight:700">${esc(d.c)}</span><span>${fmt(d.t)}</span></div><div style="display:flex;height:10px;border-radius:5px;overflow:hidden;background:#f0f0f0"><div style="width:${d.vencido/mx*100}%;background:${_RF_COL.vencido}"></div><div style="width:${d.pendiente/mx*100}%;background:${_RF_COL.pendiente}"></div></div></div>`).join('')+
+      `<div style="margin-top:6px">${ley(_RF_COL.vencido,'Vencido')}${ley(_RF_COL.pendiente,'Por vencer')}</div>`);
+  }
+  // Quién tarda más en pagar (clientes con 3 pagos o más)
+  const tard=Object.entries(R.diasCli).filter(x=>x[1].length>=3).map(([c,a])=>({c,n:a.length,p:a.reduce((s,x)=>s+x,0)/a.length})).sort((a,b)=>b.p-a.p);
+  if(tard.length){
+    const mx=Math.max(...tard.map(t=>t.p),1);
+    const fila=t=>`<div style="margin:5px 0"><div style="display:flex;justify-content:space-between;font-size:.76rem"><span style="font-weight:700">${esc(t.c)}</span><span>${dec(t.p)} días · ${t.n} pagos</span></div><div style="height:10px;border-radius:5px;background:#f0f0f0;overflow:hidden"><div style="width:${t.p/mx*100}%;height:100%;background:#5c6bc0"></div></div></div>`;
+    h+=caja('🐢 Quién tarda más en pagar',tard.slice(0,8).map(fila).join(''));
+    h+=caja('⚡ Quién paga más rápido',[...tard].sort((a,b)=>a.p-b.p).slice(0,5).map(fila).join(''));
+  }
+  h+=`<div style="font-size:.68rem;color:#888;margin-top:12px">Calculado en este teléfono con los fiados que trajo la planilla al abrir la página (tocá 🔄 para actualizar). «Vencido» = saldo con fecha de vencimiento ya pasada. Los días de pago van desde la fecha del fiado hasta la fecha del pago total.</div></div>`;
   ov.innerHTML=h;
 }
 
