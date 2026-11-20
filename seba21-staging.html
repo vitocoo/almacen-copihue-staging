@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v581</title>
+    <title>🛒 POS · Copihue v583</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -6791,9 +6791,12 @@ function _pmRenderMedios() {
                 <input class="pm-medio-fiado-input" id="pmFiadoTelefono${i}" type="tel" placeholder="📱 Teléfono (opcional)">
                 ` : ''}
                 <div class="pm-medio-pregunta">¿Cuánto recibís?</div>
-                <input class="pm-medio-input" id="pmInput${i}" type="number" inputmode="decimal" placeholder="Monto"
+                <div style="position:relative;">
+                <input class="pm-medio-input" id="pmInput${i}" type="number" inputmode="decimal" placeholder="Monto" style="padding-right:44px;"
                     onkeydown="if(event.key==='Enter'){event.preventDefault();_pmAgregarDesdeCard(${i});}"
                     ${esExtranjera ? `oninput="_pmActualizarPreviewCard(${i})"` : ''}>
+                <span onclick="event.stopPropagation();const x=document.getElementById('pmInput${i}');x.value='';x.focus();${esExtranjera ? `_pmActualizarPreviewCard(${i});` : ''}" title="Borrar" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:1.15rem;color:#999;cursor:pointer;padding:4px 6px;">✕</span>
+                </div>
                 ${esExtranjera ? `<div class="pm-medio-equivalente" id="pmEquiv${i}" style="display:none;"></div>` : ''}
                 <button class="pm-medio-btn-agregar" id="pmBtnAgregar${i}" onclick="_pmAgregarDesdeCard(${i})" style="margin-top:8px;">AGREGAR</button>
             </div>
@@ -6833,6 +6836,12 @@ function _pmToggleMedioCard(idx) {
                 }
             }).catch(e => console.warn('⚠️ Sin conexión, sin lista de clientes para autocompletar:', e));
         }
+    } else if (def.moneda === 'ARS') {
+        // v583 — monto que falta (compra + deuda elegida − lo ya cargado), marcado: escribir encima lo reemplaza
+        const total = (window._totalConRedondeo || _totalCarritoConDescuentosGrupales()) + _vdAplicadoElegido();
+        const falta = Math.max(0, Math.round(total - _pagosMixtos.reduce((s,p)=>s+p.equivalenteARS,0)));
+        input.value = falta > 0 ? falta : '';
+        setTimeout(() => { try { input.select(); } catch (e) {} }, 60);
     } else if (def.moneda === 'USD' || def.moneda === 'CLP') {
         if (!_cotizacionesCache) {
             // v462 — si la primera carga falló (ej. arranque en frío de Apps
@@ -7064,7 +7073,18 @@ function _pmActualizarEstadoMedio(idx) {
         estadoEl.innerHTML = `<span class="pm-medio-monto-principal">$${totalEquiv.toLocaleString('es-AR')}</span>`
             + `<span class="pm-medio-monto-secundario">${totalRecibido.toLocaleString('es-AR')} ${def.moneda}</span>`;
     }
+    // v583 — ✕ para borrar lo cargado en este medio sin abrir la tarjeta
+    estadoEl.innerHTML += `<span onclick="event.stopPropagation();_pmQuitarMedio(${idx})" title="Borrar" style="margin-left:10px;color:#c62828;font-size:1rem;font-weight:700;cursor:pointer;padding:2px 6px;">✕</span>`;
     estadoEl.classList.add('pm-cargado');
+}
+// v583 — borra TODOS los montos cargados en un medio (el ✕ de la tarjeta cerrada)
+function _pmQuitarMedio(idx) {
+    const def = _PM_MEDIOS_DEF[idx]; if (!def) return;
+    _pagosMixtos = _pagosMixtos.filter(p => !(p.metodo === def.metodo && p.moneda === def.moneda));
+    _pmActualizarEstadoMedio(idx);
+    _pmRenderDetalleCard(idx);
+    _pmRenderResumen();
+    _pmGuardarEstadoPendiente();
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -7339,17 +7359,21 @@ function _vdReset(ocultarPanel) {
         const c = document.getElementById('pmVdCliente'); if (c) c.value = '';
         const d = document.getElementById('pmVdDrop'); if (d) d.style.display = 'none';
         if (ocultarPanel) { const pn = document.getElementById('pmVdPanel'); if (pn) pn.style.display = 'none'; }
-        const b = document.getElementById('pmVdBtn'); if (b) b.textContent = '💵 Aplicar vuelto a deuda';
+        const b = document.getElementById('pmVdBtn'); if (b) b.textContent = _vdVuelto() > 0 ? '💵 Aplicar vuelto a deuda' : '💵 Cobrar también deuda de un cliente';
     } catch (e) {}
+    try { if (typeof _pmRenderResumen === 'function' && document.getElementById('pmTotal')) _pmRenderResumen(); } catch (e) {}   // v583
 }
 function _vdActualizar() {
     const cont = document.getElementById('pmVueltoDeuda'); if (!cont) return;
-    const vuelto = _vdVuelto();
     const hayFiado = _pagosMixtos.some(p => p.metodo === 'FIADO');
-    if (vuelto <= 0 || hayFiado) { cont.style.display = 'none'; if (_vd) _vdReset(true); return; }
+    // v583 — antes solo aparecía si sobraba plata (vuelto). Ahora está siempre (menos con Fiado en el mixto):
+    // se puede elegir la deuda ANTES de cobrar y el «Total a pagar» pasa a ser compra + deuda.
+    if (hayFiado) { cont.style.display = 'none'; if (_vd) _vdReset(true); return; }
     cont.style.display = 'block';
-    if (_vd) { _vdRepartir(); _vdRender(); }
+    _vdRenderResumen();
 }
+// v583 — lo que se cobra de la deuda (suma de lo elegido en cada fiado)
+function _vdAplicadoElegido() { return _vd ? _vd.fiados.reduce((a, f) => a + (f.monto || 0), 0) : 0; }
 function _vdAbrir() {
     const pn = document.getElementById('pmVdPanel'); if (!pn) return;
     pn.style.display = pn.style.display === 'none' ? 'block' : 'none';
@@ -7403,6 +7427,7 @@ async function _vdElegir(nombre, telefono) {
             desc: String(f.descripcion || ''), ts: _vdTs(f), monto: 0 })) };
         msg.textContent = otros.length ? '⚠️ Este teléfono también tiene fiados a nombre de: ' + otros.join(', ') + '. Revisá antes de aplicar.' : '';
         _vdRepartir(); _vdRender(); _vdMetodoMostrar(true);
+        try { _pmRenderResumen(); } catch (e) {}   // v583: «Total a pagar» = compra + deuda
     } catch (e) {
         _vd = null; _vdMetodoMostrar(false);
         msg.textContent = '⚠️ No se pudo consultar la deuda (' + (e && e.message || e) + '). No se aplica nada; el vuelto se devuelve en efectivo.';
@@ -7410,7 +7435,10 @@ async function _vdElegir(nombre, telefono) {
 }
 function _vdRepartir() {
     if (!_vd) return;
-    let rem = _vdVuelto();
+    // v583 — si ya sobra plata, se aplica hasta el vuelto (como antes). Si todavía no sobra, se elige TODA la deuda
+    // y el «Total a pagar» del mixto la incluye (compra + deuda).
+    const v = _vdVuelto();
+    let rem = v > 0 ? v : _vd.fiados.reduce((a, f) => a + f.saldo, 0);
     _vd.fiados.forEach(f => { const m = Math.min(f.saldo, rem); f.monto = m; rem -= m; });
 }
 function _vdEditar(i, v) {
@@ -7418,24 +7446,28 @@ function _vdEditar(i, v) {
     const f = _vd.fiados[i];
     let m = Math.round(parseFloat(v) || 0); if (m < 0) m = 0;
     const otros = _vd.fiados.reduce((a, x, j) => a + (j === i ? 0 : x.monto), 0);
-    m = Math.min(m, f.saldo, Math.max(0, _vdVuelto() - otros));
+    m = Math.min(m, f.saldo);   // v583: tope = lo que debe ese fiado (el total a pagar se ajusta solo)
     f.monto = m;
     _vdRenderResumen();
+    try { _pmRenderResumen(); } catch (e) {}
 }
 function _vdTotales() {
     const aplicado = _vd ? _vd.fiados.reduce((a, f) => a + f.monto, 0) : 0;
     const deuda = _vd ? _vd.fiados.reduce((a, f) => a + f.saldo, 0) : 0;
-    return { aplicado, deuda, restante: deuda - aplicado, efectivo: _vdVuelto() - aplicado };
+    const v = _vdVuelto();   // lo que sobra sobre la COMPRA
+    const compra = window._totalConRedondeo || _totalCarritoConDescuentosGrupales();
+    const pagado = _pagosMixtos.reduce((s, p) => s + p.equivalenteARS, 0);
+    return { aplicado, deuda, restante: deuda - aplicado, efectivo: Math.max(0, v - aplicado), falta: Math.max(0, Math.round(compra + aplicado - pagado)) };   // v583: + falta (compra + deuda − lo cargado)
 }
 function _vdRenderResumen() {
     const el = document.getElementById('pmVdResumen'); if (!el) return;
     const b = document.getElementById('pmVdBtn');
-    if (!_vd) { el.textContent = ''; if (b) b.textContent = '💵 Aplicar vuelto a deuda'; return; }
+    if (!_vd) { el.textContent = ''; if (b) b.textContent = _vdVuelto() > 0 ? '💵 Aplicar vuelto a deuda' : '💵 Cobrar también deuda de un cliente'; return; }
     const t = _vdTotales();
     // v561 — antes no se veía la deuda de partida; ahora: Deuda total → Se aplican → Queda (solo texto, mismos montos)
     el.style.whiteSpace = 'pre-line';
-    el.textContent = 'Deuda total: ' + _fiadoFmt(t.deuda) + '\nSe aplican: ' + _fiadoFmt(t.aplicado) + ' a la deuda\nQueda: ' + _fiadoFmt(t.restante) + '\nSe lo devolvés en mano: ' + _fiadoFmt(t.efectivo);
-    if (b) b.textContent = t.aplicado > 0 ? '💵 Vuelto → deuda de ' + _vd.cliente + ': ' + _fiadoFmt(t.aplicado) : '💵 Aplicar vuelto a deuda';
+    el.textContent = 'Deuda total: ' + _fiadoFmt(t.deuda) + '\nSe cobran: ' + _fiadoFmt(t.aplicado) + ' de la deuda\nQueda debiendo: ' + _fiadoFmt(t.restante) + '\n' + (t.falta > 0 ? 'Falta cobrar (compra + deuda): ' + _fiadoFmt(t.falta) : 'Se lo devolvés en mano: ' + _fiadoFmt(t.efectivo));
+    if (b) b.textContent = t.aplicado > 0 ? '💵 Deuda de ' + _vd.cliente + ' incluida: ' + _fiadoFmt(t.aplicado) : '💵 Cobrar también deuda de un cliente';
 }
 function _vdRender() {
     const cont = document.getElementById('pmVdLista'); if (!cont) return;
@@ -7703,7 +7735,9 @@ async function _vdAplicar(snap, idVenta, vRef, tkProm) {
 
 function _pmRenderResumen() {
     const totalV = _totalCarritoConDescuentosGrupales();
-    const total = window._totalConRedondeo || totalV;
+    const totalCompra = window._totalConRedondeo || totalV;
+    const deudaIncl = _vdAplicadoElegido();   // v583: deuda elegida para cobrar junto (0 si no hay)
+    const total = totalCompra + deudaIncl;
     const pagadoBruto = _pagosMixtos.reduce((s,p)=>s+p.equivalenteARS,0);
     // v447 punto 10: PAGADO muestra lo aplicado a la venta, nunca más que
     // el total — el excedente se ve en VUELTO, no infla el "pagado".
@@ -7712,6 +7746,9 @@ function _pmRenderResumen() {
     const vuelto = Math.max(0, pagadoBruto - total);
 
     document.getElementById('pmTotal').textContent = '$' + total.toLocaleString('es-AR');
+    try { const pt = document.getElementById('pmTotal'); let nota = document.getElementById('pmTotalNota');   // v583
+        if (!nota && pt) { nota = document.createElement('div'); nota.id = 'pmTotalNota'; nota.style.cssText = 'font-size:0.68rem;color:#e65100;font-weight:700;margin-top:2px;'; pt.insertAdjacentElement('afterend', nota); }
+        if (nota) nota.textContent = deudaIncl > 0 ? 'compra $' + totalCompra.toLocaleString('es-AR') + ' + deuda $' + deudaIncl.toLocaleString('es-AR') : ''; } catch (e) {}
     document.getElementById('pmPagado').textContent = '$' + pagado.toLocaleString('es-AR');
     // v460 — "Total recibido" (bruto, antes de topear) al lado de "Falta/
     // Vuelto" en su propia tarjeta — siempre visible ahí (cuando no hay
@@ -7778,6 +7815,13 @@ async function confirmarVentaMixta() {
     const errEl = document.getElementById('pmErrorMsg');
     if (saldo > 0) {
         errEl.textContent = `⚠️ Todavía falta cubrir $${saldo.toLocaleString('es-AR')} — agregá otro método o Fiado antes de confirmar.`;
+        errEl.style.display = 'block';
+        return;
+    }
+    // v583 — deuda incluida: tiene que alcanzar para compra + deuda (antes, si no alcanzaba, la deuda no se aplicaba y no avisaba)
+    const _deudaIncl = (_vd && !_pagosMixtos.some(p => p.metodo === 'FIADO')) ? _vdAplicadoElegido() : 0;
+    if (_deudaIncl > 0 && vueltoARS < _deudaIncl) {
+        errEl.textContent = `⚠️ Falta $${(_deudaIncl - vueltoARS).toLocaleString('es-AR')} para cubrir la compra + la deuda de ${_vd.cliente} ($${_deudaIncl.toLocaleString('es-AR')}). Agregá ese pago o bajá lo que se cobra de la deuda.`;
         errEl.style.display = 'block';
         return;
     }
@@ -9750,6 +9794,13 @@ async function _reenviarVentasPendientes() {
             }
             try {
                 const payload = { items: venta.items, metodoPago: venta.metodoPago, vendedor: venta.vendedor, idVenta: venta.idVenta, ..._drCampo(venta.descuentoRedondeo) };   // v567
+                // v582 — venta FIADO reintentada: mandar también el cliente (antes la hoja Ventas quedaba «🧾 FIADO» sin nombre, ej. ticket 3199).
+                // Pendientes viejos sin cliente: se busca en el fiado encolado con el mismo idFiado.
+                if (String(venta.metodoPago || '').toUpperCase() === 'FIADO') {
+                    let cF = venta.clienteFiado || '', tF = venta.telefonoFiado || '';
+                    if (!cF && venta.idFiado) { try { const fp = _fiadoPendLeer().find(x => x && x.tipo === 'fiadoPendiente' && x.datosFiado && x.datosFiado.idFiado === venta.idFiado); if (fp) { cF = fp.datosFiado.cliente || ''; tF = tF || fp.datosFiado.telefono || ''; } } catch (eCF) {} }
+                    if (cF) { payload.clienteFiado = cF; if (tF) payload.telefonoFiado = tF; }
+                }
                 const url = API_URL + '?action=vender&data=' + encodeURIComponent(JSON.stringify(payload));
                 const resp = await _apiFetchUrl('vender', url);
                 if (resp.success) {
@@ -18477,6 +18528,7 @@ async function _procesarVentaFiado(datosFiado, itemsSnapshot) {
             const pendientes = JSON.parse(localStorage.getItem('ventas_pendientes') || '[]');
             pendientes.push({
                 items: ventaDataRetry, metodoPago: 'FIADO', vendedor: vendedorActual,
+                clienteFiado: datosFiado.cliente || '', telefonoFiado: datosFiado.telefono || '',   // v582: antes se perdía el cliente en el reintento
                 idVenta: idVentaFiado, idFiado: datosFiado.idFiado, ts: Date.now(), ..._drCampo(totalOriginal - total)   // v567
             });
             localStorage.setItem('ventas_pendientes', JSON.stringify(pendientes));
