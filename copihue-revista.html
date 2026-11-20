@@ -66,6 +66,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 .auto{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .auto div{background:#fafafa;border:1px solid #eee;border-radius:10px;padding:6px;text-align:center;font-size:.64rem;font-weight:700;line-height:1.2}
 .auto img{width:100%;height:60px;object-fit:contain}
+.au{position:relative;cursor:pointer}
+.au:active{transform:scale(.96)}
+.au-x{position:absolute;top:3px;right:4px;font-size:.7rem;opacity:.55}
+.oc-tit{margin:14px 0 6px;font-size:.74rem;font-weight:900;color:var(--rojo)}
+.oc-tit small{font-weight:700;color:var(--gris)}
+.oc{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px dashed #ef9a9a;border-radius:10px;margin-bottom:5px;background:#fff8f8}
+.oc span{flex:1;min-width:0;font-size:.74rem;font-weight:700;color:#888;text-decoration:line-through}
+.oc button{flex:none;border:none;background:var(--verde);color:#fff;border-radius:8px;padding:6px 10px;font-weight:800;font-size:.72rem;cursor:pointer;font-family:inherit}
 .auto b{display:block;color:var(--rojo);font-size:.75rem}
 .barra{position:fixed;left:0;right:0;bottom:0;background:#fff;box-shadow:0 -2px 12px rgba(0,0,0,.12);padding:10px 12px;display:flex;gap:8px;z-index:60}
 .barra button,.barra a{flex:1;padding:14px 8px;border:none;border-radius:14px;font-weight:900;font-size:.95rem;font-family:inherit;cursor:pointer;text-align:center;text-decoration:none}
@@ -113,7 +121,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 </div>
 
 <script>
-const APP_VERSION = 2;
+const APP_VERSION = 3;
 const API_URL = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 const POS_URL = 'seba21-staging.html';
 const SEG_SESION_KEY = 'copihue_sesion';   // la misma sesión que guarda el POS (seba21)
@@ -147,6 +155,7 @@ async function cargar() {
         CFG = r1.config; CATS_INV = r1.categoriasInventario || [];
         DEST = (r1.destacados || []).map(d => ({ producto: d.producto, texto: d.texto, precioRevista: d.precioRevista || '', existe: d.existe, stock: d.stock, precio: d.precio }));
         HOY = r1.hoy || new Date().toISOString().slice(0, 10);
+        OCULTOS = (r1.ocultos || []).slice();
         const lista = (r2 && (r2.productos || r2)) || [];
         CATALOGO = (Array.isArray(lista) ? lista : []).map(p => ({ name: String(p.name || p.nombre || '').trim(), price: Number(p.price || p.precio) || 0, stock: parseFloat(p.stock) || 0, cat: String(p.category || p.categoria || '').toUpperCase() })).filter(p => p.name);
         DEST.forEach(d => { const p = CATALOGO.find(x => x.name.toUpperCase() === d.producto.toUpperCase()); if (p) { d.precio = p.price; d.stock = p.stock; d.existe = true; } });
@@ -157,7 +166,7 @@ async function cargar() {
         $('app').innerHTML = '<div class="ldg">😕 No se pudo cargar la revista.<br><small>' + esc(e.message) + '</small><br><br><button class="chip" onclick="location.reload()">🔄 Reintentar</button></div>';
     }
 }
-let AUTO = { items: [] }, HOY = '';
+let AUTO = { items: [] }, HOY = '', OCULTOS = [];
 const DIAS_SEM = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 function sumarDias(iso, n) { const [y, m, d] = iso.split('-').map(Number); const f = new Date(Date.UTC(y, m - 1, d, 12)); f.setUTCDate(f.getUTCDate() + n); return f.toISOString().slice(0, 10); }
 function lindaFecha(iso) { const [y, m, d] = iso.split('-').map(Number); return DIAS_SEM[new Date(y, m - 1, d).getDay()] + ' ' + d + '/' + m; }
@@ -194,7 +203,9 @@ function dibujar() {
 
     <div class="card"><div class="card-t">🤖 Se completa sola con <small>${(AUTO.items || []).filter(i => !i.destacado).length} productos</small></div><div class="card-b">
       <div class="ayuda" style="margin:0 0 8px">Productos con stock de las categorías elegidas, desde el precio mínimo, los más caros primero. Se actualiza al guardar.</div>
+      <div class="ayuda" style="margin:0 0 8px">👆 Tocá un producto para <b>sacarlo de la revista</b> (sigue a la venta normal en el catálogo).</div>
       <div class="auto" id="auto"></div>
+      <div id="ocultosBox"></div>
     </div></div>`;
     ['cTitulo', 'cPrecio', 'cLimite'].forEach(id => $(id).addEventListener('input', () => marcarSucio(true)));
     dibujarLista(); dibujarAuto(); textoVigencia();
@@ -224,6 +235,11 @@ function dibujarLista() {
       </div>`).join('');
     const t = document.querySelector('.card:nth-child(2) .card-t small'); if (t) t.textContent = DEST.length + ' · van primero';
 }
+function ocultar(nombre) {
+    if (!nombre || OCULTOS.some(n => n.toUpperCase() === nombre.toUpperCase())) return;
+    OCULTOS.push(nombre); marcarSucio(true); dibujarAuto(); aviso('🚫 Sacado de la revista: ' + nombre.slice(0, 40), true);
+}
+function devolver(i) { const n = OCULTOS.splice(i, 1)[0]; marcarSucio(true); dibujarAuto(); if (n) aviso('↩ Vuelve a la revista: ' + n.slice(0, 40), true); }
 function revisarPrv(inp, i) {
     const d = DEST[i], v = parseInt(inp.value) || 0, e = $('prvErr' + i);
     if (v > 0 && d.precio && v >= d.precio) { e.textContent = '⚠️ Tiene que ser MENOR a ' + fmt$(d.precio); inp.classList.add('mal'); }
@@ -233,12 +249,15 @@ function revisarPrv(inp, i) {
 }
 function dibujarAuto() {
     const usados = new Set(DEST.map(d => d.producto.toUpperCase()));
+    const ocu = new Set(OCULTOS.map(n => n.toUpperCase()));
     const cats = [...document.querySelectorAll('#cCats .chip.on')].map(b => b.dataset.cat);
     const pmin = parseInt($('cPrecio') ? $('cPrecio').value : CFG.precioMin) || 0;
     const lim = parseInt($('cLimite') ? $('cLimite').value : CFG.limite) || 24;
     const libres = Math.max(0, lim - DEST.filter(d => d.existe && d.stock > 0).length);
-    const auto = CATALOGO.filter(p => p.stock > 0 && p.price >= pmin && cats.includes(p.cat) && !usados.has(p.name.toUpperCase())).sort((a, b) => b.price - a.price).slice(0, libres);
-    $('auto').innerHTML = auto.length ? auto.map(p => `<div><img src="${foto(p.name)}" onerror="this.style.visibility='hidden'" alt=""><b>${fmt$(p.price)}</b>${esc(p.name.slice(0, 38))}</div>`).join('') : '<div style="grid-column:1/-1">Nada para completar (o ya llegaste al máximo).</div>';
+    const auto = CATALOGO.filter(p => p.stock > 0 && p.price >= pmin && cats.includes(p.cat) && !usados.has(p.name.toUpperCase()) && !ocu.has(p.name.toUpperCase())).sort((a, b) => b.price - a.price).slice(0, libres);
+    $('auto').innerHTML = auto.length ? auto.map(p => `<div class="au" data-n="${esc(p.name)}" onclick="ocultar(this.dataset.n)" title="Tocar para sacar de la revista"><span class="au-x">🚫</span><img src="${foto(p.name)}" onerror="this.style.visibility='hidden'" alt=""><b>${fmt$(p.price)}</b>${esc(p.name.slice(0, 38))}</div>`).join('') : '<div style="grid-column:1/-1">Nada para completar (o ya llegaste al máximo).</div>';
+    const ob = $('ocultosBox');
+    if (ob) ob.innerHTML = OCULTOS.length ? `<div class="oc-tit">🚫 Ocultos de la revista (${OCULTOS.length}) <small>tocá ↩ para devolver</small></div>` + OCULTOS.map((n, i) => `<div class="oc"><span>${esc(n)}</span><button type="button" onclick="devolver(${i})">↩ Devolver</button></div>`).join('') : '';
     const t = document.querySelector('.card:nth-child(3) .card-t small'); if (t) t.textContent = auto.length + ' productos';
 }
 document.addEventListener('input', e => { if (e.target && ['cPrecio', 'cLimite'].includes(e.target.id)) dibujarAuto(); });
@@ -299,7 +318,8 @@ async function guardar() {
     const datos = {
         token: s.token,
         config: { titulo: $('cTitulo').value.trim() || 'Revista de Navidad', activa: CFG.activa, categorias: cats, precioMin: parseInt($('cPrecio').value) || 0, limite: Math.min(60, Math.max(1, parseInt($('cLimite').value) || 24)), desde: $('cDesde').value || '', dias: CFG.dias || 14 },
-        destacados: DEST.map(d => ({ producto: d.producto, texto: (d.texto || '').trim(), precioRevista: parseInt(d.precioRevista) || 0 }))
+        destacados: DEST.map(d => ({ producto: d.producto, texto: (d.texto || '').trim(), precioRevista: parseInt(d.precioRevista) || 0 })),
+        ocultos: OCULTOS.slice()
     };
     const b = $('bGuardar'); b.disabled = true; b.textContent = '⏳ Guardando…';
     try {
