@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Copihue · Revista</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --verde:#2e7d32; --vd:#1b5e20; --vdp:#0a3d0f; --vl:#e8f5e9;
+  --rojo:#c62828; --rl:#ffebee; --morado:#6a1b9a; --navidad:#b71c1c;
+  --gris:#546e7a; --bg:#f1f8f1; --borde:#c8e6c9; --texto:#1a2e1c;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{overscroll-behavior-y:contain}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);min-height:100dvh;padding-bottom:90px}
+.hdr{background:linear-gradient(135deg,#7f0000,var(--navidad),var(--vd));padding:11px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,.3);position:sticky;top:0;z-index:50}
+.hdr-icon{font-size:1.5rem}
+.hdr-t{color:#fff;font-size:.95rem;font-weight:900}
+.hdr-s{color:rgba(255,255,255,.75);font-size:.62rem;letter-spacing:2px;text-transform:uppercase}
+.ver{font-size:.6rem;background:rgba(255,255,255,.2);color:#fff;border-radius:10px;padding:2px 7px;margin-left:6px;font-weight:700;letter-spacing:0}
+.btn-back{margin-left:auto;background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:20px;padding:6px 13px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit}
+.ldg{text-align:center;padding:60px 20px;color:var(--gris)}
+.spin{width:34px;height:34px;border:3px solid var(--vl);border-top-color:var(--verde);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.card{margin:12px;background:#fff;border-radius:18px;border:1px solid var(--borde);overflow:hidden;box-shadow:0 1px 6px rgba(46,125,50,.08)}
+.card-t{background:linear-gradient(90deg,var(--vdp),var(--vd));color:#fff;padding:10px 16px;font-size:.8rem;font-weight:900;text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:8px}
+.card-t small{margin-left:auto;font-weight:700;letter-spacing:0;text-transform:none;opacity:.85}
+.card-b{padding:12px 14px 14px}
+.fila{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.fila label{font-size:.78rem;font-weight:800;color:var(--gris);min-width:96px}
+.fila input[type=text],.fila input[type=number]{flex:1;min-width:0;padding:10px 12px;border:1.5px solid var(--borde);border-radius:10px;font-size:.95rem;font-family:inherit}
+.sw{display:flex;gap:6px}
+.sw button{padding:9px 16px;border:1.5px solid var(--borde);border-radius:10px;background:#fff;font-weight:900;font-family:inherit;cursor:pointer;color:var(--gris)}
+.sw button.on.si{background:var(--verde);border-color:var(--vd);color:#fff}
+.sw button.on.no{background:var(--rojo);border-color:var(--rojo);color:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:7px 11px;border:1.5px solid var(--borde);border-radius:20px;background:#fff;font-size:.74rem;font-weight:800;cursor:pointer;color:var(--gris);font-family:inherit}
+.chip.on{background:var(--verde);border-color:var(--vd);color:#fff}
+.ayuda{font-size:.72rem;color:var(--gris);margin:-4px 0 10px}
+.buscar{width:100%;padding:12px 14px;border:2px solid var(--verde);border-radius:14px;font-size:1rem;font-family:inherit;margin-bottom:8px}
+.res{max-height:300px;overflow-y:auto;border-radius:12px}
+.ri{display:flex;align-items:center;gap:10px;padding:8px;border-bottom:1px solid #eee}
+.ri img,.it img{width:46px;height:46px;object-fit:contain;border-radius:8px;background:#fafafa;flex:none}
+.ri .n,.it .n{flex:1;min-width:0;font-size:.8rem;font-weight:800;line-height:1.25}
+.ri .p,.it .p{font-size:.72rem;color:var(--gris);font-weight:700}
+.btn-mas{flex:none;width:40px;height:40px;border-radius:50%;border:none;background:var(--verde);color:#fff;font-size:1.3rem;font-weight:900;cursor:pointer}
+.btn-mas:disabled{background:#bdbdbd}
+.it{border:1.5px solid var(--borde);border-radius:14px;padding:8px;margin-bottom:8px;background:#fff}
+.it.malo{border-color:var(--rojo);background:var(--rl)}
+.it-top{display:flex;align-items:center;gap:10px}
+.it-num{flex:none;width:26px;height:26px;border-radius:50%;background:var(--navidad);color:#fff;font-weight:900;font-size:.8rem;display:flex;align-items:center;justify-content:center}
+.it-acc{display:flex;gap:4px;flex:none}
+.it-acc button{width:34px;height:34px;border-radius:10px;border:1.5px solid var(--borde);background:#fff;font-size:1rem;cursor:pointer}
+.it input{width:100%;margin-top:8px;padding:9px 11px;border:1.5px solid var(--borde);border-radius:10px;font-size:.88rem;font-family:inherit;color:var(--morado);font-style:italic}
+.vacio{text-align:center;color:var(--gris);font-size:.82rem;padding:14px}
+.auto{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.auto div{background:#fafafa;border:1px solid #eee;border-radius:10px;padding:6px;text-align:center;font-size:.64rem;font-weight:700;line-height:1.2}
+.auto img{width:100%;height:60px;object-fit:contain}
+.auto b{display:block;color:var(--rojo);font-size:.75rem}
+.barra{position:fixed;left:0;right:0;bottom:0;background:#fff;box-shadow:0 -2px 12px rgba(0,0,0,.12);padding:10px 12px;display:flex;gap:8px;z-index:60}
+.barra button,.barra a{flex:1;padding:14px 8px;border:none;border-radius:14px;font-weight:900;font-size:.95rem;font-family:inherit;cursor:pointer;text-align:center;text-decoration:none}
+.b-ver{background:#eceff1;color:#37474f}
+.b-guardar{background:#9e9e9e;color:#fff}
+.b-guardar.sucio{background:var(--verde)}
+.msg{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:200;max-width:86vw;padding:16px 20px;border-radius:16px;color:#fff;font-weight:800;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.3);display:none}
+.msg.ok{background:var(--verde)} .msg.err{background:var(--rojo)}
+.login{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:150;display:none;align-items:center;justify-content:center;padding:16px}
+.login.open{display:flex}
+.login-c{background:#fff;border-radius:20px;padding:20px;width:100%;max-width:360px;text-align:center}
+.login-c h3{color:var(--vd);margin-bottom:6px}
+.login-c p{font-size:.8rem;color:var(--gris);margin-bottom:12px}
+.login-c .chips{justify-content:center;margin-bottom:12px}
+.login-c input{width:100%;padding:12px;border:2px solid var(--verde);border-radius:12px;font-size:1.3rem;text-align:center;letter-spacing:6px;font-family:inherit;margin-bottom:10px}
+.login-c button.go{width:100%;padding:13px;border:none;border-radius:12px;background:var(--verde);color:#fff;font-weight:900;font-size:1rem;font-family:inherit;cursor:pointer}
+.login-c .err{color:var(--rojo);font-size:.8rem;font-weight:800;min-height:1.2em;margin-bottom:6px}
+</style>
+</head>
+<body>
+<div style="background:#ff9800;color:#000;text-align:center;font-weight:900;font-size:.75rem;padding:4px">🧪 STAGING — datos de prueba</div>
+<div class="hdr">
+  <div class="hdr-icon">🎄</div>
+  <div><div class="hdr-t">Copihue <span class="ver" id="verBadge"></span></div><div class="hdr-s">Revista · configuración</div></div>
+  <button type="button" class="btn-back" onclick="volver()">← Volver</button>
+</div>
+
+<div id="app"><div class="ldg"><div class="spin"></div>Cargando la revista…</div></div>
+
+<div class="barra">
+  <a class="b-ver" id="bVer" href="index.html#revista" target="_blank" rel="noopener">👁 Ver revista</a>
+  <button type="button" class="b-guardar" id="bGuardar" onclick="guardar()">💾 Guardar</button>
+</div>
+<div class="msg" id="msg"></div>
+<div class="login" id="login">
+  <div class="login-c">
+    <h3>🔐 Clave del POS</h3>
+    <p>Para guardar cambios en la revista, entrá con tu clave.</p>
+    <div class="chips" id="lgNombres"></div>
+    <input type="password" id="lgPin" inputmode="numeric" maxlength="6" placeholder="••••••" autocomplete="off">
+    <div class="err" id="lgErr"></div>
+    <button type="button" class="go" onclick="loginEntrar()">Entrar</button>
+    <button type="button" class="chip" style="margin-top:10px" onclick="loginCerrar()">Cancelar</button>
+  </div>
+</div>
+
+<script>
+const APP_VERSION = 1;
+const API_URL = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
+const POS_URL = 'seba21-staging.html';
+const SEG_SESION_KEY = 'copihue_sesion';   // la misma sesión que guarda el POS (seba21)
+document.title = '🎄 Copihue · Revista v' + APP_VERSION + ' (STAGING)';
+document.getElementById('verBadge').textContent = 'v' + APP_VERSION;
+
+let CFG = null, DEST = [], CATALOGO = [], CATS_INV = [], SUCIO = false, lgNombre = '', despuesLogin = null;
+const $ = id => document.getElementById(id);
+const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt$ = n => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
+const slug = n => String(n).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').trim();
+const foto = n => 'imagenes-productos/' + slug(n) + '.jpg';
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+function aviso(txt, ok) { const m = $('msg'); m.textContent = txt; m.className = 'msg ' + (ok ? 'ok' : 'err'); m.style.display = 'block'; clearTimeout(aviso.t); aviso.t = setTimeout(() => m.style.display = 'none', ok ? 1800 : 3800); }
+function marcarSucio(v) { SUCIO = v; $('bGuardar').classList.toggle('sucio', v); $('bGuardar').textContent = v ? '💾 Guardar cambios' : '💾 Guardado'; }
+
+// ---- salir siempre con confirmación si hay cambios sin guardar ----
+function volver() { if (SUCIO && !confirm('Tenés cambios sin guardar. ¿Salir igual?')) return; SUCIO = false; location.href = POS_URL; }
+window.addEventListener('beforeunload', e => { if (SUCIO) { e.preventDefault(); e.returnValue = ''; } });
+history.pushState({ rv: 1 }, '');
+window.addEventListener('popstate', () => { if (SUCIO && !confirm('Tenés cambios sin guardar. ¿Salir igual?')) { history.pushState({ rv: 1 }, ''); return; } SUCIO = false; location.href = POS_URL; });
+
+async function cargar() {
+    try {
+        const [r1, r2] = await Promise.all([
+            fetch(API_URL + '?action=revista&t=' + Date.now(), { redirect: 'follow' }).then(r => r.json()),
+            fetch(API_URL + '?cache=' + Date.now(), { redirect: 'follow' }).then(r => r.json())
+        ]);
+        if (!r1 || !r1.success) throw new Error((r1 && r1.mensaje) || 'La planilla no respondió');
+        CFG = r1.config; CATS_INV = r1.categoriasInventario || [];
+        DEST = (r1.destacados || []).map(d => ({ producto: d.producto, texto: d.texto, existe: d.existe, stock: d.stock, precio: d.precio }));
+        const lista = (r2 && (r2.productos || r2)) || [];
+        CATALOGO = (Array.isArray(lista) ? lista : []).map(p => ({ name: String(p.name || p.nombre || '').trim(), price: Number(p.price || p.precio) || 0, stock: parseFloat(p.stock) || 0, cat: String(p.category || p.categoria || '').toUpperCase() })).filter(p => p.name);
+        DEST.forEach(d => { const p = CATALOGO.find(x => x.name.toUpperCase() === d.producto.toUpperCase()); if (p) { d.precio = p.price; d.stock = p.stock; d.existe = true; } });
+        AUTO = r1.revista || { items: [] };
+        dibujar(); marcarSucio(false);
+        if (!r1.hojaExiste) aviso('⚠️ Falta la hoja REVISTA en la planilla. Creala con PRODUCTO · TEXTO · ORDEN en la fila 1.', false);
+    } catch (e) {
+        $('app').innerHTML = '<div class="ldg">😕 No se pudo cargar la revista.<br><small>' + esc(e.message) + '</small><br><br><button class="chip" onclick="location.reload()">🔄 Reintentar</button></div>';
+    }
+}
+let AUTO = { items: [] };
+
+function dibujar() {
+    const c = CFG;
+    $('app').innerHTML = `
+    <div class="card"><div class="card-t">⚙️ Configuración</div><div class="card-b">
+      <div class="fila"><label>Título</label><input type="text" id="cTitulo" maxlength="60" value="${esc(c.titulo)}"></div>
+      <div class="fila"><label>Revista</label><div class="sw"><button type="button" class="si ${c.activa ? 'on' : ''}" onclick="setActiva(true)">✅ Activa</button><button type="button" class="no ${!c.activa ? 'on' : ''}" onclick="setActiva(false)">⛔ Apagada</button></div></div>
+      <div class="ayuda">Apagada, desaparece del catálogo (por ejemplo, después de Reyes).</div>
+      <div class="fila"><label>Precio mínimo</label><input type="number" id="cPrecio" min="0" step="500" value="${c.precioMin}"></div>
+      <div class="fila"><label>Máx. productos</label><input type="number" id="cLimite" min="1" max="60" value="${c.limite}"></div>
+      <div class="sel-lbl" style="font-size:.72rem;font-weight:900;color:var(--gris);margin:4px 0 6px">CATEGORÍAS QUE SE COMPLETAN SOLAS</div>
+      <div class="chips" id="cCats">${CATS_INV.map(k => `<button type="button" class="chip ${c.categorias.includes(k) ? 'on' : ''}" data-cat="${esc(k)}" onclick="toggleCat(this)">${esc(k)}</button>`).join('')}</div>
+    </div></div>
+
+    <div class="card"><div class="card-t">⭐ Mis productos destacados <small>${DEST.length} · van primero</small></div><div class="card-b">
+      <input class="buscar" id="bus" type="text" placeholder="🔍 Buscar producto para agregar…" autocomplete="off" oninput="buscar()">
+      <div class="res" id="res"></div>
+      <div id="lista" style="margin-top:8px"></div>
+    </div></div>
+
+    <div class="card"><div class="card-t">🤖 Se completa sola con <small>${(AUTO.items || []).filter(i => !i.destacado).length} productos</small></div><div class="card-b">
+      <div class="ayuda" style="margin:0 0 8px">Productos con stock de las categorías elegidas, desde el precio mínimo, los más caros primero. Se actualiza al guardar.</div>
+      <div class="auto" id="auto"></div>
+    </div></div>`;
+    ['cTitulo', 'cPrecio', 'cLimite'].forEach(id => $(id).addEventListener('input', () => marcarSucio(true)));
+    dibujarLista(); dibujarAuto();
+}
+function setActiva(v) { CFG.activa = v; document.querySelectorAll('.sw button').forEach(b => b.classList.toggle('on', b.classList.contains(v ? 'si' : 'no'))); marcarSucio(true); }
+function toggleCat(b) { b.classList.toggle('on'); marcarSucio(true); }
+function dibujarLista() {
+    const L = $('lista');
+    if (!DEST.length) { L.innerHTML = '<div class="vacio">Todavía no elegiste productos. Buscalos arriba y tocá ＋.<br>Si no elegís ninguno, la revista se arma sola.</div>'; return; }
+    L.innerHTML = DEST.map((d, i) => `
+      <div class="it ${d.existe && d.stock > 0 ? '' : 'malo'}">
+        <div class="it-top">
+          <div class="it-num">${i + 1}</div>
+          <img src="${foto(d.producto)}" onerror="this.style.visibility='hidden'" alt="">
+          <div style="flex:1;min-width:0"><div class="n">${esc(d.producto)}</div>
+            <div class="p">${!d.existe ? '⚠️ No está en el inventario' : (d.stock > 0 ? fmt$(d.precio) + ' · stock ' + d.stock : '⚠️ Sin stock: no se muestra')}</div></div>
+          <div class="it-acc">
+            <button type="button" title="Subir" onclick="mover(${i},-1)" ${i === 0 ? 'disabled' : ''}>↑</button>
+            <button type="button" title="Bajar" onclick="mover(${i},1)" ${i === DEST.length - 1 ? 'disabled' : ''}>↓</button>
+            <button type="button" title="Quitar" onclick="quitar(${i})">🗑</button>
+          </div>
+        </div>
+        <input type="text" maxlength="160" placeholder="Frase opcional (ej: «El regalo para papá»)" value="${esc(d.texto)}" oninput="DEST[${i}].texto=this.value;marcarSucio(true)">
+      </div>`).join('');
+    const t = document.querySelector('.card:nth-child(2) .card-t small'); if (t) t.textContent = DEST.length + ' · van primero';
+}
+function dibujarAuto() {
+    const usados = new Set(DEST.map(d => d.producto.toUpperCase()));
+    const cats = [...document.querySelectorAll('#cCats .chip.on')].map(b => b.dataset.cat);
+    const pmin = parseInt($('cPrecio') ? $('cPrecio').value : CFG.precioMin) || 0;
+    const lim = parseInt($('cLimite') ? $('cLimite').value : CFG.limite) || 24;
+    const libres = Math.max(0, lim - DEST.filter(d => d.existe && d.stock > 0).length);
+    const auto = CATALOGO.filter(p => p.stock > 0 && p.price >= pmin && cats.includes(p.cat) && !usados.has(p.name.toUpperCase())).sort((a, b) => b.price - a.price).slice(0, libres);
+    $('auto').innerHTML = auto.length ? auto.map(p => `<div><img src="${foto(p.name)}" onerror="this.style.visibility='hidden'" alt=""><b>${fmt$(p.price)}</b>${esc(p.name.slice(0, 38))}</div>`).join('') : '<div style="grid-column:1/-1">Nada para completar (o ya llegaste al máximo).</div>';
+    const t = document.querySelector('.card:nth-child(3) .card-t small'); if (t) t.textContent = auto.length + ' productos';
+}
+document.addEventListener('input', e => { if (e.target && ['cPrecio', 'cLimite'].includes(e.target.id)) dibujarAuto(); });
+document.addEventListener('click', e => { if (e.target && e.target.closest && e.target.closest('#cCats')) setTimeout(dibujarAuto, 0); });
+function buscar() {
+    const q = norm($('bus').value), R = $('res');
+    if (q.length < 2) { R.innerHTML = ''; return; }
+    const ts = q.split(' ');
+    const usados = new Set(DEST.map(d => d.producto.toUpperCase()));
+    const r = CATALOGO.filter(p => p.stock > 0 && ts.every(t => norm(p.name).includes(t))).sort((a, b) => b.price - a.price).slice(0, 25);
+    R.innerHTML = r.length ? r.map(p => `<div class="ri"><img src="${foto(p.name)}" onerror="this.style.visibility='hidden'" alt=""><div style="flex:1;min-width:0"><div class="n">${esc(p.name)}</div><div class="p">${fmt$(p.price)} · stock ${p.stock} · ${esc(p.cat)}</div></div><button type="button" class="btn-mas" ${usados.has(p.name.toUpperCase()) ? 'disabled title="Ya está"' : ''} onclick='agregar(${JSON.stringify(p.name)})'>＋</button></div>`).join('') : '<div class="vacio">Sin resultados con stock.</div>';
+}
+function agregar(nombre) {
+    if (DEST.length >= 60) { aviso('Máximo 60 productos destacados.', false); return; }
+    const p = CATALOGO.find(x => x.name === nombre); if (!p) return;
+    if (DEST.some(d => d.producto.toUpperCase() === nombre.toUpperCase())) return;
+    DEST.push({ producto: p.name, texto: '', existe: true, stock: p.stock, precio: p.price });
+    marcarSucio(true); dibujarLista(); buscar(); dibujarAuto(); aviso('✅ Agregado: ' + p.name.slice(0, 40), true);
+}
+function mover(i, d) { const j = i + d; if (j < 0 || j >= DEST.length) return; [DEST[i], DEST[j]] = [DEST[j], DEST[i]]; marcarSucio(true); dibujarLista(); }
+function quitar(i) { if (!confirm('¿Quitar «' + DEST[i].producto + '» de la revista?')) return; DEST.splice(i, 1); marcarSucio(true); dibujarLista(); buscar(); dibujarAuto(); }
+
+// ---- sesión del POS ----
+function sesion() { try { const s = JSON.parse(sessionStorage.getItem(SEG_SESION_KEY) || 'null'); return s && s.token && (!s.exp || s.exp > Date.now()) ? s : null; } catch (e) { return null; } }
+async function loginAbrir(cb) {
+    despuesLogin = cb; $('lgErr').textContent = ''; $('lgPin').value = ''; $('login').classList.add('open');
+    try {
+        const r = await fetch(API_URL + '?action=seguridad&data=' + encodeURIComponent(JSON.stringify({ op: 'lista' })), { redirect: 'follow' }).then(x => x.json());
+        const ns = (r && r.vendedores) || [];
+        $('lgNombres').innerHTML = ns.map(n => `<button type="button" class="chip" onclick="lgNombre='${esc(n).replace(/'/g, '')}';document.querySelectorAll('#lgNombres .chip').forEach(b=>b.classList.toggle('on',b===this));$('lgPin').focus()">${esc(n)}</button>`).join('');
+    } catch (e) { $('lgErr').textContent = 'Sin conexión con la planilla.'; }
+}
+function loginCerrar() { $('login').classList.remove('open'); despuesLogin = null; }
+async function loginEntrar() {
+    const pin = $('lgPin').value.trim();
+    if (!lgNombre) { $('lgErr').textContent = 'Elegí tu nombre.'; return; }
+    if (!/^\d{4,6}$/.test(pin)) { $('lgErr').textContent = 'La clave son números.'; return; }
+    $('lgErr').textContent = '⏳ Verificando…';
+    try {
+        const r = await fetch(API_URL + '?action=seguridad&data=' + encodeURIComponent(JSON.stringify({ op: 'login', vendedor: lgNombre, pin })), { redirect: 'follow' }).then(x => x.json());
+        if (!r || !r.success) { $('lgErr').textContent = (r && r.mensaje) || 'Clave incorrecta'; return; }
+        sessionStorage.setItem(SEG_SESION_KEY, JSON.stringify({ vendedor: r.vendedor, token: r.token, exp: r.expira }));
+        $('login').classList.remove('open'); const cb = despuesLogin; despuesLogin = null; if (cb) cb();
+    } catch (e) { $('lgErr').textContent = 'Sin conexión con la planilla.'; }
+}
+$('lgPin').addEventListener('keydown', e => { if (e.key === 'Enter') loginEntrar(); });
+
+// ---- guardar ----
+async function guardar() {
+    if (!CFG) return;
+    if (!SUCIO) { aviso('No hay cambios para guardar.', true); return; }
+    const s = sesion(); if (!s) { loginAbrir(guardar); return; }
+    const cats = [...document.querySelectorAll('#cCats .chip.on')].map(b => b.dataset.cat);
+    if (!cats.length) { aviso('Elegí al menos una categoría.', false); return; }
+    const datos = {
+        token: s.token,
+        config: { titulo: $('cTitulo').value.trim() || 'Revista de Navidad', activa: CFG.activa, categorias: cats, precioMin: parseInt($('cPrecio').value) || 0, limite: Math.min(60, Math.max(1, parseInt($('cLimite').value) || 24)) },
+        destacados: DEST.map(d => ({ producto: d.producto, texto: (d.texto || '').trim() }))
+    };
+    const b = $('bGuardar'); b.disabled = true; b.textContent = '⏳ Guardando…';
+    try {
+        const r = await fetch(API_URL, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'guardarRevista', data: datos }) }).then(x => x.json());
+        if (r && r.success) { marcarSucio(false); aviso('✅ Revista guardada (' + r.destacados + ' destacados)', true); setTimeout(cargar, 600); }
+        else if (r && r.sinSesion) { sessionStorage.removeItem(SEG_SESION_KEY); marcarSucio(true); loginAbrir(guardar); }
+        else { marcarSucio(true); aviso('❌ ' + ((r && r.mensaje) || 'No se pudo guardar'), false); }
+    } catch (e) { marcarSucio(true); aviso('❌ Sin conexión. No se guardó nada.', false); }
+    b.disabled = false;
+}
+cargar();
+</script>
+<!-- STAGING-ETIQUETA — solo en STAGING: etiqueta chica fija abajo a la izquierda con parpadeo del borde a intervalos al azar (para que la vista no se acostumbre). No recibe toques (pointer-events:none). -->
+<style>
+#stgPill{position:fixed;left:6px;bottom:6px;z-index:2147483000;pointer-events:none;background:#ff9800;color:#000;font:900 11px/1 system-ui,-apple-system,sans-serif;padding:4px 8px;border-radius:999px;border:2px solid #000;box-shadow:0 1px 4px rgba(0,0,0,.35);opacity:.92;letter-spacing:.3px;white-space:nowrap}
+#stgPill.stg-pulso{animation:stgPulso 1.4s ease-in-out 2}
+@keyframes stgPulso{0%,100%{border-color:#000;box-shadow:0 1px 4px rgba(0,0,0,.35)}50%{border-color:#ff1744;box-shadow:0 0 0 5px rgba(255,23,68,.55),0 0 14px rgba(255,23,68,.8)}}
+</style>
+<div id="stgPill" aria-hidden="true">🧪 STAGING</div>
+<script>
+(function(){try{var p=document.getElementById('stgPill');if(!p)return;
+function tic(){p.classList.remove('stg-pulso');void p.offsetWidth;p.classList.add('stg-pulso');setTimeout(tic,7000+Math.random()*18000);}
+setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
+</script>
+
+</body>
+</html>

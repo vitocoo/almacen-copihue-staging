@@ -475,6 +475,37 @@
         }
 
         /* 🆕 RECIÉN LLEGADOS — verde agua (misma arquitectura de tema que relampago/destacadas/especiales/ultimas) */
+        /* v213 — 🎄 Revista */
+        .ofertas-container.revista { border-color: #b71c1c; background: linear-gradient(160deg, #7f0000, #1b5e20); padding-bottom: 14px; }
+        .rv-tapa { display: flex; align-items: center; gap: 12px; padding: 16px 16px 8px; color: #fff; }
+        .rv-logo { width: 74px; background: #fdf0c4; border-radius: 12px; padding: 4px; flex: none; }
+        .rv-titulo { font-weight: 900; font-size: 1.35rem; line-height: 1.15; }
+        .rv-sub { font-size: .82rem; color: #ffe082; font-weight: 700; margin-top: 3px; }
+        .rv-marco { position: relative; padding: 4px 10px; }
+        .rv-hojas { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; gap: 0; border-radius: 18px; -webkit-overflow-scrolling: touch; scrollbar-width: none; overscroll-behavior-x: contain; }
+        .rv-hojas::-webkit-scrollbar { display: none; }
+        .rv-pag.ofertas-product-card { flex: 0 0 100%; scroll-snap-align: start; position: relative; background: #fff; border-radius: 18px; margin: 0; display: flex; flex-direction: column; max-width: none; box-sizing: border-box; }
+        .rv-sello { position: absolute; top: 10px; left: 10px; background: #ffb300; color: #3e2723; font-weight: 900; font-size: .75rem; padding: 4px 10px; border-radius: 20px; z-index: 2; }
+        .rv-foto { position: relative; overflow: hidden; background: #fafafa; border-radius: 18px 18px 0 0; height: min(52vw, 300px); display: flex; align-items: center; justify-content: center; }
+        .rv-foto img { max-width: 92%; max-height: 92%; object-fit: contain; }
+        .rv-info { padding: 12px 14px 14px; text-align: center; }
+        .rv-nombre { font-weight: 800 !important; font-size: .98rem !important; color: #1b1b1b !important; line-height: 1.3; }
+        .rv-texto { color: #6a1b9a; font-style: italic; font-weight: 700; font-size: .9rem; margin-top: 6px; }
+        .rv-precio { color: #c62828; font-weight: 900; font-size: 2rem; margin-top: 6px; }
+        .rv-stock { font-size: .78rem; color: #2e7d32; font-weight: 700; }
+        .rv-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+        .rv-btns .add-to-cart, .rv-wa { padding: 12px 6px !important; font-size: .9rem !important; border-radius: 12px; font-weight: 800; text-align: center; text-decoration: none; }
+        .rv-wa { background: #25d366; color: #fff; display: flex; align-items: center; justify-content: center; }
+        .rv-flecha { position: absolute; top: 40%; z-index: 3; width: 38px; height: 38px; border-radius: 50%; border: none; background: rgba(0,0,0,.45); color: #fff; font-size: 1.6rem; line-height: 1; cursor: pointer; }
+        .rv-flecha.izq { left: 2px; } .rv-flecha.der { right: 2px; }
+        .rv-pie { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 8px 12px 4px; flex-wrap: wrap; }
+        .rv-dots { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; }
+        .rv-dots span { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.4); cursor: pointer; }
+        .rv-dots span.on { background: #ffe082; width: 18px; border-radius: 4px; }
+        .rv-cont { color: #fff; font-weight: 800; font-size: .8rem; }
+        .rv-compartir { display: block; width: calc(100% - 20px); margin: 8px 10px 0; padding: 13px; border: none; border-radius: 14px; background: #25d366; color: #fff; font-weight: 900; font-size: 1rem; cursor: pointer; font-family: inherit; }
+        #rvOverlay { display: none; position: fixed; inset: 0; z-index: 100000; background: rgba(0,0,0,.8); overflow: auto; padding: 16px; }
+        #rvOverlay.open { display: block; }
         /* v205 — Más vendidos */
         .ofertas-container.mas-vendidos { border-color: #e65100; background: linear-gradient(135deg, #fff3e0, #ffe0b2); }
         .ofertas-container.mas-vendidos .ofertas-header { background: linear-gradient(135deg, #b71c1c, #ef6c00); }
@@ -2743,6 +2774,21 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
         <div class="ofertas-products-grid" id="ultimas-grid"></div>
     </div>
 
+    <!-- ========== v213 — 🎄 REVISTA ========== -->
+    <div class="ofertas-container revista cls-oculto" id="ofertasRevista">
+        <div class="rv-tapa">
+            <img src="logo-copihue.png" alt="" class="rv-logo" onerror="this.style.display='none'">
+            <div><div class="rv-titulo" id="rvTitulo">🎄 Revista de Navidad</div><div class="rv-sub" id="rvSub"></div></div>
+        </div>
+        <div class="rv-marco">
+            <button type="button" class="rv-flecha izq" onclick="_rvIr(-1)" aria-label="Anterior">‹</button>
+            <div class="rv-hojas" id="revista-grid"></div>
+            <button type="button" class="rv-flecha der" onclick="_rvIr(1)" aria-label="Siguiente">›</button>
+        </div>
+        <div class="rv-pie"><div class="rv-dots" id="rvDots"></div><div class="rv-cont" id="rvCont"></div></div>
+        <button type="button" class="rv-compartir" onclick="abrirCompartirRevista()">📲 Compartir revista</button>
+    </div>
+
     <!-- ========== RECIÉN LLEGADOS ========== -->
     <div class="ofertas-container recien-llegados cls-oculto" id="ofertasRecienLlegados">
         <div class="ofertas-header">
@@ -2970,7 +3016,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v212';
+const APP_VERSION = 'copihue-index-v213';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -4815,6 +4861,7 @@ function actualizarTodasLasVistas() {
     renderizarUltimasUnidades();
     renderizarRecienLlegados();
     renderizarMasVendidos();   // v205
+    renderizarRevista();   // v213
     renderizarMulticompra();
     renderizarContenedorOfertas('especiales', productosEspeciales);
     renderizarCervecero();
@@ -4857,6 +4904,7 @@ async function loadProductsFromAPI() {
                 if (dOfertas.destacadasActivas) _destacadasBackend = dOfertas.destacadasActivas.map(p => Number(p.id));
                 if (dOfertas.poolRecienLlegados) _poolRecienLlegados = dOfertas.poolRecienLlegados;
                 if (Array.isArray(dOfertas.masVendidos)) _poolMasVendidos = dOfertas.masVendidos;   // v205
+                if (dOfertas.revista) _poolRevista = dOfertas.revista;   // v213
                 if (dOfertas.limiteRecienLlegados) _limiteRecienLlegados = dOfertas.limiteRecienLlegados;
                 if (dOfertas.ultimasSeleccionadas) _poolUltimasSeleccion = dOfertas.ultimasSeleccionadas;
                 if (dOfertas.multicompraActiva) _poolMulticompra = dOfertas.multicompraActiva;
@@ -5058,6 +5106,7 @@ function actualizarSoloOfertas() {
             if (d.destacadasActivas) _destacadasBackend = d.destacadasActivas.map(p => Number(p.id));
             if (d.poolRecienLlegados) _poolRecienLlegados = d.poolRecienLlegados;
             if (Array.isArray(d.masVendidos)) _poolMasVendidos = d.masVendidos;   // v205
+            if (d.revista) _poolRevista = d.revista;   // v213
             if (d.limiteRecienLlegados) _limiteRecienLlegados = d.limiteRecienLlegados;
             if (d.ultimasSeleccionadas) _poolUltimasSeleccion = d.ultimasSeleccionadas;
             if (d.multicompraActiva) _poolMulticompra = d.multicompraActiva;
@@ -5071,6 +5120,7 @@ function actualizarSoloOfertas() {
             renderizarUltimasUnidades();
             renderizarRecienLlegados();
             renderizarMasVendidos();   // v205
+            renderizarRevista();   // v213
             renderizarMulticompra();
         })
         .catch(() => {}); // silencioso — siguiente ciclo lo reintenta
@@ -7649,6 +7699,7 @@ window._ibBuscar = function (term, limite) {
 
 // ---- portada ----
 const SECC = [
+    { id: 'ofertasRevista', ico: '🎄', nom: 'Revista de Navidad', grid: 'revista-grid', col: '#b71c1c,#1b5e20', revista: true },   // v213
     { id: 'ofertasCervecero', ico: '🍺', nom: 'Jueves Cervecero', grid: 'cervecero-grid', col: '#f9a825,#ef6c00', anuncio: true },
     { id: 'ofertasPromos', ico: '🎯', nom: 'Promos', grid: 'promos-grid', col: '#ad1457,#e91e63' },
     { id: 'ofertasCombos', ico: '📦', nom: 'Combos', grid: 'combos-grid', col: '#bf360c,#e65100' },
@@ -7719,7 +7770,7 @@ window.addEventListener('popstate', () => { if (document.body.classList.contains
 function _vmLimpiar() { document.querySelectorAll('.vm-oculto').forEach(e => e.classList.remove('vm-oculto')); document.querySelectorAll('.vm-caja').forEach(e => e.remove()); }
 window._vmAplicar = function () {
     const sc = SECC.find(x => x.id === _ptSec);
-    if (!sc || sc.els) return;   // categorías ya pagina sola (12 por página) · juegos no aplica
+    if (!sc || sc.els || sc.revista) return;   // v213: la revista tiene sus propias páginas · categorías ya pagina sola (12 por página) · juegos no aplica
     const g = document.getElementById(sc.grid); if (!g) return;
     const t = tarjetasDe(g);
     t.forEach((c, i) => c.classList.toggle('vm-oculto', i >= _vmLimite));
@@ -8412,6 +8463,159 @@ document.getElementById('raspBtnReveal').addEventListener('click',()=>{
         <div class="cmp-btns"><button type="button" onclick="cerrarCompartirOfertas()">✕ Cerrar</button><button type="button" id="cmpEnviar" onclick="enviarCompartirOfertas()" disabled>📲 Compartir</button></div>
       </div>
     </div>
+    <div id="rvOverlay" onclick="if(event.target===this)cerrarCompartirRevista()">
+      <div class="cmp-caja">
+        <div id="rvWrap"></div>
+        <div class="cmp-btns"><button type="button" onclick="cerrarCompartirRevista()">✕ Cerrar</button><button type="button" id="rvEnviar" onclick="enviarCompartirRevista()" disabled>📲 Compartir</button></div>
+      </div>
+    </div>
+<script>
+// ═══ v213 — 🎄 REVISTA (Navidad) ═══
+// La planilla manda getOfertas → revista {activa, titulo, items:[{id, texto, destacado}]} (solo con stock).
+// Páginas que se pasan con el dedo (1 producto por página), «Agregar», «Consultar por WhatsApp» y «Compartir revista».
+let _poolRevista = { activa: false, titulo: '', items: [] };
+function _rvLista() {
+    if (!_poolRevista || !_poolRevista.activa) return [];
+    return (_poolRevista.items || []).map(it => { const p = products.find(x => x.id === Number(it.id)); return p && p.stockNumber > 0 ? { ...p, rvTexto: it.texto || '', rvDestacado: !!it.destacado } : null; }).filter(Boolean);
+}
+function _rvTel() { return (window._EMPRESA && window._EMPRESA.telefono) ? window._EMPRESA.telefono.replace(/\D/g, '') : '5492944907380'; }
+function _rvEsc(t) { return String(t || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function renderizarRevista() {
+    try {
+        const cont = document.getElementById('ofertasRevista'), grid = document.getElementById('revista-grid');
+        if (!cont || !grid) return;
+        const titulo = (_poolRevista && _poolRevista.titulo) || 'Revista de Navidad';
+        try { const sc = window._ptInfo && window._ptInfo.SECC.find(x => x.id === 'ofertasRevista'); if (sc) sc.nom = titulo; } catch (e) {}
+        const lista = _rvLista();
+        if (!lista.length) { cont.classList.add('cls-oculto'); grid.innerHTML = ''; return; }
+        cont.classList.remove('cls-oculto');
+        document.getElementById('rvTitulo').textContent = '🎄 ' + titulo;
+        document.getElementById('rvSub').textContent = 'Ideas para regalar · ' + lista.length + ' producto' + (lista.length > 1 ? 's' : '') + ' con stock';
+        const html = lista.map((p, i) => `
+            <div class="rv-pag ofertas-product-card" data-i="${i}">
+                ${p.rvDestacado ? '<div class="rv-sello">⭐ Recomendado</div>' : ''}
+                <div class="rv-foto"><img src="${p.image}" loading="lazy" alt="${_rvEsc(p.name)}" onerror="handleImageError(this, '${p.name.replace(/'/g, "\\'")}')"></div>
+                <div class="rv-info">
+                    <div class="product-name rv-nombre">${_rvEsc(p.name)}</div>
+                    ${p.rvTexto ? `<div class="rv-texto">“${_rvEsc(p.rvTexto)}”</div>` : ''}
+                    <div class="rv-precio">$${Number(p.price).toLocaleString('es-AR')}</div>
+                    <div class="rv-stock">${p.stockNumber <= 2 ? '🔥 ¡Últimas ' + p.stockNumber + '!' : '✅ En stock'}</div>
+                    <div class="rv-btns">
+                        <button class="add-to-cart" data-id="${p.id}" data-tipo="revista" data-testid="add-to-cart-${p.id}">🛒 Agregar</button>
+                        <a class="rv-wa" target="_blank" rel="noopener" href="https://wa.me/${_rvTel()}?text=${encodeURIComponent('Hola! Vi en la ' + titulo + ' de Almacén Copihue: ' + p.name + ' ($' + Number(p.price).toLocaleString('es-AR') + '). ¿Me lo reservás?')}">💬 Consultar</a>
+                    </div>
+                </div>
+            </div>`).join('');
+        if (grid.innerHTML !== html) {
+            grid.innerHTML = html;
+            const dots = document.getElementById('rvDots');
+            dots.innerHTML = lista.length <= 30 ? lista.map((_, i) => `<span data-i="${i}"></span>`).join('') : '';
+            _rvMarcar(0);
+        }
+    } catch (e) { console.warn('revista:', e); }
+}
+function _rvActual() { const g = document.getElementById('revista-grid'); return g && g.clientWidth ? Math.round(g.scrollLeft / g.clientWidth) : 0; }
+function _rvMarcar(i) {
+    const n = document.querySelectorAll('#revista-grid .rv-pag').length;
+    document.querySelectorAll('#rvDots span').forEach((d, k) => d.classList.toggle('on', k === i));
+    const c = document.getElementById('rvCont'); if (c) c.textContent = n ? (i + 1) + ' / ' + n : '';
+}
+window._rvIr = function (paso) { const g = document.getElementById('revista-grid'); if (!g) return; const n = g.children.length; const i = Math.max(0, Math.min(n - 1, _rvActual() + paso)); g.scrollTo({ left: i * g.clientWidth, behavior: 'smooth' }); };
+document.addEventListener('DOMContentLoaded', () => {
+    const g = document.getElementById('revista-grid'); if (!g) return;
+    let t = null; g.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(() => _rvMarcar(_rvActual()), 80); }, { passive: true });
+    document.getElementById('rvDots').addEventListener('click', e => { const i = e.target.dataset && e.target.dataset.i; if (i !== undefined) g.scrollTo({ left: Number(i) * g.clientWidth, behavior: 'smooth' }); });
+});
+// dirección directa …/index.html#revista → abre la revista cuando ya cargó
+(function () {
+    if (!/^#revista$/i.test(location.hash)) return;
+    let n = 0; const iv = setInterval(() => {
+        n++;
+        const ok = document.body.classList.contains('ofertas-listas') && document.querySelector('#revista-grid .rv-pag');
+        if (ok && typeof _ptAbrir === 'function') { clearInterval(iv); _ptAbrir('ofertasRevista'); }
+        else if (n > 60) clearInterval(iv);
+    }, 500);
+})();
+
+// ── «📲 Compartir revista»: tapa + páginas como imágenes verticales (1080×1350) ──
+let _rvFiles = [], _rvTextoWA = '';
+function _rvImg(src) { return new Promise(r => { if (!src) return r(null); const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = src; setTimeout(() => r(null), 4000); }); }
+function _rvCortar(c, txt, max, lineas) {
+    const ws = String(txt).split(/\s+/); const out = []; let l = '';
+    for (const w of ws) { const p = l ? l + ' ' + w : w; if (c.measureText(p).width <= max) l = p; else { if (l) out.push(l); l = w; } }
+    if (l) out.push(l);
+    if (out.length > lineas) { out.length = lineas; let u = out[lineas - 1]; while (u && c.measureText(u + '…').width > max) u = u.slice(0, -1); out[lineas - 1] = u + '…'; }
+    return out;
+}
+function _rvFondo(c, W, H) {
+    const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#7f0000'); g.addColorStop(1, '#1b5e20'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+    c.fillStyle = 'rgba(255,255,255,.18)'; for (let k = 0; k < 40; k++) { c.beginPath(); c.arc((k * 97) % W, (k * 211) % H, 3 + (k % 4), 0, Math.PI * 2); c.fill(); }   // nieve
+}
+function _rvImgEn(c, im, x, y, w, h) { if (!im) return; const r = Math.min(w / im.width, h / im.height); c.drawImage(im, x + (w - im.width * r) / 2, y + (h - im.height * r) / 2, im.width * r, im.height * r); }
+async function _rvTapa(lista, titulo) {
+    const W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d');
+    _rvFondo(c, W, H);
+    const logo = await _rvImg('logo-copihue.png');
+    c.fillStyle = '#fdf0c4'; c.beginPath(); c.roundRect(W / 2 - 170, 50, 340, 190, 28); c.fill(); _rvImgEn(c, logo, W / 2 - 150, 65, 300, 160);
+    c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '900 76px sans-serif'; _rvCortar(c, '🎄 ' + titulo, 1000, 2).forEach((l, i) => c.fillText(l, W / 2, 340 + i * 86));
+    c.font = '700 36px sans-serif'; c.fillStyle = '#ffe082'; c.fillText('Ideas para regalar · ' + lista.length + ' productos', W / 2, 470);
+    const cel = lista.slice(0, 6), cols = 3, cw = 300, ch = 300, x0 = (W - cols * cw - 2 * 24) / 2;
+    for (let k = 0; k < cel.length; k++) {
+        const x = x0 + (k % cols) * (cw + 24), y = 520 + Math.floor(k / cols) * (ch + 24);
+        c.fillStyle = '#fff'; c.beginPath(); c.roundRect(x, y, cw, ch, 24); c.fill();
+        _rvImgEn(c, await _rvImg(cel[k].image), x + 20, y + 14, cw - 40, 178);
+        c.fillStyle = '#c62828'; c.font = '900 40px sans-serif'; c.fillText('$' + Number(cel[k].price).toLocaleString('es-AR'), x + cw / 2, y + 240);
+        c.fillStyle = '#333'; c.font = '700 22px sans-serif'; c.fillText(_rvCortar(c, cel[k].name, cw - 30, 1)[0], x + cw / 2, y + 280);
+    }
+    c.fillStyle = '#25d366'; c.beginPath(); c.roundRect(W / 2 - 330, H - 150, 660, 96, 48); c.fill();
+    c.fillStyle = '#fff'; c.font = '900 40px sans-serif'; c.fillText('📲 Pedí por WhatsApp · Copihue 457', W / 2, H - 88);
+    c.textAlign = 'left'; return cv;
+}
+async function _rvPagina(p, n, total, titulo) {
+    const W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d');
+    _rvFondo(c, W, H);
+    c.fillStyle = '#fff'; c.font = '800 34px sans-serif'; c.fillText('🎄 ' + titulo, 60, 80); c.textAlign = 'right'; c.fillText(n + ' / ' + total, W - 60, 80); c.textAlign = 'left';
+    c.fillStyle = '#fff'; c.beginPath(); c.roundRect(60, 120, W - 120, 1080, 40); c.fill();
+    _rvImgEn(c, await _rvImg(p.image), 120, 160, W - 240, 560);
+    if (p.rvDestacado) { c.fillStyle = '#ffb300'; c.beginPath(); c.roundRect(90, 150, 300, 64, 32); c.fill(); c.fillStyle = '#3e2723'; c.font = '900 32px sans-serif'; c.fillText('⭐ Recomendado', 112, 194); }
+    c.textAlign = 'center'; c.fillStyle = '#1b1b1b'; c.font = '900 46px sans-serif';
+    _rvCortar(c, p.name, W - 200, 2).forEach((l, i) => c.fillText(l, W / 2, 800 + i * 56));
+    let y = 930;
+    if (p.rvTexto) { c.fillStyle = '#6a1b9a'; c.font = 'italic 700 38px sans-serif'; _rvCortar(c, '“' + p.rvTexto + '”', W - 220, 2).forEach((l, i) => c.fillText(l, W / 2, y + i * 46)); y += 100; }
+    c.fillStyle = '#c62828'; c.font = '900 110px sans-serif'; c.fillText('$' + Number(p.price).toLocaleString('es-AR'), W / 2, Math.max(y + 80, 1110));
+    c.fillStyle = '#fff'; c.font = '800 36px sans-serif'; c.fillText('📲 Pedilo por WhatsApp · 📍 Copihue 457', W / 2, H - 60);
+    c.textAlign = 'left'; return cv;
+}
+window.abrirCompartirRevista = async function () {
+    const ov = document.getElementById('rvOverlay'), wrap = document.getElementById('rvWrap'), btn = document.getElementById('rvEnviar');
+    ov.classList.add('open'); wrap.innerHTML = '<div style="color:#fff;padding:40px;text-align:center">⏳ Armando las páginas…</div>'; btn.disabled = true; _rvFiles = [];
+    try {
+        const lista = _rvLista(), titulo = (_poolRevista && _poolRevista.titulo) || 'Revista de Navidad';
+        const sel = lista.slice(0, 9);
+        const cvs = [await _rvTapa(lista, titulo)];
+        for (let k = 0; k < sel.length; k++) cvs.push(await _rvPagina(sel[k], k + 1, sel.length, titulo));
+        wrap.innerHTML = '';
+        for (let k = 0; k < cvs.length; k++) {
+            cvs[k].style.cssText = 'width:100%;height:auto;border-radius:12px;display:block;margin-bottom:10px';
+            wrap.appendChild(cvs[k]);
+            const blob = await new Promise(r => cvs[k].toBlob(r, 'image/jpeg', 0.88));
+            _rvFiles.push(new File([blob], (k ? 'revista-' + k : 'revista-tapa') + '.jpg', { type: 'image/jpeg' }));
+        }
+        const url = location.origin + '/#revista';
+        _rvTextoWA = `🎄 *${titulo} — Almacén Copihue*\nIdeas para regalar, con stock:\n\n` + lista.slice(0, 8).map(p => `• ${p.name} — *$${Number(p.price).toLocaleString('es-AR')}*`).join('\n') + (lista.length > 8 ? `\n…y ${lista.length - 8} más` : '') + `\n\n📍 Retiro en Copihue 457\n📖 Mirá la revista: ${url}`;
+        btn.disabled = false;
+    } catch (e) { console.warn('compartir revista:', e); wrap.innerHTML = '<div style="color:#fff;padding:30px;text-align:center">No se pudo armar la revista. Probá de nuevo.</div>'; }
+};
+window.cerrarCompartirRevista = function () { document.getElementById('rvOverlay').classList.remove('open'); };
+window.enviarCompartirRevista = async function () {
+    if (!_rvFiles.length) return;
+    try {
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: _rvFiles })) { await navigator.share({ files: _rvFiles, text: _rvTextoWA }); return; }
+    } catch (e) { if (e && e.name === 'AbortError') return; }
+    try { const a = document.createElement('a'); a.download = _rvFiles[0].name; a.href = URL.createObjectURL(_rvFiles[0]); a.click(); } catch (e) {}
+    setTimeout(() => window.open('https://wa.me/?text=' + encodeURIComponent(_rvTextoWA), '_blank'), 600);
+};
+</script>
 <!-- STAGING-ETIQUETA — solo en STAGING: etiqueta chica fija abajo a la izquierda con parpadeo del borde a intervalos al azar (para que la vista no se acostumbre). No recibe toques (pointer-events:none). -->
 <style>
 #stgPill{position:fixed;left:6px;bottom:6px;z-index:2147483000;pointer-events:none;background:#ff9800;color:#000;font:900 11px/1 system-ui,-apple-system,sans-serif;padding:4px 8px;border-radius:999px;border:2px solid #000;box-shadow:0 1px 4px rgba(0,0,0,.35);opacity:.92;letter-spacing:.3px;white-space:nowrap}
