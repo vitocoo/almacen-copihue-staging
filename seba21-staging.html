@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v583</title>
+    <title>🛒 POS · Copihue v584</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -4124,7 +4124,20 @@ async function _apiFetch(action, data = null, extraParams = '') {
         throw new Error('⚠️ Respuesta inesperada de la planilla. Intentá de nuevo.');
     }
     console.log(`✅ GAS [${action}] OK (${ms}ms)`);
+    if (action === 'listarFiados' && json && json.ok === true && Array.isArray(json.fiados)) window._fiadosCache = { ts: Date.now(), fiados: json.fiados };   // v584
     return json;
+}
+// v584 — leer la deuda con 1 reintento y, si la planilla no contesta, usar la lista leída en los últimos 10 min.
+// Seguro: abonarFiado en la planilla igual rechaza un abono mayor al saldo real.
+async function _listarFiadosConRespaldo(msgEl) {
+    try { return { r: await _apiFetch('listarFiados'), haceMin: 0 }; } catch (e1) {
+        try { if (msgEl) msgEl.textContent = '⏳ La planilla está lenta, reintento…'; } catch (e) {}
+        try { return { r: await _apiFetch('listarFiados'), haceMin: 0 }; } catch (e2) {
+            const c = window._fiadosCache;
+            if (c && Date.now() - c.ts < 10 * 60 * 1000) return { r: { ok: true, fiados: c.fiados }, haceMin: Math.max(1, Math.round((Date.now() - c.ts) / 60000)) };
+            throw e2;
+        }
+    }
 }
 // ─────────────────────────────────────────────────────────────────────────────
 // Variante para URLs ya construidas (parámetros especiales como monto=, telefono=)
@@ -4868,7 +4881,19 @@ document.getElementById('buscador').addEventListener('input', function() {
     }, 0);
 });
 
+// v584 — mientras se escribe la clave (pantalla de clave visible y sin verificar), NO se dibuja la grilla de
+// productos: dibujarla congelaba la página 0,3–3 s y los números tardaban en aparecer. Se guarda el último pedido
+// y se dibuja UNA vez al completar los 6 números (mientras dice «Verificando…») o al entrar.
+function _segRenderEnPausa() {
+    try { const ov = document.getElementById('segOverlay'); return !!ov && ov.style.display !== 'none' && !_segOcupado; } catch (e) { return false; }
+}
+function _segFlushRender() {
+    const p = window._segRenderPend, bd = window._segBadgesPend;
+    window._segRenderPend = null; window._segBadgesPend = false;
+    try { if (p) renderResultados(p.results, p.term); else if (bd) _refreshResultadosBadges(); } catch (e) { console.warn('⚠️ render diferido:', e); }
+}
 function renderResultados(results, term = '') {
+    if (_segRenderEnPausa()) { window._segRenderPend = { results: results, term: term }; return; }   // v584
     const contenedor = document.getElementById('resultados');
 
     if (results.length === 0) {
@@ -5177,6 +5202,7 @@ function _stockKgTexto(n) {
 }
 
 function _refreshResultadosBadges(idActualizado) {
+    if (_segRenderEnPausa()) { window._segBadgesPend = true; return; }   // v584
     // Bloquear render de ofertas hasta que config Y pools estén listos
     // (evita renders prematuros con _tipoActivo() devolviendo false por falta de _configCache)
     if (!_sistemaOfertasReady && idActualizado == null) return;
@@ -7186,7 +7212,7 @@ async function _dcElegir(nombre, telefono) {
     msg.textContent = '⏳ Buscando deudas de ' + nombre + '…';
     _dc = null;
     try {
-        const r = await _apiFetch('listarFiados');
+        const { r, haceMin: _hm } = await _listarFiadosConRespaldo(msg);   // v584
         if (!r || r.ok !== true || !Array.isArray(r.fiados)) throw new Error('respuesta inválida de la planilla');
         const tel6 = String(telefono || '').replace(/\D/g, '').length >= 6;
         const nom = _fiadoNorm(nombre);
@@ -7198,7 +7224,7 @@ async function _dcElegir(nombre, telefono) {
         _dc = { cliente: nombre, telefono: telefono, activo: false, fiados: pend.map(f => { const sal = Math.round(parseFloat(f.total) || 0); return {
             idFiado: String(f.idFiado), ticket: (f.ticket && String(f.ticket).trim()) ? String(f.ticket).trim() : '', saldo: sal,
             desc: String(f.descripcion || ''), ts: _vdTs(f), monto: sal }; }) };   // por defecto: la deuda COMPLETA
-        msg.textContent = otros.length ? '⚠️ Este teléfono también tiene fiados a nombre de: ' + otros.join(', ') + '. Revisá antes de sumar.' : '';
+        msg.textContent = (otros.length ? '⚠️ Este teléfono también tiene fiados a nombre de: ' + otros.join(', ') + '. Revisá antes de sumar.' : '') + (_hm ? ' ℹ️ Deuda leída hace ' + _hm + ' min (la planilla no contestó).' : '');
         _dcRender();
     } catch (e) {
         _dc = null;
@@ -7413,7 +7439,7 @@ async function _vdElegir(nombre, telefono) {
     msg.textContent = '⏳ Buscando deudas de ' + nombre + '…';
     _vd = null;
     try {
-        const r = await _apiFetch('listarFiados');
+        const { r, haceMin: _hm } = await _listarFiadosConRespaldo(msg);   // v584
         if (!r || r.ok !== true || !Array.isArray(r.fiados)) throw new Error('respuesta inválida de la planilla');
         const tel6 = String(telefono || '').replace(/\D/g, '').length >= 6;
         const nom = _fiadoNorm(nombre);
@@ -7425,7 +7451,7 @@ async function _vdElegir(nombre, telefono) {
         _vd = { cliente: nombre, telefono: telefono, fiados: pend.map(f => ({
             idFiado: String(f.idFiado), ticket: (f.ticket && String(f.ticket).trim()) ? String(f.ticket).trim() : '', saldo: Math.round(parseFloat(f.total) || 0),
             desc: String(f.descripcion || ''), ts: _vdTs(f), monto: 0 })) };
-        msg.textContent = otros.length ? '⚠️ Este teléfono también tiene fiados a nombre de: ' + otros.join(', ') + '. Revisá antes de aplicar.' : '';
+        msg.textContent = (otros.length ? '⚠️ Este teléfono también tiene fiados a nombre de: ' + otros.join(', ') + '. Revisá antes de aplicar.' : '') + (_hm ? ' ℹ️ Deuda leída hace ' + _hm + ' min (la planilla no contestó).' : '');
         _vdRepartir(); _vdRender(); _vdMetodoMostrar(true);
         try { _pmRenderResumen(); } catch (e) {}   // v583: «Total a pagar» = compra + deuda
     } catch (e) {
@@ -9148,7 +9174,7 @@ async function _autoConfirmarPendientes(forzar) {
 // v577 — al abrir el POS también se revisan los pendientes (solo lectura), una vez cargado todo.
 try {
     window.addEventListener('load', () => {
-        const ms = (typeof window._AUTO_INICIO_MS === 'number') ? window._AUTO_INICIO_MS : 15000;
+        const ms = (typeof window._AUTO_INICIO_MS === 'number') ? window._AUTO_INICIO_MS : 40000;   // v584: antes 15 s
         setTimeout(() => { try { _autoConfirmarPendientes(true); } catch (e) {} }, ms);
     });
 } catch (e) {}
@@ -9251,7 +9277,7 @@ async function _vpQuitarDelTelefono(idVenta) {
     });
 }
 try {
-    window.addEventListener('load', () => { setTimeout(() => { try { _vpRevisarAviso(true); } catch (e) {} }, (typeof window._AUTO_INICIO_MS === 'number' ? window._AUTO_INICIO_MS : 15000) + 5000); });
+    window.addEventListener('load', () => { setTimeout(() => { try { _vpRevisarAviso(true); } catch (e) {} }, (typeof window._AUTO_INICIO_MS === 'number' ? window._AUTO_INICIO_MS : 40000 /* v584: antes 15 s */) + 5000); });
     document.addEventListener('visibilitychange', () => { try { if (!document.hidden) _vpRevisarAviso(false); } catch (e) {} });
 } catch (e) {}
 
@@ -11558,6 +11584,7 @@ function _segEntrar(nombre, token, aviso) {
     try { localStorage.setItem(VENDEDOR_KEY, nombre); } catch(e) {}
     actualizarBadgeVendedor();
     document.getElementById('segOverlay').style.display = 'none';
+    setTimeout(_segFlushRender, 0);   // v584: dibujar lo que quedó en pausa
     if (aviso) mostrarToast('👤 Vendiendo como ' + nombre, 'verde');
 }
 
@@ -11619,7 +11646,11 @@ function _segElegir(n) {
         ['1','2','3','4','5','6','7','8','9','','0','⌫'].forEach(k => {
             const b = document.createElement('button'); b.type = 'button'; b.textContent = k;
             b.style.cssText = 'padding:14px 0;font-size:1.4rem;font-weight:700;border:1px solid #ddd;border-radius:12px;background:' + (k ? '#f5f5f5' : 'transparent') + ';cursor:pointer;color:#222;' + (k ? '' : 'visibility:hidden;');
-            if (k) b.onclick = () => _segTecla(k);
+            if (k) b.onpointerdown = (ev) => {   // v584: responde al apretar (antes al soltar) y se pinta un instante
+                ev.preventDefault();
+                b.style.background = '#a5d6a7'; setTimeout(() => { b.style.background = '#f5f5f5'; }, 130);
+                _segTecla(k);
+            };
             tec.appendChild(b);
         });
     }
@@ -11632,6 +11663,15 @@ function _segDots() {
         '<span style="width:14px;height:14px;border-radius:50%;border:2px solid #2e7d32;background:' + (i < _segPin.length ? '#2e7d32' : 'transparent') + ';display:inline-block;"></span>').join('');
 }
 
+// v584 — en la PC: escribir la clave con el teclado (números y Borrar)
+document.addEventListener('keydown', (ev) => {
+    try {
+        const ov = document.getElementById('segOverlay'), pb = document.getElementById('segPinBox');
+        if (!ov || ov.style.display === 'none' || !pb || pb.style.display === 'none') return;
+        if (/^[0-9]$/.test(ev.key)) { ev.preventDefault(); _segTecla(ev.key); }
+        else if (ev.key === 'Backspace') { ev.preventDefault(); _segTecla('⌫'); }
+    } catch (e) {}
+});
 function _segTecla(k) {
     if (_segOcupado) return;
     if (k === '⌫') _segPin = _segPin.slice(0, -1);
@@ -11643,6 +11683,7 @@ function _segTecla(k) {
 
 async function _segProbar() {
     _segOcupado = true;
+    setTimeout(_segFlushRender, 40);   // v584: mientras se espera la verificación (red), se dibuja la grilla
     const msg = document.getElementById('segMsg');
     const nombre = _segNombre, pin = _segPin;
     msg.style.color = '#555'; msg.textContent = 'Verificando…';
@@ -12684,12 +12725,12 @@ _cargarHorarioSistema();
 // hay algo pendiente y lo reconcilie a mano si hace falta.
 _actualizarBadgePendientes();
 // v510 — al abrir: confirmar en segundo plano (solo lectura) lo que ya esté en la planilla.
-setTimeout(_autoConfirmarPendientes, 8000);
-setTimeout(() => _salColaProcesar(), 10000);   // v511: salidas por confirmar
+setTimeout(_autoConfirmarPendientes, 30000);   // v584: antes 8 s (arranque escalonado)
+setTimeout(() => _salColaProcesar(), 35000);   // v511: salidas por confirmar (v584: antes 10 s)
 setInterval(() => _salColaProcesar(), 600000);
 window.addEventListener('online', () => { _salFallos = 0; _salColaProcesar(); });
 window.addEventListener('online', () => { try { setTimeout(() => _vdReintentarPend(false), 4000); } catch (e) {} }); // v560: abonos a deuda pendientes
-document.addEventListener('DOMContentLoaded', function () { try { _vdPillRefrescar(); setTimeout(() => _vdReintentarPend(false), 20000); } catch (e) {} }); // v560
+document.addEventListener('DOMContentLoaded', function () { try { _vdPillRefrescar(); setTimeout(() => _vdReintentarPend(false), 50000);   /* v584: antes 20 s */ } catch (e) {} }); // v560
 setInterval(_autoConfirmarPendientes, 600000);
 // setTimeout(() => { _reenviarVentasPendientes(); _actualizarBadgePendientes(); }, 5000);
 // ========== SISTEMA DE CLIENTES ==========
@@ -16146,7 +16187,7 @@ window.t9Limpiar = function(){};
 // Restaurar badge de notificaciones del día al arrancar
 document.addEventListener('DOMContentLoaded', function() {
     console.log('%c🏪 COPIHUE POS — Sistema listo v358', 'color:#4caf50;font-weight:bold;font-size:1.2em;');
-    setTimeout(_precargarClientes, 3000); // precarga clientes en background
+    setTimeout(_precargarClientes, 25000); // precarga clientes en background (v584: antes 3 s — se escalona el arranque)
     setTimeout(() => {
         const arr = _cargarNotifPos ? _cargarNotifPos() : [];
         const hoy = fechaArgentina(0);
@@ -17220,7 +17261,7 @@ setTimeout(async () => {
             _renderPanelFiados(); // actualiza badge sin abrir el panel
         }
     } catch(e) {}
-}, 8000);
+}, 20000);   // v584: antes 8 s (arranque escalonado; además deja la lista de fiados en memoria para «traer deuda»)
 // ============================================
 
 // ========== PAUSAR EN LISTA DE COMPRA ==========
