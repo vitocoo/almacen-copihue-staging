@@ -497,8 +497,10 @@
         .rv-pag .rv-foto { overflow: hidden; }
         /* v217 — estilo IMPACTO de la página de revista (banda diagonal) */
         .rv-pag.ofertas-product-card { overflow: hidden; }
-        .rv-banda { position: relative; padding: 26px 18px 22px; margin-top: -8px; color: #fff; text-align: left; z-index: 1; }
-        .rv-banda::before { content: ''; position: absolute; left: -40px; right: -40px; top: 0; bottom: 0; background: linear-gradient(135deg, var(--rv-b1, #c62828), var(--rv-b2, #ff6f00)); transform: skewY(-5deg); transform-origin: top left; z-index: -1; box-shadow: 0 6px 14px rgba(198,40,40,.25); }
+        /* v219 — IMPACTO mejorado: inclinación fija (28px, no crece con pantallas anchas), banda semitransparente, foto más alta */
+        .rv-banda { position: relative; padding: 38px 18px 22px; margin-top: -18px; color: #fff; text-align: left; z-index: 1; }
+        .rv-banda::before { content: ''; position: absolute; left: 0; right: 0; top: 0; bottom: 0; background: linear-gradient(135deg, var(--rv-b1, #c62828), var(--rv-b2, #ff6f00)); opacity: .9; clip-path: polygon(0 28px, 100% 0, 100% 100%, 0 100%); z-index: -1; }
+        .rv-pag.est-IMPACTO .rv-foto { height: min(64vw, 340px); }
         .rv-tit { font: 900 1.85rem/1 'Arial Narrow', 'Roboto Condensed', 'DejaVu Sans Condensed', sans-serif; text-transform: uppercase; letter-spacing: -.3px; text-shadow: 2px 2px 0 rgba(0,0,0,.22); }
         .rv-banda .rv-nombre { color: var(--rv-sub, #ffe0b2) !important; font-size: .66rem !important; font-weight: 700 !important; text-transform: uppercase; letter-spacing: .3px; margin-top: 4px; line-height: 1.25; }
         .rv-banda .rv-antes { color: var(--rv-sub, #ffe0b2); margin-top: 8px; }
@@ -523,7 +525,7 @@
         .rv-info { padding: 12px 14px 14px; text-align: center; }
         .rv-nombre { font-weight: 800 !important; font-size: .98rem !important; color: #1b1b1b !important; line-height: 1.3; }
         .rv-texto { color: #6a1b9a; font-style: italic; font-weight: 700; font-size: .9rem; margin-top: 6px; }
-        .rv-precio { color: #c62828; font-weight: 900; font-size: 2rem; margin-top: 6px; }
+        .rv-precio { color: var(--rv-b1, #c62828); font-weight: 900; font-size: 2rem; margin-top: 6px; }
         .rv-stock { font-size: .78rem; color: #2e7d32; font-weight: 700; }
         .rv-antes { color: #9e9e9e; text-decoration: line-through; font-weight: 700; font-size: 1rem; margin-top: 6px; }
         .rv-antes + .rv-precio { margin-top: 0; }
@@ -3055,7 +3057,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v218';
+const APP_VERSION = 'copihue-index-v219';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -8616,6 +8618,7 @@ const RV_TEMAS = {
     MADRE:   { ico: '🌸', b1: '#d81b60', b2: '#7b1fa2', precio: '#ffffff', sombra: '#4a0072', f1: '#6a1b9a', f2: '#ad1457', sub: '#f8bbd0' },
     VERANO:  { ico: '☀️', b1: '#00897b', b2: '#29b6f6', precio: '#ffeb3b', sombra: '#00695c', f1: '#00796b', f2: '#0288d1', sub: '#e0f7fa' }
 };
+function _rvEstilo() { return (_poolRevista && _poolRevista.estilo) === 'IMPACTO' ? 'IMPACTO' : 'LIMPIO'; }   // v219
 function _rvTema() { return RV_TEMAS[(_poolRevista && _poolRevista.tema) || 'NAVIDAD'] || RV_TEMAS.NAVIDAD; }
 function _rvAplicarTema() {
     const t = _rvTema(), c = document.getElementById('ofertasRevista'); if (!c) return;
@@ -8628,6 +8631,25 @@ function _rvLista() {
 }
 function _rvTel() { return (window._EMPRESA && window._EMPRESA.telefono) ? window._EMPRESA.telefono.replace(/\D/g, '') : '5492944907380'; }
 function _rvEsc(t) { return String(t || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+// v219 — estilo LIMPIO (el original de v216): foto grande arriba, nombre y precio sobre blanco
+function _rvHtmlLimpio(lista, titulo) {
+    return lista.map((p, i) => `
+            <div class="rv-pag ofertas-product-card est-LIMPIO" data-i="${i}">
+                ${p.rvPrecio && _rvEst().mov === 'NO' ? '<div class="rv-sello rv-sello-precio">🎄 Precio revista</div>' : (p.rvDestacado ? '<div class="rv-sello">⭐ Recomendado</div>' : '')}
+                <div class="rv-foto">${p.rvPrecio ? _rvDistHTML(p.price, p.rvPrecio) : ''}<img src="${p.image}" loading="lazy" alt="${_rvEsc(p.name)}" onerror="handleImageError(this, '${p.name.replace(/'/g, "\\'")}')"></div>
+                <div class="rv-info">
+                    <div class="product-name rv-nombre">${_rvEsc(p.name)}</div>
+                    ${p.rvTexto ? `<div class="rv-texto">“${_rvEsc(p.rvTexto)}”</div>` : ''}
+                    ${p.rvPrecio ? `<div class="rv-antes">$${Number(p.price).toLocaleString('es-AR')}</div><div class="rv-precio">$${Number(p.rvPrecio).toLocaleString('es-AR')}</div><div class="rv-ahorro">✅ Ahorrás $${(p.price - p.rvPrecio).toLocaleString('es-AR')}</div>` : `<div class="rv-precio">$${Number(p.price).toLocaleString('es-AR')}</div>`}
+                    ${p.rvOtra ? `<div class="rv-otra">${p.rvOtra}: hoy está en oferta, el precio final lo ves en el carrito</div>` : ''}
+                    <div class="rv-stock">${p.stockNumber <= 2 ? '🔥 ¡Últimas ' + p.stockNumber + '!' : '✅ En stock'}</div>
+                    <div class="rv-btns">
+                        <button class="add-to-cart" data-id="${p.id}" data-tipo="revista" data-testid="add-to-cart-${p.id}">🛒 Agregar</button>
+                        <a class="rv-wa" target="_blank" rel="noopener" href="https://wa.me/${_rvTel()}?text=${encodeURIComponent('Hola! Vi en la ' + titulo + ' de Almacén Copihue: ' + p.name + ' a $' + Number(p.rvPrecio || p.price).toLocaleString('es-AR') + (p.rvPrecio ? ' (precio revista)' : '') + ', visto el ' + _rvAhora() + '. ¿Me lo reservás?')}">💬 Consultar</a>
+                    </div>
+                </div>
+            </div>`).join('');
+}
 function renderizarRevista() {
     try {
         const cont = document.getElementById('ofertasRevista'), grid = document.getElementById('revista-grid');
@@ -8641,8 +8663,8 @@ function renderizarRevista() {
         document.getElementById('rvTitulo').textContent = _rvTema().ico + ' ' + titulo;
         document.getElementById('rvSub').textContent = 'Ideas para regalar · ' + lista.length + ' producto' + (lista.length > 1 ? 's' : '') + ' con stock';
         const vg = document.getElementById('rvVig'); if (vg) { const t = _rvVigencia(false); vg.textContent = t ? '🗓 ' + t : ''; vg.style.display = t ? '' : 'none'; }
-        const html = lista.map((p, i) => `
-            <div class="rv-pag ofertas-product-card" data-i="${i}">
+        const html = _rvEstilo() === 'LIMPIO' ? _rvHtmlLimpio(lista, titulo) : lista.map((p, i) => `
+            <div class="rv-pag ofertas-product-card est-IMPACTO" data-i="${i}">
                 ${p.rvPrecio && _rvEst().mov === 'NO' ? '<div class="rv-sello rv-sello-precio">🎄 Precio revista</div>' : (p.rvDestacado ? '<div class="rv-sello">⭐ Recomendado</div>' : '')}
                 <div class="rv-foto">${p.rvPrecio ? _rvDistHTML(p.price, p.rvPrecio) : ''}<img src="${p.image}" loading="lazy" alt="${_rvEsc(p.name)}" onerror="handleImageError(this, '${p.name.replace(/'/g, "\\'")}')"></div>
                 <div class="rv-banda">
@@ -8728,20 +8750,43 @@ async function _rvTapa(lista, titulo) {
     c.fillStyle = '#ffe082'; c.font = '700 28px sans-serif'; c.fillText('🗓 ' + (_rvVigencia(true) || ('Precios del ' + _rvAhora() + ' · sujetos a stock')), W / 2, H - 36);
     c.textAlign = 'left'; return cv;
 }
-async function _rvPagina(p, n, total, titulo) {   // v217 — estilo IMPACTO
+async function _rvPagina(p, n, total, titulo) { return _rvEstilo() === 'LIMPIO' ? _rvPaginaLimpia(p, n, total, titulo) : _rvPaginaImpacto(p, n, total, titulo); }   // v219
+async function _rvPaginaLimpia(p, n, total, titulo) {   // v219 — estilo LIMPIO (original v216, con el ícono y color del tema)
+    const W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d');
+    _rvFondo(c, W, H);
+    c.fillStyle = '#fff'; c.font = '800 34px sans-serif'; c.fillText(_rvTema().ico + ' ' + titulo, 60, 80); c.textAlign = 'right'; c.fillText(n + ' / ' + total, W - 60, 80); c.textAlign = 'left';
+    c.fillStyle = '#fff'; c.beginPath(); c.roundRect(60, 120, W - 120, 1080, 40); c.fill();
+    _rvImgEn(c, await _rvImg(p.image), 120, 160, W - 240, 560);
+    if (p.rvDestacado) { c.fillStyle = '#ffb300'; c.beginPath(); c.roundRect(90, 150, 300, 64, 32); c.fill(); c.fillStyle = '#3e2723'; c.font = '900 32px sans-serif'; c.fillText('⭐ Recomendado', 112, 194); }
+    c.textAlign = 'center'; c.fillStyle = '#1b1b1b'; c.font = '900 46px sans-serif';
+    _rvCortar(c, p.name, W - 200, 2).forEach((l, i) => c.fillText(l, W / 2, 800 + i * 56));
+    let y = 930;
+    if (p.rvTexto) { c.fillStyle = '#6a1b9a'; c.font = 'italic 700 38px sans-serif'; _rvCortar(c, '“' + p.rvTexto + '”', W - 220, 2).forEach((l, i) => c.fillText(l, W / 2, y + i * 46)); y += 100; }
+    if (p.rvPrecio) {
+        c.fillStyle = '#9e9e9e'; c.font = '700 48px sans-serif'; const ya = Math.max(y + 30, 1040), ta = '$' + Number(p.price).toLocaleString('es-AR'); c.fillText(ta, W / 2, ya);
+        const tw = c.measureText(ta).width; c.strokeStyle = '#9e9e9e'; c.lineWidth = 4; c.beginPath(); c.moveTo(W / 2 - tw / 2, ya - 16); c.lineTo(W / 2 + tw / 2, ya - 16); c.stroke();
+        c.fillStyle = _rvTema().b1; c.font = '900 110px sans-serif'; c.fillText('$' + Number(p.rvPrecio).toLocaleString('es-AR'), W / 2, ya + 110);
+        if (_rvEst().mov === 'NO') { c.fillStyle = '#c62828'; c.beginPath(); c.roundRect(W - 400, 150, 310, 64, 32); c.fill(); c.fillStyle = '#fff'; c.font = '900 30px sans-serif'; c.fillText('🎄 Precio revista', W - 245, 193); }
+        else _rvDistCanvas(c, W - 190, 260, 120, p.price, p.rvPrecio);
+    } else { c.fillStyle = _rvTema().b1; c.font = '900 110px sans-serif'; c.fillText('$' + Number(p.price).toLocaleString('es-AR'), W / 2, Math.max(y + 80, 1110)); }
+    c.fillStyle = '#fff'; c.font = '800 34px sans-serif'; c.fillText('📲 Pedilo por WhatsApp · 📍 Copihue 457', W / 2, H - 88);
+    c.fillStyle = '#ffe082'; c.font = '700 26px sans-serif'; c.fillText('🗓 ' + (_rvVigencia(true) || ('Precios del ' + _rvAhora() + ' · sujetos a stock')), W / 2, H - 42);
+    c.textAlign = 'left'; return cv;
+}
+async function _rvPaginaImpacto(p, n, total, titulo) {   // v217 — estilo IMPACTO (v219: foto más grande, banda más baja y semitransparente)
     const W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d');
     _rvFondo(c, W, H);
     c.fillStyle = '#fff'; c.font = '800 34px sans-serif'; c.fillText(_rvTema().ico + ' ' + titulo, 60, 80); c.textAlign = 'right'; c.fillText(n + ' / ' + total, W - 60, 80); c.textAlign = 'left';
     c.save(); c.beginPath(); c.roundRect(60, 120, W - 120, 1080, 40); c.clip();
     c.fillStyle = '#fff'; c.fillRect(60, 120, W - 120, 1080);
-    _rvImgEn(c, await _rvImg(p.image), 140, 150, W - 280, 470);
+    _rvImgEn(c, await _rvImg(p.image), 130, 140, W - 260, 530);
     const T = _rvTema(), g = c.createLinearGradient(0, 640, W, 1100); g.addColorStop(0, T.b1); g.addColorStop(1, T.b2);
-    c.fillStyle = g; c.beginPath(); c.moveTo(60, 700); c.lineTo(W - 60, 610); c.lineTo(W - 60, 1110); c.lineTo(60, 1200); c.closePath(); c.fill();
-    c.restore();
+    c.globalAlpha = .92; c.fillStyle = g; c.beginPath(); c.moveTo(60, 730); c.lineTo(W - 60, 676); c.lineTo(W - 60, 1200); c.lineTo(60, 1200); c.closePath(); c.fill();
+    c.globalAlpha = 1; c.restore();
     if (p.rvDestacado) { c.fillStyle = '#ffb300'; c.beginPath(); c.roundRect(90, 150, 300, 64, 32); c.fill(); c.fillStyle = '#3e2723'; c.font = '900 32px sans-serif'; c.fillText('⭐ Recomendado', 112, 194); }
     c.fillStyle = '#fff'; c.font = '900 70px sans-serif'; c.shadowColor = 'rgba(0,0,0,.25)'; c.shadowOffsetX = 4; c.shadowOffsetY = 4;
-    const tl = _rvCortar(c, _rvTituloCorto(p.name).toUpperCase(), W - 240, 2); tl.forEach((l, i) => c.fillText(l, 110, 770 + i * 72));
-    let y = 770 + (tl.length - 1) * 72 + 40;
+    const tl = _rvCortar(c, _rvTituloCorto(p.name).toUpperCase(), W - 240, 2); tl.forEach((l, i) => c.fillText(l, 110, 806 + i * 72));
+    let y = 806 + (tl.length - 1) * 72 + 40;
     c.shadowColor = 'transparent'; c.fillStyle = T.sub; c.font = '700 24px sans-serif';
     _rvCortar(c, p.name.toUpperCase(), W - 240, 1).forEach(l => c.fillText(l, 112, y)); y += 66;
     if (p.rvPrecio) {
