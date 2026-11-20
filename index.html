@@ -2953,7 +2953,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v209';
+const APP_VERSION = 'copihue-index-v210';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -7600,7 +7600,7 @@ const VM_INI = 4, VM_PASO = 8, VM_TOPE = 24;
 const _ptImgMal = new Set();   // fotos que no cargaron: no se vuelven a usar (antes parpadeaba)
 window._ptImgFalla = function (im) { try { _ptImgMal.add(im.getAttribute('src')); im.remove(); } catch (e) {} };
 let _ptSec = null, _vmLimite = VM_INI, _raspArrancada = false;
-const tarjetasDe = g => g ? [...g.children].filter(c => c.nodeType === 1 && !c.classList.contains('vm-caja') && !/loading|skeleton|empty|error/i.test(c.className)) : [];
+const tarjetasDe = g => g ? [...g.children].filter(c => c.nodeType === 1 && !c.classList.contains('vm-caja') && !/loading|skeleton|empty|error/i.test(c.className) && !(c.style && /^0(px)?$/.test(c.style.height))) : [];
 function esJuevesAR() { try { return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' })).getDay() === 4; } catch (e) { return false; } }
 function visible(sc) {
     if (sc.els) return sc.id === 'juegos' || (typeof products !== 'undefined' && products.length > 0);
