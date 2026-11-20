@@ -467,6 +467,13 @@
         }
 
         /* 🆕 RECIÉN LLEGADOS — verde agua (misma arquitectura de tema que relampago/destacadas/especiales/ultimas) */
+        /* v205 — Más vendidos */
+        .ofertas-container.mas-vendidos { border-color: #e65100; background: linear-gradient(135deg, #fff3e0, #ffe0b2); }
+        .ofertas-container.mas-vendidos .ofertas-header { background: linear-gradient(135deg, #b71c1c, #ef6c00); }
+        .ofertas-container.mas-vendidos .ofertas-badge { background: #fff3e0; color: #b71c1c; }
+        .ofertas-container.mas-vendidos .ofertas-product-card { border-color: #ffcc80; }
+        .ofertas-container.mas-vendidos .ofertas-exclusive-badge { background: linear-gradient(135deg, #b71c1c, #ef6c00); }
+        .ofertas-container.mas-vendidos .ofertas-stock-warning { background: rgba(239,108,0,0.13); color: #7f2a00; border-left-color: #ef6c00; }
         .ofertas-container.recien-llegados {
             border-color: #00897b;
             background: linear-gradient(135deg, #e0f2f1, #b2dfdb);
@@ -2713,6 +2720,20 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
         </div>
     </div>
 
+    <!-- ========== v205 — MÁS VENDIDOS ========== -->
+    <div class="ofertas-container mas-vendidos cls-oculto" id="ofertasMasVendidos">
+        <div class="ofertas-header">
+            <h2>
+                🏆 MÁS VENDIDOS
+                <span class="ofertas-badge">LOS FAVORITOS</span>
+            </h2>
+        </div>
+        <div class="ofertas-stock-warning" id="msg-masvendidos">
+            🛒 Lo que más se llevan nuestros clientes este último mes.
+        </div>
+        <div class="ofertas-products-grid" id="masvendidos-grid"></div>
+    </div>
+
     <!-- ========== MULTICOMPRA ========== -->
     <div class="ofertas-container multicompra cls-oculto" id="ofertasMulticompra">
         <div class="ofertas-header">
@@ -2910,7 +2931,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v204';
+const APP_VERSION = 'copihue-index-v205';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -3044,6 +3065,7 @@ let esAdmin = false;
 let poolRelampago = [];
 let _relampagoActivoBackend = []; // Los 3 del día según code.gs
 let _poolRecienLlegados = []; // Recién llegados desde Historial
+let _poolMasVendidos = [];     // v205 — Más vendidos (getOfertas → masVendidos: [{id, nombre}] en orden)
 let _poolUltimasSeleccion = []; // Últimas Unidades — selección manual desde seba21
 let _poolMulticompra = [];      // Multicompra — array desde getOfertas
 let _limiteRecienLlegados = 12; // configurable desde config_sistema → RECIEN_LLEGADOS_LIMITE
@@ -3819,6 +3841,7 @@ function renderizarContenedorOfertas(tipo, productos) {
                        tipo === 'especiales' ? 'ofertasEspeciales' :
                        tipo === 'ultimas'    ? 'ofertasUltimas' :
                        tipo === 'recien'     ? 'ofertasRecienLlegados' :
+                       tipo === 'masvendidos' ? 'ofertasMasVendidos' :
                        tipo === 'multicompra' ? 'ofertasMulticompra' :
                        'ofertasEspeciales';
     
@@ -3921,6 +3944,14 @@ function renderizarContenedorOfertas(tipo, productos) {
             precioHTML = `
                 <div style="margin:6px 0 4px;font-size:1.05rem;font-weight:800;color:#00695c;">$${product.price}</div>
                 ${product.fechaIngreso ? `<div style="font-size:0.68rem;color:#888;margin-bottom:4px;">📅 ${product.fechaIngreso}</div>` : ''}
+            `;
+        }
+
+        /* ================= v205 — MÁS VENDIDOS (solo el orden, sin cantidades) ================= */
+        else if (tipo === 'masvendidos') {
+            badgeTexto = `🏆 N° ${i + 1}`;
+            precioHTML = `
+                <div style="margin:6px 0 4px;font-size:1.05rem;font-weight:800;color:#bf360c;">$${Number(product.price).toLocaleString('es-AR')}</div>
             `;
         }
 
@@ -4744,6 +4775,7 @@ function actualizarTodasLasVistas() {
     renderizarPromos();
     renderizarUltimasUnidades();
     renderizarRecienLlegados();
+    renderizarMasVendidos();   // v205
     renderizarMulticompra();
     renderizarContenedorOfertas('especiales', productosEspeciales);
     renderizarCervecero();
@@ -4785,6 +4817,7 @@ async function loadProductsFromAPI() {
                 if (dOfertas.relampagoActivo) _relampagoActivoBackend = dOfertas.relampagoActivo.map(p => Number(p.id));
                 if (dOfertas.destacadasActivas) _destacadasBackend = dOfertas.destacadasActivas.map(p => Number(p.id));
                 if (dOfertas.poolRecienLlegados) _poolRecienLlegados = dOfertas.poolRecienLlegados;
+                if (Array.isArray(dOfertas.masVendidos)) _poolMasVendidos = dOfertas.masVendidos;   // v205
                 if (dOfertas.limiteRecienLlegados) _limiteRecienLlegados = dOfertas.limiteRecienLlegados;
                 if (dOfertas.ultimasSeleccionadas) _poolUltimasSeleccion = dOfertas.ultimasSeleccionadas;
                 if (dOfertas.multicompraActiva) _poolMulticompra = dOfertas.multicompraActiva;
@@ -4984,6 +5017,7 @@ function actualizarSoloOfertas() {
             if (d.relampagoActivo)  _relampagoActivoBackend = d.relampagoActivo.map(p => Number(p.id));
             if (d.destacadasActivas) _destacadasBackend = d.destacadasActivas.map(p => Number(p.id));
             if (d.poolRecienLlegados) _poolRecienLlegados = d.poolRecienLlegados;
+            if (Array.isArray(d.masVendidos)) _poolMasVendidos = d.masVendidos;   // v205
             if (d.limiteRecienLlegados) _limiteRecienLlegados = d.limiteRecienLlegados;
             if (d.ultimasSeleccionadas) _poolUltimasSeleccion = d.ultimasSeleccionadas;
             if (d.multicompraActiva) _poolMulticompra = d.multicompraActiva;
@@ -4996,6 +5030,7 @@ function actualizarSoloOfertas() {
             renderizarPromos();
             renderizarUltimasUnidades();
             renderizarRecienLlegados();
+            renderizarMasVendidos();   // v205
             renderizarMulticompra();
         })
         .catch(() => {}); // silencioso — siguiente ciclo lo reintenta
@@ -5113,6 +5148,25 @@ function renderizarRecienLlegados() {
         .slice(0, _limiteRecienLlegados);
 
     renderizarContenedorOfertas('recien', lista);
+}
+
+// v205 — MÁS VENDIDOS: orden que manda la planilla (getOfertas → masVendidos).
+// Se saltean los que hoy están en otra oferta activa (para que el precio de la tarjeta sea el mismo que cobra el carrito).
+function renderizarMasVendidos() {
+    try {
+        const idsOcupados = new Set([
+            ...productosRelampago.map(p => p.id),
+            ...productosDestacadas.map(p => p.id),
+            ...productosEspeciales.map(p => p.id),
+            ...(_poolUltimasSeleccion || []).map(u => Number(u.id)),
+            ...(_poolMulticompra || []).map(m => Number(m.id)),
+            ...products.filter(p => esPromoActiva(p) || esComboActivo(p)).map(p => p.id)
+        ]);
+        const lista = (_poolMasVendidos || [])
+            .map(m => products.find(p => p.id === Number(m.id)))
+            .filter(p => p && p.stockNumber > 0 && !idsOcupados.has(p.id));
+        renderizarContenedorOfertas('masvendidos', lista);
+    } catch (e) { console.warn('masVendidos:', e); }
 }
 
 // Contenedor de ofertas MULTICOMPRA (ej: "2kg x $6.000") — mismo criterio que
@@ -7514,6 +7568,7 @@ const SECC = [
     { id: 'ofertasEspeciales', ico: '🌙', nom: 'Especiales', grid: 'especiales-grid', col: '#283593,#5c6bc0' },
     { id: 'ofertasUltimas', ico: '🏷️', nom: 'Últimas unidades', grid: 'ultimas-grid', col: '#4e342e,#8d6e63' },
     { id: 'ofertasRecienLlegados', ico: '🆕', nom: 'Recién llegados', grid: 'recien-grid', col: '#00695c,#26a69a' },
+    { id: 'ofertasMasVendidos', ico: '🏆', nom: 'Más vendidos', grid: 'masvendidos-grid', col: '#b71c1c,#ef6c00' },   // v205
     { id: 'ofertasMulticompra', ico: '🛍️', nom: 'Llevando más, pagás menos', grid: 'multicompra-grid', col: '#4527a0,#7e57c2' },
     { id: 'categorias', ico: '📂', nom: 'Todos los productos', sub: 'por categoría', col: '#1b5e20,#43a047', els: ['categories', 'productsGrid'] },
     { id: 'juegos', ico: '🎮', nom: 'Juegos Copihue', sub: 'raspá y ganá', col: '#6a1b9a,#ab47bc', els: ['seccionJuegos'] }
