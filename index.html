@@ -2970,7 +2970,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v211';
+const APP_VERSION = 'copihue-index-v212';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -8224,6 +8224,14 @@ document.getElementById('raspBtnReveal').addEventListener('click',()=>{
     // Lee de la tarjeta lo que ve el cliente: nombre, foto, precio grande y precio tachado
     function datosTarjeta(card) {
         const nom = (card.querySelector('.product-name') || {}).textContent || '';
+        if (card.classList.contains('mc-grupo-card')) {   // v212 — tarjeta de sabores combinables
+            const fs = [...card.querySelectorAll('.mcg-f')].filter(x => !x.classList.contains('mcg-mas'));
+            const imgs = fs.map(x => x.querySelector('img')).filter(i => i && i.complete && i.naturalWidth > 0).slice(0, 3);
+            const sab = [...card.querySelectorAll('.mc-grupo-btns .add-to-cart')].map(b => (b.firstChild && b.firstChild.textContent || '').replace(/^\+\s*/, '').trim()).filter(Boolean);
+            const bt = card.querySelector('.mc-price-burst-text');
+            const precio = bt ? bt.innerHTML.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/\.-/g, '').replace(/\$\s?([\d.]+)/, (x, n) => fmt$(n)).replace(/\s+/g, ' ').trim() : '';
+            return { nom: nom.trim(), imgs, img: imgs[0] || null, src: '', precio, antes: '', combina: '🔀 Combiná: ' + (sab.length > 4 ? sab.slice(0, 4).join(', ') + '…' : sab.join(', ')) };
+        }
         const img = card.querySelector('img');
         const imgOk = img && img.complete && img.naturalWidth > 0 ? img : null;
         const src = img ? (img.currentSrc || img.getAttribute('src') || '') : '';
@@ -8306,9 +8314,17 @@ document.getElementById('raspBtnReveal').addEventListener('click',()=>{
             for (const p of s.prods) {
                 c.fillStyle = 'rgba(255,255,255,.96)'; c.beginPath(); c.roundRect(P, y, W - 2 * P, ROW - 14, 20); c.fill();
                 const im = p.img || await cargarImg(p.src);
-                if (im) { try { const r = Math.min(116 / im.width, 116 / im.height); c.drawImage(im, P + 12 + (116 - im.width * r) / 2, y + 10 + (116 - im.height * r) / 2, im.width * r, im.height * r); } catch (e) {} }
+                if (p.imgs && p.imgs.length > 1) {   // v212 — sabores juntos en el mismo cuadro
+                    const n = p.imgs.length, w = 116 / n;
+                    p.imgs.forEach((ii, k) => { try { const r = Math.min(w / ii.width, 116 / ii.height); c.drawImage(ii, P + 12 + k * w + (w - ii.width * r) / 2, y + 10 + (116 - ii.height * r) / 2, ii.width * r, ii.height * r); } catch (e) {} });
+                } else if (im) { try { const r = Math.min(116 / im.width, 116 / im.height); c.drawImage(im, P + 12 + (116 - im.width * r) / 2, y + 10 + (116 - im.height * r) / 2, im.width * r, im.height * r); } catch (e) {} }
                 else { c.font = '60px sans-serif'; c.fillText('🛒', P + 34, y + 90); }
                 c.fillStyle = '#1b1b1b'; c.font = '800 32px sans-serif';
+                if (p.combina) {   // v212 — nombre en 1 renglón + «Combiná: …» debajo
+                    c.fillText(cortar(c, p.nom, 560, 1)[0], P + 150, y + 54);
+                    c.fillStyle = '#6a1b9a'; c.font = '800 28px sans-serif'; c.fillText(cortar(c, p.combina, 560, 1)[0], P + 150, y + 96);
+                    c.fillStyle = '#1b1b1b'; c.font = '800 32px sans-serif';
+                } else
                 cortar(c, p.nom, 560, 2).forEach((l, i) => c.fillText(l, P + 150, y + 54 + i * 40));
                 c.textAlign = 'right';
                 if (p.precio) { c.fillStyle = '#d84315'; c.font = '900 44px sans-serif'; c.fillText(p.precio, W - P - 22, y + (p.antes ? 66 : 82)); }
