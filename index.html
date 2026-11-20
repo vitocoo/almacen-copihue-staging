@@ -3043,7 +3043,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v215';
+const APP_VERSION = 'copihue-index-v216';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -8557,7 +8557,7 @@ function _rvAhora() { const d = new Date(); return d.getDate() + '/' + (d.getMon
 // v215 — distintivo de oferta (configurable desde copihue-revista.html)
 function _rvEst() { const e = (_poolRevista && _poolRevista.estallido) || {}; return { mov: e.mov || 'LATIDO', texto: e.texto || 'PORCENTAJE', color: e.color || 'ROJO', forma: e.forma || 'ESTALLIDO' }; }
 function _rvDistTextos(normal, oferta, e) {
-    const pct = Math.round((1 - oferta / normal) * 100);
+    const pct = Math.floor((1 - oferta / normal) * 100 + 1e-9);   // v216 — siempre hacia abajo: nunca anunciar más descuento del real
     if (e.texto === 'PORCENTAJE') return { b: '-' + pct + '%', s: 'OFF' };
     if (e.texto === 'OFERTA') return { b: 'OFERTA', s: '-' + pct + '%' };
     return { b: e.texto, s: '-' + pct + '%' };
