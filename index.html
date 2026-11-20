@@ -672,6 +672,23 @@
         /* v171b — más grande (+30%) y con mejor contraste: rojo/naranja tipo
            cartel de supermercado en vez de violeta (blanco sobre violeta
            costaba de leer). */
+        /* v211 — tarjeta de grupo combinable (varios sabores, una sola tarjeta a todo el ancho) */
+        .mc-grupo-card { grid-column: 1 / -1; max-width: 600px; width: 100%; justify-self: center; box-sizing: border-box; }
+        .mc-grupo-fotos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 10px 10px 4px; background: #f3eefc; }
+        .mc-grupo-fotos .mcg-f { max-height: 150px; position: relative; background: #fff; border-radius: 10px; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .mc-grupo-fotos.muchos .mcg-f { aspect-ratio: 4/3; }
+        .mc-grupo-fotos .mcg-f img { width: 100%; height: 100%; object-fit: contain; padding: 4px; box-sizing: border-box; }
+        .mc-grupo-fotos .mcg-f span { position: absolute; bottom: 3px; left: 3px; right: 3px; font-size: .62rem; font-weight: 800; color: #4527a0; background: rgba(255,255,255,.9); border-radius: 6px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .mc-grupo-fotos .mcg-mas { background: #ede7f6; color: #4527a0; font-weight: 900; font-size: .9rem; }
+        .mc-grupo-cab { display: flex; align-items: center; gap: 10px; padding: 8px 12px 2px; }
+        .mc-grupo-cab .product-name { flex: 1; font-size: .92rem !important; line-height: 1.25; font-weight: 800; }
+        .mc-grupo-cab .mc-price-burst { flex: none; width: 86px; height: 86px; margin: 0; }
+        .mc-grupo-cab .mc-price-burst-text { font-size: .74rem; }
+        .mc-grupo-lema { padding: 0 12px; font-size: .8rem; font-weight: 800; color: #6a1b9a; }
+        .mc-grupo-ahorro { padding: 2px 12px 0; font-size: .74rem; font-weight: 800; color: #2e7d32; }
+        .mc-grupo-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px 10px 12px; }
+        .mc-grupo-btns .add-to-cart { padding: 9px 4px !important; font-size: .76rem !important; line-height: 1.15; white-space: normal; }
+        .mc-grupo-btns .add-to-cart small { display: block; font-weight: 600; opacity: .85; font-size: .66rem; }
         .mc-price-burst {
             width: 108px;
             height: 108px;
@@ -2953,7 +2970,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v210';
+const APP_VERSION = 'copihue-index-v211';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -5203,11 +5220,60 @@ function renderizarMulticompra() {
             if (!(cantidad > 0 && precio > 0)) return null;
             const prod = products.find(p => p.id === Number(m.id));
             if (!prod || prod.stockNumber <= 0) return null;
-            return { ...prod, mcTipo: m.MULTICOMPRA_TIPO, mcCantidad: cantidad, mcPrecio: precio };
+            return { ...prod, mcTipo: m.MULTICOMPRA_TIPO, mcCantidad: cantidad, mcPrecio: precio, mcGrupo: String(m.GRUPO_MULTICOMPRA || m.grupo || m.mcGrupo || '').trim().toUpperCase() };
         })
         .filter(Boolean);
 
-    renderizarContenedorOfertas('multicompra', lista);
+    // v211 — sabores combinables: los que comparten GRUPO + cantidad + precio van en UNA tarjeta (2 o más con stock).
+    const grupos = {}, sueltos = [];
+    lista.forEach(p => { if (!p.mcGrupo) return; const k = p.mcGrupo + '|' + p.mcCantidad + '|' + p.mcPrecio; (grupos[k] = grupos[k] || []).push(p); });
+    const enGrupo = new Set();
+    const tarjetasGrupo = Object.values(grupos).filter(g => g.length >= 2).map(g => { g.forEach(p => enGrupo.add(p.id)); return _mcGrupoTarjeta(g); });
+    lista.forEach(p => { if (!enGrupo.has(p.id)) sueltos.push(p); });
+
+    renderizarContenedorOfertas('multicompra', sueltos);
+    if (tarjetasGrupo.length) {
+        const cont = document.getElementById('ofertasMulticompra'), grid = document.getElementById('multicompra-grid');
+        if (cont && grid) {
+            if (!sueltos.length) grid.innerHTML = '';
+            cont.classList.remove('cls-oculto'); cont.style.marginBottom = '2rem';
+            grid.insertAdjacentHTML('afterbegin', tarjetasGrupo.join(''));
+        }
+    }
+}
+// v211 — partes del nombre: lo común («GASEOSA MANAOS 3L») y el sabor («COLA»)
+function _mcGrupoNombres(g) {
+    const ws = g.map(p => String(p.name).trim().split(/\s+/));
+    let n = 0; while (ws.every(w => w[n] !== undefined && w[n] === ws[0][n])) n++;
+    const comun = ws[0].slice(0, n).join(' ').replace(/[\s(\-–·]+$/, '').trim();
+    const sabores = g.map((p, i) => {
+        const par = String(p.name).match(/\(([^)]+)\)\s*$/);
+        let t = par ? par[1] : ws[i].slice(n).join(' ').replace(/[()]/g, '');
+        t = t.trim().toLowerCase(); return t ? t.charAt(0).toUpperCase() + t.slice(1) : p.name;
+    });
+    return { comun: comun || g[0].name, sabores };
+}
+function _mcGrupoTarjeta(g) {
+    const { comun, sabores } = _mcGrupoNombres(g);
+    const cant = g[0].mcCantidad, prec = g[0].mcPrecio, esKg = _esPorPesoIndex(g[0].name);
+    const fmt = n => `$ ${Math.round(n).toLocaleString('es-AR')}.-`;
+    const ahorro = Math.max(...g.map(p => p.price)) * cant - prec;
+    const muestra = g.length > 6 ? g.slice(0, 5) : g;
+    const cols = Math.min(g.length, 3);
+    const fotos = muestra.map((p, i) => `<div class="mcg-f"><img src="${p.image}" loading="lazy" alt="${p.name.replace(/"/g, '&quot;')}" onerror="handleImageError(this, '${p.name.replace(/'/g, "\\'")}')"><span>${sabores[i]}</span></div>`).join('')
+        + (g.length > 6 ? `<div class="mcg-f mcg-mas">+${g.length - 5} sabores</div>` : '');
+    const btns = g.map((p, i) => `<button class="add-to-cart" data-id="${p.id}" data-tipo="multicompra" data-testid="add-to-cart-${p.id}">+ ${sabores[i]}<small>stock ${p.stockNumber}</small></button>`).join('');
+    return `
+        <div class="ofertas-product-card mc-grupo-card" data-mc-grupo="${g[0].mcGrupo}">
+            <div class="mc-grupo-fotos${g.length > 3 ? ' muchos' : ''}" style="grid-template-columns:repeat(${cols},1fr)">${fotos}</div>
+            <div class="mc-grupo-cab">
+                <div class="product-name">${comun}</div>
+                <div class="mc-price-burst"><span class="mc-price-burst-text">${esKg ? cant + 'kg' : cant + 'u.'}<br>${fmt(prec)}</span></div>
+            </div>
+            <div class="mc-grupo-lema">🔀 Combiná los sabores como quieras</div>
+            ${ahorro > 0 ? `<div class="mc-grupo-ahorro">✅ Ahorrás ${fmt(ahorro)} · normal ${fmt(g[0].price)} c/u</div>` : ''}
+            <div class="mc-grupo-btns" style="grid-template-columns:repeat(${cols},1fr)">${btns}</div>
+        </div>`;
 }
 
 function simplificarNombre(nombre) {
