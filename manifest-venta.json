@@ -1,0 +1,37 @@
+{
+  "name": "Copihue POS",
+  "short_name": "Copihue POS",
+  "description": "Punto de venta - Almacén Copihue",
+  "start_url": "/seba21.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#991b1b",
+  "theme_color": "#991b1b",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "iconos-pwa/android/android-launchericon-48-48.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "iconos-pwa/android/android-launchericon-192-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "iconos-pwa/android/android-launchericon-512-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "iconos-pwa/ios/180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

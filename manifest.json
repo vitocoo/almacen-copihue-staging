@@ -1,0 +1,37 @@
+{
+  "name": "Almacén Copihue",
+  "short_name": "Copihue",
+  "description": "Productos de calidad con la confianza de siempre",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#2e7d32",
+  "theme_color": "#2e7d32",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "iconos-pwa/android/android-launchericon-48-48.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "iconos-pwa/android/android-launchericon-192-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "iconos-pwa/android/android-launchericon-512-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "iconos-pwa/ios/180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
