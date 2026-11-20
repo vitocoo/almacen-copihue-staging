@@ -2358,6 +2358,7 @@
     .rasp-footer{background:linear-gradient(135deg,#c0392b,#922b21);height:8px}
     .rasp-condiciones{font-size:.62rem;color:#888;text-align:center;margin-top:8px;line-height:1.6;padding:0 4px}
 /* ═══ v202 — PORTADA CON TARJETAS ═══ */
+#loadingOverlay{display:none!important}   /* v202: sin pantalla de carga — se entra directo a la portada */
 #portada,#barraSeccion{display:none}
 body.vista-inicio #portada{display:block}
 body.vista-seccion #barraSeccion{display:flex}
@@ -2422,7 +2423,7 @@ body.vista-inicio .info-bar{margin-top:18px;font-size:.85rem;opacity:.9}
       <div class="pt-buscar"><input id="pBuscar" type="text" inputmode="search" placeholder="🔍 ¿Qué estás buscando?" autocomplete="off" enterkeyhint="search"><button id="pBuscarX" type="button" aria-label="Borrar">✕</button></div>
       <div id="pAviso" class="pt-aviso" style="display:none"></div>
       <div id="pResultados"></div>
-      <div id="pTarjetas" class="pt-tarjetas"><div class="pt-esperando">Cargando ofertas…</div></div>
+      <div id="pTarjetas" class="pt-tarjetas"><div class="pt-esperando">⏳ Cargando productos y ofertas…</div></div>
     </div>
     <div id="barraSeccion"><button type="button" onclick="_ptVolver()">← Volver</button><span id="barraTitulo"></span></div>
     <div id="adminNotification" class="admin-notification" style="display: none;">
@@ -4813,6 +4814,7 @@ async function loadProductsFromAPI() {
 
     } catch(error) {
         console.error('💥 ERROR:', error);
+        try { if (!products.length) { const pt = document.getElementById('pTarjetas'); if (pt) pt.innerHTML = '<div class="pt-esperando">😕 No pudimos cargar el catálogo.<br><button onclick="location.reload()" style="margin-top:10px;padding:10px 20px;border:none;border-radius:12px;background:#2e7d32;color:#fff;font-weight:800;cursor:pointer">🔄 Reintentar</button></div>'; } } catch (e) {}   // v202
         document.getElementById('productsGrid').innerHTML = `
             <div class="error-message">
                 <h3>Error al cargar productos</h3>
@@ -7512,6 +7514,8 @@ const SECC = [
     { id: 'juegos', ico: '🎮', nom: 'Juegos Copihue', sub: 'raspá y ganá', col: '#6a1b9a,#ab47bc', els: ['seccionJuegos'] }
 ];
 const VM_INI = 4, VM_PASO = 8, VM_TOPE = 24;
+const _ptImgMal = new Set();   // fotos que no cargaron: no se vuelven a usar (antes parpadeaba)
+window._ptImgFalla = function (im) { try { _ptImgMal.add(im.getAttribute('src')); im.remove(); } catch (e) {} };
 let _ptSec = null, _vmLimite = VM_INI, _raspArrancada = false;
 const tarjetasDe = g => g ? [...g.children].filter(c => c.nodeType === 1 && !c.classList.contains('vm-caja') && !/loading|skeleton|empty|error/i.test(c.className)) : [];
 function esJuevesAR() { try { return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' })).getDay() === 4; } catch (e) { return false; } }
@@ -7531,8 +7535,8 @@ window._ptActualizar = function () {
         if (!sc.els) {
             const t = tarjetasDe(document.getElementById(sc.grid));
             sub = t.length ? t.length + ' producto' + (t.length > 1 ? 's' : '') : (sc.anuncio ? 'hoy desde la tarde' : '');
-            const im = t.map(x => x.querySelector('img')).find(i => i && i.getAttribute('src') && !/data:|logo/.test(i.getAttribute('src')));
-            if (im) img = '<img loading="lazy" alt="" src="' + im.getAttribute('src').replace(/"/g, '&quot;') + '" onerror="this.remove()">';
+            const im = t.map(x => x.querySelector('img')).find(i => i && i.getAttribute('src') && !/data:|logo/.test(i.getAttribute('src')) && !_ptImgMal.has(i.getAttribute('src')) && !(i.complete && i.naturalWidth === 0));
+            if (im) img = '<img loading="lazy" alt="" src="' + im.getAttribute('src').replace(/"/g, '&quot;') + '" onerror="_ptImgFalla(this)">';
         }
         return '<button type="button" class="pt-t" style="background:linear-gradient(135deg,' + sc.col + ')" onclick="_ptAbrir(\'' + sc.id + '\')">' + img +
             '<span class="pt-ico">' + sc.ico + '</span><span class="pt-nom">' + sc.nom + '</span>' + (sub ? '<span class="pt-sub">' + sub + '</span>' : '') + '</button>';
@@ -7602,7 +7606,8 @@ function iniciar() {
     }
     // las tarjetas se actualizan solas cuando una sección se prende/apaga o se llena
     let tm = null;
-    new MutationObserver(() => { clearTimeout(tm); tm = setTimeout(() => { _ptActualizar(); if (_ptSec) _vmAplicar(); }, 250); })
+    const port = document.getElementById('portada');
+    new MutationObserver(ms => { if (ms.every(m => port && port.contains(m.target))) return; clearTimeout(tm); tm = setTimeout(() => { _ptActualizar(); if (_ptSec) _vmAplicar(); }, 250); })
         .observe(document.querySelector('.container'), { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style'] });
     setInterval(_ptActualizar, 60000);   // por si una oferta vence mientras el cliente mira
 }
