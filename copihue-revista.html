@@ -123,6 +123,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 .pct b{color:#333;font-weight:800}
 .pct.on{background:var(--navidad);color:#fff;border-color:var(--navidad)} .pct.on b{color:#fff}
 .pct.mini{padding:3px 7px;font-size:.68rem;margin-top:3px}
+.tema-prev{border-radius:14px;padding:14px 0 18px;margin:4px 0 10px;overflow:hidden}
+.tp-banda{transform:skewY(-4deg);padding:14px 16px;margin:0 -6px;color:#fff}
+.tp-banda>*{transform:skewY(4deg)}
+.tp-tit{font:900 1.3rem/1 'Arial Narrow',sans-serif;text-shadow:2px 2px 0 rgba(0,0,0,.25)}
+.tp-banda s{font-weight:800;font-size:.8rem}
+.tp-precio{font:900 2rem/1 sans-serif}
 </style>
 </head>
 <body>
@@ -153,7 +159,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 </div>
 
 <script>
-const APP_VERSION = 5;
+const APP_VERSION = 6;
 const API_URL = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 const POS_URL = 'seba21-staging.html';
 const SEG_SESION_KEY = 'copihue_sesion';   // la misma sesión que guarda el POS (seba21)
@@ -189,6 +195,7 @@ async function cargar() {
         HOY = r1.hoy || new Date().toISOString().slice(0, 10);
         OCULTOS = (r1.ocultos || []).slice();
         if (r1.config && r1.config.estallido) EST = Object.assign({}, EST, r1.config.estallido);
+        TEMA = (r1.config && r1.config.tema) || 'NAVIDAD';
         const lista = (r2 && (r2.productos || r2)) || [];
         CATALOGO = (Array.isArray(lista) ? lista : []).map(p => ({ name: String(p.name || p.nombre || '').trim(), price: Number(p.price || p.precio) || 0, stock: parseFloat(p.stock) || 0, cat: String(p.category || p.categoria || '').toUpperCase() })).filter(p => p.name);
         DEST.forEach(d => { const p = CATALOGO.find(x => x.name.toUpperCase() === d.producto.toUpperCase()); if (p) { d.precio = p.price; d.stock = p.stock; d.existe = true; } });
@@ -200,6 +207,24 @@ async function cargar() {
     }
 }
 let AUTO = { items: [] }, HOY = '', OCULTOS = [], EST = { mov: 'LATIDO', texto: 'PORCENTAJE', color: 'ROJO', forma: 'ESTALLIDO' };
+const TEMAS = {
+    NAVIDAD: { nom: 'Navidad', ico: '🎄', b1: '#8e0000', b2: '#1b5e20', precio: '#ffd54f', sombra: '#3e0000', f1: '#7f0000', f2: '#1b5e20', sub: '#ffe0b2' },
+    OFERTA:  { nom: 'Oferta', ico: '🔥', b1: '#c62828', b2: '#ff6f00', precio: '#ffeb3b', sombra: '#b71c1c', f1: '#b71c1c', f2: '#e65100', sub: '#ffe0b2' },
+    BLACK:   { nom: 'Black Friday', ico: '🖤', b1: '#000000', b2: '#424242', precio: '#ffeb3b', sombra: '#000000', f1: '#000000', f2: '#212121', sub: '#bdbdbd' },
+    PADRE:   { nom: 'Día del Padre', ico: '💙', b1: '#0d47a1', b2: '#29b6f6', precio: '#ffffff', sombra: '#0a2a66', f1: '#0a2a66', f2: '#1565c0', sub: '#bbdefb' },
+    MADRE:   { nom: 'Día de la Madre', ico: '🌸', b1: '#d81b60', b2: '#7b1fa2', precio: '#ffffff', sombra: '#4a0072', f1: '#6a1b9a', f2: '#ad1457', sub: '#f8bbd0' },
+    VERANO:  { nom: 'Verano', ico: '☀️', b1: '#00897b', b2: '#29b6f6', precio: '#ffeb3b', sombra: '#00695c', f1: '#00796b', f2: '#0288d1', sub: '#e0f7fa' }
+};
+let TEMA = 'NAVIDAD';
+function pintarTema() {
+    const t = TEMAS[TEMA] || TEMAS.NAVIDAD, p = $('temaPrev'); if (!p) return;
+    document.querySelectorAll('#oTema .chip').forEach(b => b.classList.toggle('on', b.dataset.v === TEMA));
+    p.style.background = `linear-gradient(160deg,${t.f1},${t.f2})`;
+    const b = p.querySelector('.tp-banda'); b.style.background = `linear-gradient(135deg,${t.b1},${t.b2})`;
+    p.querySelector('.tp-precio').style.cssText = `color:${t.precio};text-shadow:3px 3px 0 ${t.sombra}`;
+    p.querySelector('s').style.color = t.sub;
+}
+function setTema(k) { TEMA = k; marcarSucio(true); pintarTema(); }
 function pintarEst() {
     const esPropio = !['PORCENTAJE', 'OFERTA'].includes(EST.texto);
     [['oForma', EST.forma], ['oColor', EST.color], ['oMov', EST.mov], ['oTexto', esPropio ? 'PROPIO' : EST.texto]].forEach(([id, v]) => document.querySelectorAll('#' + id + ' .chip').forEach(b => b.classList.toggle('on', b.dataset.v === v)));
@@ -240,6 +265,11 @@ function dibujar() {
       <div class="chips" id="cCats">${CATS_INV.map(k => `<button type="button" class="chip ${c.categorias.includes(k) ? 'on' : ''}" data-cat="${esc(k)}" onclick="toggleCat(this)">${esc(k)}</button>`).join('')}</div>
     </div></div>
 
+    <div class="card"><div class="card-t">🎨 Tema de la revista <small>un toque cambia todos los colores</small></div><div class="card-b">
+      <div class="tema-prev" id="temaPrev"><div class="tp-banda"><div class="tp-tit">ROKU EXPRESS</div><s>$150.000</s><div class="tp-precio">$120.000</div></div></div>
+      <div class="ops" id="oTema">${Object.entries(TEMAS).map(([k, t]) => `<button type="button" class="chip" data-v="${k}" onclick="setTema('${k}')">${t.ico} ${t.nom}</button>`).join('')}</div>
+    </div></div>
+
     <div class="card"><div class="card-t">💥 Distintivo de oferta <small>en los productos con precio revista</small></div><div class="card-b">
       <div class="dist-prev" id="distPrev"><div class="ph">Ejemplo<br><s>$140.000</s><b>$120.000</b></div></div>
       <div class="sel-lbl" style="font-size:.72rem;font-weight:900;color:var(--gris);margin:2px 0 6px">FORMA</div>
@@ -266,7 +296,7 @@ function dibujar() {
       <div id="ocultosBox"></div>
     </div></div>`;
     ['cTitulo', 'cPrecio', 'cLimite'].forEach(id => $(id).addEventListener('input', () => marcarSucio(true)));
-    dibujarLista(); dibujarAuto(); textoVigencia(); pintarEst();
+    dibujarLista(); dibujarAuto(); textoVigencia(); pintarEst(); pintarTema();
     document.querySelectorAll('.prv input').forEach((inp, i) => revisarPrv(inp, i));
 }
 function setActiva(v) { CFG.activa = v; document.querySelectorAll('.sw button').forEach(b => b.classList.toggle('on', b.classList.contains(v ? 'si' : 'no'))); marcarSucio(true); }
@@ -396,7 +426,7 @@ async function guardar() {
     if (!$('cDesde').value && DEST.some(d => (parseInt(d.precioRevista) || 0) > 0) && !confirm('No pusiste fecha de inicio: los precios revista NO se van a aplicar. ¿Guardar igual?')) return;
     const datos = {
         token: s.token,
-        config: { titulo: $('cTitulo').value.trim() || 'Revista de Navidad', activa: CFG.activa, categorias: cats, precioMin: parseInt($('cPrecio').value) || 0, limite: Math.min(60, Math.max(1, parseInt($('cLimite').value) || 24)), desde: $('cDesde').value || '', dias: CFG.dias || 14, estallido: Object.assign({}, EST) },
+        config: { titulo: $('cTitulo').value.trim() || 'Revista de Navidad', activa: CFG.activa, categorias: cats, precioMin: parseInt($('cPrecio').value) || 0, limite: Math.min(60, Math.max(1, parseInt($('cLimite').value) || 24)), desde: $('cDesde').value || '', dias: CFG.dias || 14, estallido: Object.assign({}, EST), tema: TEMA },
         destacados: DEST.map(d => ({ producto: d.producto, texto: (d.texto || '').trim(), precioRevista: parseInt(d.precioRevista) || 0 })),
         ocultos: OCULTOS.slice()
     };

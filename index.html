@@ -498,17 +498,17 @@
         /* v217 — estilo IMPACTO de la página de revista (banda diagonal) */
         .rv-pag.ofertas-product-card { overflow: hidden; }
         .rv-banda { position: relative; padding: 26px 18px 22px; margin-top: -8px; color: #fff; text-align: left; z-index: 1; }
-        .rv-banda::before { content: ''; position: absolute; left: -40px; right: -40px; top: 0; bottom: 0; background: linear-gradient(135deg, #c62828, #ff6f00); transform: skewY(-5deg); transform-origin: top left; z-index: -1; box-shadow: 0 6px 14px rgba(198,40,40,.25); }
+        .rv-banda::before { content: ''; position: absolute; left: -40px; right: -40px; top: 0; bottom: 0; background: linear-gradient(135deg, var(--rv-b1, #c62828), var(--rv-b2, #ff6f00)); transform: skewY(-5deg); transform-origin: top left; z-index: -1; box-shadow: 0 6px 14px rgba(198,40,40,.25); }
         .rv-tit { font: 900 1.85rem/1 'Arial Narrow', 'Roboto Condensed', 'DejaVu Sans Condensed', sans-serif; text-transform: uppercase; letter-spacing: -.3px; text-shadow: 2px 2px 0 rgba(0,0,0,.22); }
-        .rv-banda .rv-nombre { color: #ffe0b2 !important; font-size: .66rem !important; font-weight: 700 !important; text-transform: uppercase; letter-spacing: .3px; margin-top: 4px; line-height: 1.25; }
-        .rv-banda .rv-antes { color: #ffe0b2; margin-top: 8px; }
-        .rv-banda .rv-precio { color: #ffeb3b; font: 900 2.9rem/1 sans-serif; text-shadow: 3px 3px 0 #b71c1c; margin-top: 2px; }
+        .rv-banda .rv-nombre { color: var(--rv-sub, #ffe0b2) !important; font-size: .66rem !important; font-weight: 700 !important; text-transform: uppercase; letter-spacing: .3px; margin-top: 4px; line-height: 1.25; }
+        .rv-banda .rv-antes { color: var(--rv-sub, #ffe0b2); margin-top: 8px; }
+        .rv-banda .rv-precio { color: var(--rv-precio, #ffeb3b); font: 900 2.9rem/1 sans-serif; text-shadow: 3px 3px 0 var(--rv-sombra, #b71c1c); margin-top: 2px; }
         .rv-banda .rv-ahorro { color: #fff; font-weight: 800; margin-top: 4px; }
         .rv-banda .rv-texto { color: #fff; font-style: normal; font-weight: 800; font-size: .95rem; margin-top: 8px; }
         .rv-pie2 { padding: 10px 14px 14px; text-align: center; }
         .rv-pie2 .rv-stock { margin-bottom: 2px; }
         /* v213 — 🎄 Revista */
-        .ofertas-container.revista { border-color: #b71c1c; background: linear-gradient(160deg, #7f0000, #1b5e20); padding-bottom: 14px; }
+        .ofertas-container.revista { border-color: var(--rv-f1, #b71c1c); background: linear-gradient(160deg, var(--rv-f1, #7f0000), var(--rv-f2, #1b5e20)); padding-bottom: 14px; }
         .rv-tapa { display: flex; align-items: center; gap: 12px; padding: 16px 16px 8px; color: #fff; }
         .rv-logo { width: 74px; background: #fdf0c4; border-radius: 12px; padding: 4px; flex: none; }
         .rv-titulo { font-weight: 900; font-size: 1.35rem; line-height: 1.15; }
@@ -3055,7 +3055,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v217';
+const APP_VERSION = 'copihue-index-v218';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -8607,6 +8607,21 @@ function _rvTituloCorto(nombre) {
     }
     return out.map(w => (/\d/.test(w) || (w.length <= 3 && /^[A-ZÁÉÍÓÚÑ]+$/i.test(w))) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
+// v218 — TEMAS de color (un botón en copihue-revista.html): banda, precio, fondo, ícono e imágenes
+const RV_TEMAS = {
+    NAVIDAD: { ico: '🎄', b1: '#8e0000', b2: '#1b5e20', precio: '#ffd54f', sombra: '#3e0000', f1: '#7f0000', f2: '#1b5e20', sub: '#ffe0b2', nieve: true },
+    OFERTA:  { ico: '🔥', b1: '#c62828', b2: '#ff6f00', precio: '#ffeb3b', sombra: '#b71c1c', f1: '#b71c1c', f2: '#e65100', sub: '#ffe0b2' },
+    BLACK:   { ico: '🖤', b1: '#000000', b2: '#424242', precio: '#ffeb3b', sombra: '#000000', f1: '#000000', f2: '#212121', sub: '#bdbdbd' },
+    PADRE:   { ico: '💙', b1: '#0d47a1', b2: '#29b6f6', precio: '#ffffff', sombra: '#0a2a66', f1: '#0a2a66', f2: '#1565c0', sub: '#bbdefb' },
+    MADRE:   { ico: '🌸', b1: '#d81b60', b2: '#7b1fa2', precio: '#ffffff', sombra: '#4a0072', f1: '#6a1b9a', f2: '#ad1457', sub: '#f8bbd0' },
+    VERANO:  { ico: '☀️', b1: '#00897b', b2: '#29b6f6', precio: '#ffeb3b', sombra: '#00695c', f1: '#00796b', f2: '#0288d1', sub: '#e0f7fa' }
+};
+function _rvTema() { return RV_TEMAS[(_poolRevista && _poolRevista.tema) || 'NAVIDAD'] || RV_TEMAS.NAVIDAD; }
+function _rvAplicarTema() {
+    const t = _rvTema(), c = document.getElementById('ofertasRevista'); if (!c) return;
+    [['--rv-b1', t.b1], ['--rv-b2', t.b2], ['--rv-precio', t.precio], ['--rv-sombra', t.sombra], ['--rv-f1', t.f1], ['--rv-f2', t.f2], ['--rv-sub', t.sub]].forEach(([k, v]) => c.style.setProperty(k, v));
+    try { const sc = window._ptInfo && window._ptInfo.SECC.find(x => x.id === 'ofertasRevista'); if (sc) { sc.ico = t.ico; sc.col = t.f1 + ',' + t.f2; } } catch (e) {}
+}
 function _rvLista() {
     if (!_poolRevista || !_poolRevista.activa) return [];
     return (_poolRevista.items || []).map(it => { const p = products.find(x => x.id === Number(it.id)); return p && p.stockNumber > 0 ? { ...p, rvTexto: it.texto || '', rvDestacado: !!it.destacado, rvPrecio: _rvPrecioVigente(p.id), rvOtra: _rvOtraOferta(p) } : null; }).filter(Boolean);
@@ -8622,7 +8637,8 @@ function renderizarRevista() {
         const lista = _rvLista();
         if (!lista.length) { cont.classList.add('cls-oculto'); grid.innerHTML = ''; return; }
         cont.classList.remove('cls-oculto');
-        document.getElementById('rvTitulo').textContent = '🎄 ' + titulo;
+        _rvAplicarTema();
+        document.getElementById('rvTitulo').textContent = _rvTema().ico + ' ' + titulo;
         document.getElementById('rvSub').textContent = 'Ideas para regalar · ' + lista.length + ' producto' + (lista.length > 1 ? 's' : '') + ' con stock';
         const vg = document.getElementById('rvVig'); if (vg) { const t = _rvVigencia(false); vg.textContent = t ? '🗓 ' + t : ''; vg.style.display = t ? '' : 'none'; }
         const html = lista.map((p, i) => `
@@ -8686,8 +8702,8 @@ function _rvCortar(c, txt, max, lineas) {
     return out;
 }
 function _rvFondo(c, W, H) {
-    const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#7f0000'); g.addColorStop(1, '#1b5e20'); c.fillStyle = g; c.fillRect(0, 0, W, H);
-    c.fillStyle = 'rgba(255,255,255,.18)'; for (let k = 0; k < 40; k++) { c.beginPath(); c.arc((k * 97) % W, (k * 211) % H, 3 + (k % 4), 0, Math.PI * 2); c.fill(); }   // nieve
+    const t = _rvTema(), g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, t.f1); g.addColorStop(1, t.f2); c.fillStyle = g; c.fillRect(0, 0, W, H);
+    c.fillStyle = 'rgba(255,255,255,' + (t.nieve ? .18 : .07) + ')'; for (let k = 0; k < 40; k++) { c.beginPath(); c.arc((k * 97) % W, (k * 211) % H, 3 + (k % 4), 0, Math.PI * 2); c.fill(); }   // nieve
 }
 function _rvImgEn(c, im, x, y, w, h) { if (!im) return; const r = Math.min(w / im.width, h / im.height); c.drawImage(im, x + (w - im.width * r) / 2, y + (h - im.height * r) / 2, im.width * r, im.height * r); }
 async function _rvTapa(lista, titulo) {
@@ -8695,7 +8711,7 @@ async function _rvTapa(lista, titulo) {
     _rvFondo(c, W, H);
     const logo = await _rvImg('logo-copihue.png');
     c.fillStyle = '#fdf0c4'; c.beginPath(); c.roundRect(W / 2 - 170, 50, 340, 190, 28); c.fill(); _rvImgEn(c, logo, W / 2 - 150, 65, 300, 160);
-    c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '900 76px sans-serif'; _rvCortar(c, '🎄 ' + titulo, 1000, 2).forEach((l, i) => c.fillText(l, W / 2, 340 + i * 86));
+    c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '900 76px sans-serif'; _rvCortar(c, _rvTema().ico + ' ' + titulo, 1000, 2).forEach((l, i) => c.fillText(l, W / 2, 340 + i * 86));
     c.font = '700 36px sans-serif'; c.fillStyle = '#ffe082'; c.fillText('Ideas para regalar · ' + lista.length + ' productos', W / 2, 470);
     const cel = lista.slice(0, 6), cols = 3, cw = 300, ch = 300, x0 = (W - cols * cw - 2 * 24) / 2;
     for (let k = 0; k < cel.length; k++) {
@@ -8715,25 +8731,25 @@ async function _rvTapa(lista, titulo) {
 async function _rvPagina(p, n, total, titulo) {   // v217 — estilo IMPACTO
     const W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d');
     _rvFondo(c, W, H);
-    c.fillStyle = '#fff'; c.font = '800 34px sans-serif'; c.fillText('🎄 ' + titulo, 60, 80); c.textAlign = 'right'; c.fillText(n + ' / ' + total, W - 60, 80); c.textAlign = 'left';
+    c.fillStyle = '#fff'; c.font = '800 34px sans-serif'; c.fillText(_rvTema().ico + ' ' + titulo, 60, 80); c.textAlign = 'right'; c.fillText(n + ' / ' + total, W - 60, 80); c.textAlign = 'left';
     c.save(); c.beginPath(); c.roundRect(60, 120, W - 120, 1080, 40); c.clip();
     c.fillStyle = '#fff'; c.fillRect(60, 120, W - 120, 1080);
     _rvImgEn(c, await _rvImg(p.image), 140, 150, W - 280, 470);
-    const g = c.createLinearGradient(0, 640, W, 1100); g.addColorStop(0, '#c62828'); g.addColorStop(1, '#ff6f00');
+    const T = _rvTema(), g = c.createLinearGradient(0, 640, W, 1100); g.addColorStop(0, T.b1); g.addColorStop(1, T.b2);
     c.fillStyle = g; c.beginPath(); c.moveTo(60, 700); c.lineTo(W - 60, 610); c.lineTo(W - 60, 1110); c.lineTo(60, 1200); c.closePath(); c.fill();
     c.restore();
     if (p.rvDestacado) { c.fillStyle = '#ffb300'; c.beginPath(); c.roundRect(90, 150, 300, 64, 32); c.fill(); c.fillStyle = '#3e2723'; c.font = '900 32px sans-serif'; c.fillText('⭐ Recomendado', 112, 194); }
     c.fillStyle = '#fff'; c.font = '900 70px sans-serif'; c.shadowColor = 'rgba(0,0,0,.25)'; c.shadowOffsetX = 4; c.shadowOffsetY = 4;
     const tl = _rvCortar(c, _rvTituloCorto(p.name).toUpperCase(), W - 240, 2); tl.forEach((l, i) => c.fillText(l, 110, 770 + i * 72));
     let y = 770 + (tl.length - 1) * 72 + 40;
-    c.shadowColor = 'transparent'; c.fillStyle = '#ffe0b2'; c.font = '700 24px sans-serif';
+    c.shadowColor = 'transparent'; c.fillStyle = T.sub; c.font = '700 24px sans-serif';
     _rvCortar(c, p.name.toUpperCase(), W - 240, 1).forEach(l => c.fillText(l, 112, y)); y += 66;
     if (p.rvPrecio) {
-        c.fillStyle = '#ffe0b2'; c.font = '800 46px sans-serif'; const ta = '$' + Number(p.price).toLocaleString('es-AR'); c.fillText(ta, 112, y);
-        const tw = c.measureText(ta).width; c.strokeStyle = '#ffe0b2'; c.lineWidth = 4; c.beginPath(); c.moveTo(112, y - 15); c.lineTo(112 + tw, y - 15); c.stroke(); y += 10;
+        c.fillStyle = T.sub; c.font = '800 46px sans-serif'; const ta = '$' + Number(p.price).toLocaleString('es-AR'); c.fillText(ta, 112, y);
+        const tw = c.measureText(ta).width; c.strokeStyle = T.sub; c.lineWidth = 4; c.beginPath(); c.moveTo(112, y - 15); c.lineTo(112 + tw, y - 15); c.stroke(); y += 10;
     }
-    c.font = '900 140px sans-serif'; c.fillStyle = '#b71c1c'; c.fillText('$' + Number(p.rvPrecio || p.price).toLocaleString('es-AR'), 118, y + 136);
-    c.fillStyle = '#ffeb3b'; c.fillText('$' + Number(p.rvPrecio || p.price).toLocaleString('es-AR'), 110, y + 128);
+    c.font = '900 140px sans-serif'; c.fillStyle = T.sombra; c.fillText('$' + Number(p.rvPrecio || p.price).toLocaleString('es-AR'), 118, y + 136);
+    c.fillStyle = T.precio; c.fillText('$' + Number(p.rvPrecio || p.price).toLocaleString('es-AR'), 110, y + 128);
     if (p.rvTexto) { c.fillStyle = '#fff'; c.font = '800 38px sans-serif'; c.fillText(_rvCortar(c, '“' + p.rvTexto + '”', W - 240, 1)[0], 112, y + 190); }
     if (p.rvPrecio) {
         if (_rvEst().mov === 'NO') { c.fillStyle = '#c62828'; c.beginPath(); c.roundRect(W - 400, 150, 310, 64, 32); c.fill(); c.fillStyle = '#fff'; c.font = '900 30px sans-serif'; c.fillText('🎄 Precio revista', W - 380, 193); }
@@ -8759,7 +8775,7 @@ window.abrirCompartirRevista = async function () {
             _rvFiles.push(new File([blob], (k ? 'revista-' + k : 'revista-tapa') + '.jpg', { type: 'image/jpeg' }));
         }
         const url = location.origin + '/#revista';
-        _rvTextoWA = `🎄 *${titulo} — Almacén Copihue*\nIdeas para regalar, con stock:\n\n` + lista.slice(0, 8).map(p => p.rvPrecio ? `• ${p.name} — ~$${Number(p.price).toLocaleString('es-AR')}~ *$${Number(p.rvPrecio).toLocaleString('es-AR')}* 🎄` : `• ${p.name} — *$${Number(p.price).toLocaleString('es-AR')}*`).join('\n') + (lista.length > 8 ? `\n…y ${lista.length - 8} más` : '') + `\n\n🗓 ${_rvVigencia(true) || ('Precios del ' + _rvAhora() + ', sujetos a stock')}.\n📍 Retiro en Copihue 457\n📖 Mirá la revista y el precio actualizado: ${url}`;
+        _rvTextoWA = `${_rvTema().ico} *${titulo} — Almacén Copihue*\nIdeas para regalar, con stock:\n\n` + lista.slice(0, 8).map(p => p.rvPrecio ? `• ${p.name} — ~$${Number(p.price).toLocaleString('es-AR')}~ *$${Number(p.rvPrecio).toLocaleString('es-AR')}* 🎄` : `• ${p.name} — *$${Number(p.price).toLocaleString('es-AR')}*`).join('\n') + (lista.length > 8 ? `\n…y ${lista.length - 8} más` : '') + `\n\n🗓 ${_rvVigencia(true) || ('Precios del ' + _rvAhora() + ', sujetos a stock')}.\n📍 Retiro en Copihue 457\n📖 Mirá la revista y el precio actualizado: ${url}`;
         btn.disabled = false;
     } catch (e) { console.warn('compartir revista:', e); wrap.innerHTML = '<div style="color:#fff;padding:30px;text-align:center">No se pudo armar la revista. Probá de nuevo.</div>'; }
 };
