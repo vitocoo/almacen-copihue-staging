@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>🧪 STAGING · ver.41 · Copihue · Reportes</title>
+<title>🧪 STAGING · ver.42 · Copihue · Reportes</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -376,7 +376,7 @@ let aniosAbiertos=new Set(); // años anteriores expandidos en el selector
 let metActivos=new Set(['TODOS']);
 let vendActivos=new Set(['TODOS']);
 let topOrden='venta'; // 'venta' | 'ganancia'
-let showVenc=false, showDiaSem=false, showHoras=false, showPDias=false, showGanDias=false, showMetodos=true, showVendedores=false, showTopProd=false, showMejDias=false, showCompMeses=true;
+let showVenc=false, showDiaSem=false, showHoras=false, showPDias=false, showGanDias=false, showMetodos=true, showVendedores=false, showTopProd=false, showMejDias=false, showCompMeses=false;   // ver.42: cerrado (el gráfico «Mes por mes» ya está arriba)
 let prodSelIdx=-1; // índice del producto seleccionado en el top (-1 = ninguno)
 // v36 — top: ver todos los productos y ordenar
 let topTodos=false;      // false = top 15 | true = todos los productos del período
@@ -1272,6 +1272,13 @@ function renderApp(){
       // Resumen
       cardsH+
       graf12H+   // ver.37
+      // ver.42 — «Últimos 6 meses» pasa justo debajo de «Mes por mes»: es el mismo dato con los números exactos
+      (compMH?
+        '<button class="toggle-btn" onclick="showCompMeses=!showCompMeses;renderApp()" style="margin-top:-4px;margin-bottom:6px">'+
+          (showCompMeses?'▲':'▼')+' 🔢 Números exactos · últimos 6 meses'+
+        '</button>'+
+        (showCompMeses?'<div class="tar"><div class="tar-t">📅 Últimos 6 meses <span style="font-size:.58rem;color:var(--gris)">🟩 venta 🟧 ganancia</span></div>'+compMH+'</div>':'')
+      :'')+
       // ── Separador ──
       '<div style="height:1px;background:var(--borde);margin:8px 0 10px"></div>'+
       // Métodos (colapsable)
@@ -1279,6 +1286,8 @@ function renderApp(){
         (showMetodos?'▲':'▼')+' 💳 Por método de pago'+
       '</button>'+
       (showMetodos&&Object.keys(stats.metodos).length?'<div class="tar">'+tortaMetH+metRowsH+'</div>':'')+
+      // ver.42 — la lista de tickets sube acá (antes estaba al final, después de vencimientos)
+      (diasOrd.length?'<div style="font-size:.68rem;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:1.2px;margin:12px 0 8px">🧾 Ventas del período — '+diasLabel+'</div>'+detH:'')+
       // Vendedores (colapsable)
       (Object.keys(stats.vendedores).length>1?
         '<button class="toggle-btn" onclick="showVendedores=!showVendedores;renderApp()" style="margin-bottom:6px">'+
@@ -1326,13 +1335,6 @@ function renderApp(){
         (showHoras?'▲':'▼')+' 🕐 Horas de más ventas'+
       '</button>'+
       (showHoras?'<div class="tar"><div class="tar-t">🕐 Por hora del día</div>'+horasH+'</div>':'')+
-      // 6 meses (colapsable)
-      (compMH?
-        '<button class="toggle-btn" onclick="showCompMeses=!showCompMeses;renderApp()">'+
-          (showCompMeses?'▲':'▼')+' 📅 Últimos 6 meses'+
-        '</button>'+
-        (showCompMeses?'<div class="tar"><div class="tar-t">📅 Últimos 6 meses <span style="font-size:.58rem;color:var(--gris)">🟩 venta 🟧 ganancia</span></div>'+compMH+'</div>':'')
-      :'')+
       // Vencimientos top 7 días (siempre visible si hay algo urgente)
       (()=>{
         const venc7=venc.filter(v=>!v.vencido&&v.stock>0&&v.dias>=0&&v.dias<=7);
@@ -1351,8 +1353,6 @@ function renderApp(){
         (showVenc?'▲':'▼')+' ⏰ Vencimientos'+(vencVencidos.length?' · 🗑️ '+vencVencidos.length+' vencidos':'')+' · ⏳ '+vencProximos.length+' próximos'+
       '</button>'+
       (showVenc?vencVencidosH+'<div class="tar"><div class="tar-t">⏳ Próximos 30 días ('+vencProximos.length+')</div>'+vencH+'</div>':'')+
-      // Detalle días
-      (diasOrd.length?'<div style="font-size:.68rem;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:1.2px;margin:12px 0 8px">🧾 Ventas del período — '+diasLabel+'</div>'+detH:'')+
       // ===== TABLA PRODUCTOS x DÍAS =====
       (()=>{
         // Siempre últimos 30 días del histórico total
