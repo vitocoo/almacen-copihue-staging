@@ -53,6 +53,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 .it-acc{display:flex;gap:4px;flex:none}
 .it-acc button{width:34px;height:34px;border-radius:10px;border:1.5px solid var(--borde);background:#fff;font-size:1rem;cursor:pointer}
 .it input{width:100%;margin-top:8px;padding:9px 11px;border:1.5px solid var(--borde);border-radius:10px;font-size:.88rem;font-family:inherit;color:var(--morado);font-style:italic}
+.vig{background:var(--vl);color:var(--vd);font-weight:800;font-size:.8rem;border-radius:10px;padding:9px 12px;margin:2px 0 12px}
+.vig.malo{background:var(--rl);color:var(--rojo)}
+.fila input[type=date]{flex:1;min-width:0;padding:10px 12px;border:1.5px solid var(--borde);border-radius:10px;font-size:.95rem;font-family:inherit}
+.prv{display:flex;align-items:center;gap:8px;margin-top:8px}
+.prv span{font-size:.75rem;font-weight:900;color:var(--navidad);white-space:nowrap}
+.prv input{flex:1;min-width:0;width:auto!important;margin:0!important;font-style:normal!important;color:var(--texto)!important;font-weight:800}
+.prv input.mal{border-color:var(--rojo)!important;background:var(--rl)}
+.prv small{font-size:.7rem;color:var(--gris);font-weight:700;white-space:nowrap}
+.prv-err{font-size:.72rem;font-weight:800;margin-top:3px;min-height:.9em}
 .vacio{text-align:center;color:var(--gris);font-size:.82rem;padding:14px}
 .auto{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .auto div{background:#fafafa;border:1px solid #eee;border-radius:10px;padding:6px;text-align:center;font-size:.64rem;font-weight:700;line-height:1.2}
@@ -104,7 +113,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 </div>
 
 <script>
-const APP_VERSION = 1;
+const APP_VERSION = 2;
 const API_URL = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 const POS_URL = 'seba21-staging.html';
 const SEG_SESION_KEY = 'copihue_sesion';   // la misma sesión que guarda el POS (seba21)
@@ -136,7 +145,8 @@ async function cargar() {
         ]);
         if (!r1 || !r1.success) throw new Error((r1 && r1.mensaje) || 'La planilla no respondió');
         CFG = r1.config; CATS_INV = r1.categoriasInventario || [];
-        DEST = (r1.destacados || []).map(d => ({ producto: d.producto, texto: d.texto, existe: d.existe, stock: d.stock, precio: d.precio }));
+        DEST = (r1.destacados || []).map(d => ({ producto: d.producto, texto: d.texto, precioRevista: d.precioRevista || '', existe: d.existe, stock: d.stock, precio: d.precio }));
+        HOY = r1.hoy || new Date().toISOString().slice(0, 10);
         const lista = (r2 && (r2.productos || r2)) || [];
         CATALOGO = (Array.isArray(lista) ? lista : []).map(p => ({ name: String(p.name || p.nombre || '').trim(), price: Number(p.price || p.precio) || 0, stock: parseFloat(p.stock) || 0, cat: String(p.category || p.categoria || '').toUpperCase() })).filter(p => p.name);
         DEST.forEach(d => { const p = CATALOGO.find(x => x.name.toUpperCase() === d.producto.toUpperCase()); if (p) { d.precio = p.price; d.stock = p.stock; d.existe = true; } });
@@ -147,7 +157,18 @@ async function cargar() {
         $('app').innerHTML = '<div class="ldg">😕 No se pudo cargar la revista.<br><small>' + esc(e.message) + '</small><br><br><button class="chip" onclick="location.reload()">🔄 Reintentar</button></div>';
     }
 }
-let AUTO = { items: [] };
+let AUTO = { items: [] }, HOY = '';
+const DIAS_SEM = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+function sumarDias(iso, n) { const [y, m, d] = iso.split('-').map(Number); const f = new Date(Date.UTC(y, m - 1, d, 12)); f.setUTCDate(f.getUTCDate() + n); return f.toISOString().slice(0, 10); }
+function lindaFecha(iso) { const [y, m, d] = iso.split('-').map(Number); return DIAS_SEM[new Date(y, m - 1, d).getDay()] + ' ' + d + '/' + m; }
+function textoVigencia() {
+    const desde = $('cDesde') ? $('cDesde').value : CFG.desde, dias = CFG.dias || 14, el = $('vigTxt'); if (!el) return;
+    if (!desde) { el.className = 'vig malo'; el.textContent = '⚠️ Sin fecha de inicio: la revista se ve siempre y los precios revista NO se aplican.'; return; }
+    const hasta = sumarDias(desde, dias - 1);
+    let estado = HOY < desde ? ' · empieza en ' + Math.round((Date.parse(desde) - Date.parse(HOY)) / 864e5) + ' día(s)' : (HOY > hasta ? ' · ⚠️ YA VENCIÓ' : ' · ✅ vigente hoy');
+    el.className = 'vig' + (HOY > hasta ? ' malo' : ''); el.textContent = '🗓 Válida del ' + lindaFecha(desde) + ' al ' + lindaFecha(hasta) + ' o hasta agotar stock' + estado;
+}
+function setDias(n) { CFG.dias = n; document.querySelectorAll('#cDias .chip').forEach(b => b.classList.toggle('on', Number(b.dataset.d) === n)); marcarSucio(true); textoVigencia(); }
 
 function dibujar() {
     const c = CFG;
@@ -156,6 +177,9 @@ function dibujar() {
       <div class="fila"><label>Título</label><input type="text" id="cTitulo" maxlength="60" value="${esc(c.titulo)}"></div>
       <div class="fila"><label>Revista</label><div class="sw"><button type="button" class="si ${c.activa ? 'on' : ''}" onclick="setActiva(true)">✅ Activa</button><button type="button" class="no ${!c.activa ? 'on' : ''}" onclick="setActiva(false)">⛔ Apagada</button></div></div>
       <div class="ayuda">Apagada, desaparece del catálogo (por ejemplo, después de Reyes).</div>
+      <div class="fila"><label>Empieza el</label><input type="date" id="cDesde" value="${esc(c.desde || '')}" oninput="marcarSucio(true);textoVigencia()"></div>
+      <div class="fila"><label>Dura</label><div class="chips" id="cDias">${[7, 14, 21, 30].map(n => `<button type="button" class="chip ${Number(c.dias) === n ? 'on' : ''}" data-d="${n}" onclick="setDias(${n})">${n} días</button>`).join('')}</div></div>
+      <div class="vig" id="vigTxt"></div>
       <div class="fila"><label>Precio mínimo</label><input type="number" id="cPrecio" min="0" step="500" value="${c.precioMin}"></div>
       <div class="fila"><label>Máx. productos</label><input type="number" id="cLimite" min="1" max="60" value="${c.limite}"></div>
       <div class="sel-lbl" style="font-size:.72rem;font-weight:900;color:var(--gris);margin:4px 0 6px">CATEGORÍAS QUE SE COMPLETAN SOLAS</div>
@@ -173,7 +197,8 @@ function dibujar() {
       <div class="auto" id="auto"></div>
     </div></div>`;
     ['cTitulo', 'cPrecio', 'cLimite'].forEach(id => $(id).addEventListener('input', () => marcarSucio(true)));
-    dibujarLista(); dibujarAuto();
+    dibujarLista(); dibujarAuto(); textoVigencia();
+    document.querySelectorAll('.prv input').forEach((inp, i) => revisarPrv(inp, i));
 }
 function setActiva(v) { CFG.activa = v; document.querySelectorAll('.sw button').forEach(b => b.classList.toggle('on', b.classList.contains(v ? 'si' : 'no'))); marcarSucio(true); }
 function toggleCat(b) { b.classList.toggle('on'); marcarSucio(true); }
@@ -194,8 +219,17 @@ function dibujarLista() {
           </div>
         </div>
         <input type="text" maxlength="160" placeholder="Frase opcional (ej: «El regalo para papá»)" value="${esc(d.texto)}" oninput="DEST[${i}].texto=this.value;marcarSucio(true)">
+        <div class="prv"><span>🎄 Precio revista</span><input type="number" inputmode="numeric" min="0" step="1" placeholder="vacío = precio normal" value="${d.precioRevista || ''}" oninput="DEST[${i}].precioRevista=this.value;marcarSucio(true);revisarPrv(this,${i})">${d.existe && d.precio ? `<small>normal ${fmt$(d.precio)}</small>` : ''}</div>
+        <div class="prv-err" id="prvErr${i}"></div>
       </div>`).join('');
     const t = document.querySelector('.card:nth-child(2) .card-t small'); if (t) t.textContent = DEST.length + ' · van primero';
+}
+function revisarPrv(inp, i) {
+    const d = DEST[i], v = parseInt(inp.value) || 0, e = $('prvErr' + i);
+    if (v > 0 && d.precio && v >= d.precio) { e.textContent = '⚠️ Tiene que ser MENOR a ' + fmt$(d.precio); inp.classList.add('mal'); }
+    else if (v > 0 && d.precio) { e.textContent = '✅ Ahorro ' + fmt$(d.precio - v) + ' (' + Math.round((1 - v / d.precio) * 100) + '% off)'; e.style.color = 'var(--verde)'; inp.classList.remove('mal'); }
+    else { e.textContent = ''; inp.classList.remove('mal'); }
+    if (v >= (d.precio || Infinity)) e.style.color = 'var(--rojo)';
 }
 function dibujarAuto() {
     const usados = new Set(DEST.map(d => d.producto.toUpperCase()));
@@ -221,7 +255,7 @@ function agregar(nombre) {
     if (DEST.length >= 60) { aviso('Máximo 60 productos destacados.', false); return; }
     const p = CATALOGO.find(x => x.name === nombre); if (!p) return;
     if (DEST.some(d => d.producto.toUpperCase() === nombre.toUpperCase())) return;
-    DEST.push({ producto: p.name, texto: '', existe: true, stock: p.stock, precio: p.price });
+    DEST.push({ producto: p.name, texto: '', precioRevista: '', existe: true, stock: p.stock, precio: p.price });
     marcarSucio(true); dibujarLista(); buscar(); dibujarAuto(); aviso('✅ Agregado: ' + p.name.slice(0, 40), true);
 }
 function mover(i, d) { const j = i + d; if (j < 0 || j >= DEST.length) return; [DEST[i], DEST[j]] = [DEST[j], DEST[i]]; marcarSucio(true); dibujarLista(); }
@@ -259,10 +293,13 @@ async function guardar() {
     const s = sesion(); if (!s) { loginAbrir(guardar); return; }
     const cats = [...document.querySelectorAll('#cCats .chip.on')].map(b => b.dataset.cat);
     if (!cats.length) { aviso('Elegí al menos una categoría.', false); return; }
+    const malos = DEST.filter(d => (parseInt(d.precioRevista) || 0) > 0 && d.precio && parseInt(d.precioRevista) >= d.precio);
+    if (malos.length) { aviso('El precio revista tiene que ser MENOR al normal: ' + malos[0].producto.slice(0, 40), false); return; }
+    if (!$('cDesde').value && DEST.some(d => (parseInt(d.precioRevista) || 0) > 0) && !confirm('No pusiste fecha de inicio: los precios revista NO se van a aplicar. ¿Guardar igual?')) return;
     const datos = {
         token: s.token,
-        config: { titulo: $('cTitulo').value.trim() || 'Revista de Navidad', activa: CFG.activa, categorias: cats, precioMin: parseInt($('cPrecio').value) || 0, limite: Math.min(60, Math.max(1, parseInt($('cLimite').value) || 24)) },
-        destacados: DEST.map(d => ({ producto: d.producto, texto: (d.texto || '').trim() }))
+        config: { titulo: $('cTitulo').value.trim() || 'Revista de Navidad', activa: CFG.activa, categorias: cats, precioMin: parseInt($('cPrecio').value) || 0, limite: Math.min(60, Math.max(1, parseInt($('cLimite').value) || 24)), desde: $('cDesde').value || '', dias: CFG.dias || 14 },
+        destacados: DEST.map(d => ({ producto: d.producto, texto: (d.texto || '').trim(), precioRevista: parseInt(d.precioRevista) || 0 }))
     };
     const b = $('bGuardar'); b.disabled = true; b.textContent = '⏳ Guardando…';
     try {

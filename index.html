@@ -493,6 +493,12 @@
         .rv-texto { color: #6a1b9a; font-style: italic; font-weight: 700; font-size: .9rem; margin-top: 6px; }
         .rv-precio { color: #c62828; font-weight: 900; font-size: 2rem; margin-top: 6px; }
         .rv-stock { font-size: .78rem; color: #2e7d32; font-weight: 700; }
+        .rv-antes { color: #9e9e9e; text-decoration: line-through; font-weight: 700; font-size: 1rem; margin-top: 6px; }
+        .rv-antes + .rv-precio { margin-top: 0; }
+        .rv-ahorro { color: #2e7d32; font-weight: 800; font-size: .82rem; }
+        .rv-otra { color: #e65100; font-weight: 800; font-size: .76rem; margin-top: 4px; }
+        .rv-sello-precio { background: linear-gradient(135deg, #c62828, #2e7d32); color: #fff; }
+        .rv-vig { color: #fff; background: rgba(0,0,0,.25); font-size: .74rem; font-weight: 800; text-align: center; padding: 6px 10px; margin: 2px 12px 6px; border-radius: 10px; }
         .rv-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
         .rv-btns .add-to-cart, .rv-wa { padding: 12px 6px !important; font-size: .9rem !important; border-radius: 12px; font-weight: 800; text-align: center; text-decoration: none; }
         .rv-wa { background: #25d366; color: #fff; display: flex; align-items: center; justify-content: center; }
@@ -2785,6 +2791,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
             <div class="rv-hojas" id="revista-grid"></div>
             <button type="button" class="rv-flecha der" onclick="_rvIr(1)" aria-label="Siguiente">›</button>
         </div>
+        <div class="rv-vig" id="rvVig" style="display:none"></div>
         <div class="rv-pie"><div class="rv-dots" id="rvDots"></div><div class="rv-cont" id="rvCont"></div></div>
         <button type="button" class="rv-compartir" onclick="abrirCompartirRevista()">📲 Compartir revista</button>
     </div>
@@ -3016,7 +3023,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v213';
+const APP_VERSION = 'copihue-index-v214';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -5599,9 +5606,11 @@ function addToCart(productId, tipoForzado) {
         ofertaConfig
     });
     
+    const _esRevista = !ofertaConfig && _rvPrecioVigente(productId) > 0;   // v214 — precio revista (solo si no hay otra oferta)
     // Actualizar o agregar al carrito
     if (existingItem) {
         existingItem.quantity++;
+        existingItem.esRevista = _esRevista;   // v214
         // IMPORTANTE: Actualizar la info de oferta SIEMPRE
         existingItem.oferta = ofertaConfig;
         existingItem.esOfertaEspecial = esOfertaEspecial;
@@ -5623,6 +5632,7 @@ function addToCart(productId, tipoForzado) {
             esOfertaRelampago: esOfertaRelampago,
             esOfertaUltimas: esOfertaUltimas,
             esPromo: esPromo,
+            esRevista: _esRevista,   // v214
             productRef: product
         });
     }
@@ -5798,6 +5808,16 @@ function renderCartItems() {
             badgeColor = '#1565c0';
             badge = `🍺 -${descPct}%`;
             formula = `<div style="color:#1565c0;font-size:0.7rem;">👉 Jueves Cervecero -${descPct}%</div>`;
+        }
+        // ===== v214 — PRECIO REVISTA (se lee en vivo: si la revista venció, vuelve al precio normal) =====
+        else if (item.esRevista && _rvPrecioVigente(item.id) > 0) {
+            esProductoNormal = false;
+            const prv = _rvPrecioVigente(item.id);
+            precioTotalItem = prv * item.quantity;
+            ahorroItem = precioNormalTotal - precioTotalItem;
+            badgeColor = '#b71c1c';
+            badge = `🎄 revista`;
+            formula = `<div style="color:#b71c1c;font-size:0.7rem;">👉 Precio revista $${prv.toLocaleString('es-AR')} c/u · ${_rvVigencia(false)}</div>`;
         }
         // ===== OFERTAS RELÁMPAGO =====
         else if (item.esOfertaRelampago && item.oferta) {
@@ -6191,6 +6211,12 @@ function sendOrderViaWhatsApp() {
             const descPct = Math.round((1 - item.precioJC / product.price) * 100);
             ofertaInfo = `\n🍺 Jueves Cervecero -${descPct}% · Ahorrás $${ahorro}`;
         }
+        // v214 — PRECIO REVISTA
+        else if (item.esRevista && _rvPrecioVigente(item.id) > 0) {
+            precioItem = _rvPrecioVigente(item.id) * item.quantity;
+            const ahorro = precioNormalItem - precioItem;
+            ofertaInfo = `\n🎄 Precio revista · Ahorrás $${ahorro.toLocaleString('es-AR')} (${_rvVigencia(false)})`;
+        }
         // OFERTA ESPECIAL (-10%)
         else if (item.esOfertaEspecial && item.oferta) {
             const precioUnitario = Math.round(product.price * 0.9);
@@ -6259,7 +6285,7 @@ function sendOrderViaWhatsApp() {
         totalAhorro += (precioParaTotal - precioItem);
 
         // LÍNEA CON FORMATO MEJORADO
-        const nombreLinea = item.esOfertaEspecial || item.esOfertaDestacada || item.esOfertaRelampago || item.esOfertaUltimas || item.esPromo || (item.oferta && item.oferta.tipo === 'multicompra')
+        const nombreLinea = item.esOfertaEspecial || item.esOfertaDestacada || item.esOfertaRelampago || item.esOfertaUltimas || item.esPromo || (item.oferta && item.oferta.tipo === 'multicompra') || (item.esRevista && _rvPrecioVigente(item.id) > 0)
             ? `${item.name} (OFERTA)` 
             : item.name;
             
@@ -8318,7 +8344,8 @@ document.getElementById('raspBtnReveal').addEventListener('click',()=>{
         const n = nombreTienda();
         if (!secs.length) return `🏪 *${n}*\nCatálogo y precios al día. Buscá lo que necesites y pedí por WhatsApp.\n\n📍 Retiro en Copihue 457\n🛒 ${urlTienda()}`;
         const lineas = secs.map(s => `${s.sc.ico} *${s.sc.nom}*` + (s.cierre ? ` · ${s.cierre}` : '') + (s.total ? ` · ${s.total} producto${s.total > 1 ? 's' : ''}` : ''));
-        return `🏪 *${n}* — ofertas de hoy\n\n${lineas.join('\n')}\n\n📍 Retiro en Copihue 457\n🛒 Mirá todo acá: ${urlTienda()}`;
+        const ahora = new Date(), sello = ahora.getDate() + '/' + (ahora.getMonth() + 1) + '/' + ahora.getFullYear() + ' ' + String(ahora.getHours()).padStart(2, '0') + ':' + String(ahora.getMinutes()).padStart(2, '0');
+        return `🏪 *${n}* — ofertas de hoy\n\n${lineas.join('\n')}\n\n🗓 Ofertas del ${sello}, válidas en el horario indicado o hasta agotar stock.\n📍 Retiro en Copihue 457\n🛒 Precios actualizados acá: ${urlTienda()}`;
     }
     function cargarImg(src) { return new Promise(r => { if (!src) return r(null); const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = src; setTimeout(() => r(null), 4000); }); }
     function cortar(ctx, txt, max, lineas) {
@@ -8395,6 +8422,7 @@ document.getElementById('raspBtnReveal').addEventListener('click',()=>{
         c.fillStyle = '#fff'; c.font = '900 36px sans-serif'; c.fillText('📲 Pedí por WhatsApp', P + 28, py + 56);
         c.font = '800 34px sans-serif'; c.textAlign = 'right'; c.fillText('📍 Copihue 457', W - P, py + 40);
         c.font = '600 26px sans-serif'; c.fillStyle = '#c8e6c9'; c.fillText(location.hostname, W - P, py + 78); c.textAlign = 'left';
+        { const a = new Date(); c.fillStyle = '#ffe082'; c.font = '700 24px sans-serif'; c.textAlign = 'center'; c.fillText('🗓 Ofertas del ' + a.getDate() + '/' + (a.getMonth() + 1) + '/' + a.getFullYear() + ' ' + String(a.getHours()).padStart(2, '0') + ':' + String(a.getMinutes()).padStart(2, '0') + ' · válidas en el horario indicado o hasta agotar stock', W / 2, H - 18); c.textAlign = 'left'; }
         return cv;
     }
     window.abrirCompartirOfertas = async function () {
@@ -8474,9 +8502,41 @@ document.getElementById('raspBtnReveal').addEventListener('click',()=>{
 // La planilla manda getOfertas → revista {activa, titulo, items:[{id, texto, destacado}]} (solo con stock).
 // Páginas que se pasan con el dedo (1 producto por página), «Agregar», «Consultar por WhatsApp» y «Compartir revista».
 let _poolRevista = { activa: false, titulo: '', items: [] };
+// v214 — ¿el producto tiene OTRA oferta activa ahora? (mismo criterio que addToCart). Si la tiene, manda esa y no el precio revista.
+function _rvOtraOferta(p) {
+    try {
+        const id = p.id;
+        if (productosEspeciales.some(x => x.id === id) && validarHorario('especiales')) return '🌙 Especial';
+        if (p.destacada > 0 && productosDestacadas.some(x => x.id === id) && validarHorario('destacadas')) return '🔥 Destacada';
+        if (_poolUltimasSeleccion && _poolUltimasSeleccion.some(u => Number(u.id) === id) && validarHorario('ultimas')) return '🏷️ Últimas unidades';
+        if (p.relampago > 0 && productosRelampago.some(x => x.id === id) && validarHorario('relampago')) return '⚡ Relámpago';
+        if (_esPromoOComboActivo(p)) return '🎯 Promo';
+        if ((_poolMulticompra || []).some(m => Number(m.id) === id && Number(m.MULTICOMPRA_CANTIDAD) > 0 && Number(m.MULTICOMPRA_PRECIO) > 0)) return '🛍️ Multicompra';
+    } catch (e) {}
+    return '';
+}
+// v214 — precio revista vigente AHORA para ese producto (0 si no hay, si la revista no está vigente o si tiene otra oferta)
+function _rvPrecioVigente(id) {
+    try {
+        if (!_poolRevista || !_poolRevista.activa || !_poolRevista.conFechas) return 0;
+        const it = (_poolRevista.items || []).find(x => Number(x.id) === Number(id));
+        const p = products.find(x => x.id === Number(id));
+        if (!it || !p || !(it.precioRevista > 0) || it.precioRevista >= p.price) return 0;
+        return _rvOtraOferta(p) ? 0 : Number(it.precioRevista);
+    } catch (e) { return 0; }
+}
+const _RV_DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+function _rvFecha(iso, conDia) { if (!iso) return ''; const [y, m, d] = iso.split('-').map(Number); const f = new Date(y, m - 1, d); return (conDia ? _RV_DIAS[f.getDay()] + ' ' : '') + d + '/' + m; }
+function _rvVigencia(largo) {
+    if (!_poolRevista || !_poolRevista.conFechas || !_poolRevista.desde) return '';
+    const h = _poolRevista.hasta.split('-');
+    return largo ? `Precios válidos del ${_rvFecha(_poolRevista.desde, true)} al ${_rvFecha(_poolRevista.hasta, true)}/${h[0]} o hasta agotar stock`
+                 : `Válido del ${_rvFecha(_poolRevista.desde, true)} al ${_rvFecha(_poolRevista.hasta, true)} o hasta agotar stock`;
+}
+function _rvAhora() { const d = new Date(); return d.getDate() + '/' + (d.getMonth() + 1) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
 function _rvLista() {
     if (!_poolRevista || !_poolRevista.activa) return [];
-    return (_poolRevista.items || []).map(it => { const p = products.find(x => x.id === Number(it.id)); return p && p.stockNumber > 0 ? { ...p, rvTexto: it.texto || '', rvDestacado: !!it.destacado } : null; }).filter(Boolean);
+    return (_poolRevista.items || []).map(it => { const p = products.find(x => x.id === Number(it.id)); return p && p.stockNumber > 0 ? { ...p, rvTexto: it.texto || '', rvDestacado: !!it.destacado, rvPrecio: _rvPrecioVigente(p.id), rvOtra: _rvOtraOferta(p) } : null; }).filter(Boolean);
 }
 function _rvTel() { return (window._EMPRESA && window._EMPRESA.telefono) ? window._EMPRESA.telefono.replace(/\D/g, '') : '5492944907380'; }
 function _rvEsc(t) { return String(t || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -8491,18 +8551,20 @@ function renderizarRevista() {
         cont.classList.remove('cls-oculto');
         document.getElementById('rvTitulo').textContent = '🎄 ' + titulo;
         document.getElementById('rvSub').textContent = 'Ideas para regalar · ' + lista.length + ' producto' + (lista.length > 1 ? 's' : '') + ' con stock';
+        const vg = document.getElementById('rvVig'); if (vg) { const t = _rvVigencia(false); vg.textContent = t ? '🗓 ' + t : ''; vg.style.display = t ? '' : 'none'; }
         const html = lista.map((p, i) => `
             <div class="rv-pag ofertas-product-card" data-i="${i}">
-                ${p.rvDestacado ? '<div class="rv-sello">⭐ Recomendado</div>' : ''}
+                ${p.rvPrecio ? '<div class="rv-sello rv-sello-precio">🎄 Precio revista</div>' : (p.rvDestacado ? '<div class="rv-sello">⭐ Recomendado</div>' : '')}
                 <div class="rv-foto"><img src="${p.image}" loading="lazy" alt="${_rvEsc(p.name)}" onerror="handleImageError(this, '${p.name.replace(/'/g, "\\'")}')"></div>
                 <div class="rv-info">
                     <div class="product-name rv-nombre">${_rvEsc(p.name)}</div>
                     ${p.rvTexto ? `<div class="rv-texto">“${_rvEsc(p.rvTexto)}”</div>` : ''}
-                    <div class="rv-precio">$${Number(p.price).toLocaleString('es-AR')}</div>
+                    ${p.rvPrecio ? `<div class="rv-antes">$${Number(p.price).toLocaleString('es-AR')}</div><div class="rv-precio">$${Number(p.rvPrecio).toLocaleString('es-AR')}</div><div class="rv-ahorro">✅ Ahorrás $${(p.price - p.rvPrecio).toLocaleString('es-AR')}</div>` : `<div class="rv-precio">$${Number(p.price).toLocaleString('es-AR')}</div>`}
+                    ${p.rvOtra ? `<div class="rv-otra">${p.rvOtra}: hoy está en oferta, el precio final lo ves en el carrito</div>` : ''}
                     <div class="rv-stock">${p.stockNumber <= 2 ? '🔥 ¡Últimas ' + p.stockNumber + '!' : '✅ En stock'}</div>
                     <div class="rv-btns">
                         <button class="add-to-cart" data-id="${p.id}" data-tipo="revista" data-testid="add-to-cart-${p.id}">🛒 Agregar</button>
-                        <a class="rv-wa" target="_blank" rel="noopener" href="https://wa.me/${_rvTel()}?text=${encodeURIComponent('Hola! Vi en la ' + titulo + ' de Almacén Copihue: ' + p.name + ' ($' + Number(p.price).toLocaleString('es-AR') + '). ¿Me lo reservás?')}">💬 Consultar</a>
+                        <a class="rv-wa" target="_blank" rel="noopener" href="https://wa.me/${_rvTel()}?text=${encodeURIComponent('Hola! Vi en la ' + titulo + ' de Almacén Copihue: ' + p.name + ' a $' + Number(p.rvPrecio || p.price).toLocaleString('es-AR') + (p.rvPrecio ? ' (precio revista)' : '') + ', visto el ' + _rvAhora() + '. ¿Me lo reservás?')}">💬 Consultar</a>
                     </div>
                 </div>
             </div>`).join('');
@@ -8564,11 +8626,13 @@ async function _rvTapa(lista, titulo) {
         const x = x0 + (k % cols) * (cw + 24), y = 520 + Math.floor(k / cols) * (ch + 24);
         c.fillStyle = '#fff'; c.beginPath(); c.roundRect(x, y, cw, ch, 24); c.fill();
         _rvImgEn(c, await _rvImg(cel[k].image), x + 20, y + 14, cw - 40, 178);
-        c.fillStyle = '#c62828'; c.font = '900 40px sans-serif'; c.fillText('$' + Number(cel[k].price).toLocaleString('es-AR'), x + cw / 2, y + 240);
+        if (cel[k].rvPrecio) { c.fillStyle = '#9e9e9e'; c.font = '700 22px sans-serif'; c.fillText('antes $' + Number(cel[k].price).toLocaleString('es-AR'), x + cw / 2, y + 206); }
+        c.fillStyle = '#c62828'; c.font = '900 40px sans-serif'; c.fillText('$' + Number(cel[k].rvPrecio || cel[k].price).toLocaleString('es-AR') + (cel[k].rvPrecio ? ' 🎄' : ''), x + cw / 2, y + 240);
         c.fillStyle = '#333'; c.font = '700 22px sans-serif'; c.fillText(_rvCortar(c, cel[k].name, cw - 30, 1)[0], x + cw / 2, y + 280);
     }
-    c.fillStyle = '#25d366'; c.beginPath(); c.roundRect(W / 2 - 330, H - 150, 660, 96, 48); c.fill();
-    c.fillStyle = '#fff'; c.font = '900 40px sans-serif'; c.fillText('📲 Pedí por WhatsApp · Copihue 457', W / 2, H - 88);
+    c.fillStyle = '#25d366'; c.beginPath(); c.roundRect(W / 2 - 330, H - 170, 660, 90, 45); c.fill();
+    c.fillStyle = '#fff'; c.font = '900 38px sans-serif'; c.fillText('📲 Pedí por WhatsApp · Copihue 457', W / 2, H - 112);
+    c.fillStyle = '#ffe082'; c.font = '700 28px sans-serif'; c.fillText('🗓 ' + (_rvVigencia(true) || ('Precios del ' + _rvAhora() + ' · sujetos a stock')), W / 2, H - 36);
     c.textAlign = 'left'; return cv;
 }
 async function _rvPagina(p, n, total, titulo) {
@@ -8582,8 +8646,14 @@ async function _rvPagina(p, n, total, titulo) {
     _rvCortar(c, p.name, W - 200, 2).forEach((l, i) => c.fillText(l, W / 2, 800 + i * 56));
     let y = 930;
     if (p.rvTexto) { c.fillStyle = '#6a1b9a'; c.font = 'italic 700 38px sans-serif'; _rvCortar(c, '“' + p.rvTexto + '”', W - 220, 2).forEach((l, i) => c.fillText(l, W / 2, y + i * 46)); y += 100; }
-    c.fillStyle = '#c62828'; c.font = '900 110px sans-serif'; c.fillText('$' + Number(p.price).toLocaleString('es-AR'), W / 2, Math.max(y + 80, 1110));
-    c.fillStyle = '#fff'; c.font = '800 36px sans-serif'; c.fillText('📲 Pedilo por WhatsApp · 📍 Copihue 457', W / 2, H - 60);
+    if (p.rvPrecio) {
+        c.fillStyle = '#9e9e9e'; c.font = '700 48px sans-serif'; const ya = Math.max(y + 30, 1040), ta = '$' + Number(p.price).toLocaleString('es-AR'); c.fillText(ta, W / 2, ya);
+        const tw = c.measureText(ta).width; c.strokeStyle = '#9e9e9e'; c.lineWidth = 4; c.beginPath(); c.moveTo(W / 2 - tw / 2, ya - 16); c.lineTo(W / 2 + tw / 2, ya - 16); c.stroke();
+        c.fillStyle = '#c62828'; c.font = '900 110px sans-serif'; c.fillText('$' + Number(p.rvPrecio).toLocaleString('es-AR'), W / 2, ya + 110);
+        c.fillStyle = '#c62828'; c.beginPath(); c.roundRect(W - 400, 150, 310, 64, 32); c.fill(); c.fillStyle = '#fff'; c.font = '900 30px sans-serif'; c.fillText('🎄 Precio revista', W - 245, 193);
+    } else { c.fillStyle = '#c62828'; c.font = '900 110px sans-serif'; c.fillText('$' + Number(p.price).toLocaleString('es-AR'), W / 2, Math.max(y + 80, 1110)); }
+    c.fillStyle = '#fff'; c.font = '800 34px sans-serif'; c.fillText('📲 Pedilo por WhatsApp · 📍 Copihue 457', W / 2, H - 88);
+    c.fillStyle = '#ffe082'; c.font = '700 26px sans-serif'; c.fillText('🗓 ' + (_rvVigencia(true) || ('Precios del ' + _rvAhora() + ' · sujetos a stock')), W / 2, H - 42);
     c.textAlign = 'left'; return cv;
 }
 window.abrirCompartirRevista = async function () {
@@ -8602,7 +8672,7 @@ window.abrirCompartirRevista = async function () {
             _rvFiles.push(new File([blob], (k ? 'revista-' + k : 'revista-tapa') + '.jpg', { type: 'image/jpeg' }));
         }
         const url = location.origin + '/#revista';
-        _rvTextoWA = `🎄 *${titulo} — Almacén Copihue*\nIdeas para regalar, con stock:\n\n` + lista.slice(0, 8).map(p => `• ${p.name} — *$${Number(p.price).toLocaleString('es-AR')}*`).join('\n') + (lista.length > 8 ? `\n…y ${lista.length - 8} más` : '') + `\n\n📍 Retiro en Copihue 457\n📖 Mirá la revista: ${url}`;
+        _rvTextoWA = `🎄 *${titulo} — Almacén Copihue*\nIdeas para regalar, con stock:\n\n` + lista.slice(0, 8).map(p => p.rvPrecio ? `• ${p.name} — ~$${Number(p.price).toLocaleString('es-AR')}~ *$${Number(p.rvPrecio).toLocaleString('es-AR')}* 🎄` : `• ${p.name} — *$${Number(p.price).toLocaleString('es-AR')}*`).join('\n') + (lista.length > 8 ? `\n…y ${lista.length - 8} más` : '') + `\n\n🗓 ${_rvVigencia(true) || ('Precios del ' + _rvAhora() + ', sujetos a stock')}.\n📍 Retiro en Copihue 457\n📖 Mirá la revista y el precio actualizado: ${url}`;
         btn.disabled = false;
     } catch (e) { console.warn('compartir revista:', e); wrap.innerHTML = '<div style="color:#fff;padding:30px;text-align:center">No se pudo armar la revista. Probá de nuevo.</div>'; }
 };
