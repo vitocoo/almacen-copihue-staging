@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v585</title>
+    <title>🛒 POS · Copihue v586</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3222,14 +3222,31 @@
                 <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:18px;">
                     <button onclick="ajustarPrecio(-100)" style="width:44px;height:44px;border-radius:50%;border:2px solid #ffcdd2;background:#fff8f8;font-size:1.3rem;font-weight:900;cursor:pointer;color:#c62828;touch-action:manipulation;">−</button>
                     <span style="font-size:1.4rem;font-weight:700;color:#555;">$</span>
-                    <input type="number" id="ajustePrecioNuevo" min="0" step="100"
+                    <input type="number" id="ajustePrecioNuevo" min="0" step="100" oninput="try{_ajustePromoPreview()}catch(e){}"
                            style="font-size:2rem;font-weight:900;color:#2e7d32;width:150px;border:2px solid #c8e6c9;border-radius:10px;padding:6px 10px;text-align:center;"
                            inputmode="numeric">
                     <button onclick="ajustarPrecio(100)" style="width:44px;height:44px;border-radius:50%;border:2px solid #c8e6c9;background:#f1f8f1;font-size:1.3rem;font-weight:900;cursor:pointer;color:#2e7d32;touch-action:manipulation;">+</button>
                 </div>
 
+                    <!-- v586 — precio de PROMO / COMBO (columna L) -->
+                    <div id="ajustePromoBox" style="display:none;margin:0 0 12px;padding:12px;border:2px solid #f57c00;border-radius:12px;background:#fff8e1;">
+                        <div style="font-size:0.72rem;font-weight:800;color:#e65100;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;" id="ajustePromoTitulo">🎯 Precio de la promo</div>
+                        <div style="display:flex;gap:10px;align-items:flex-end;">
+                            <div style="flex:1;">
+                                <div style="font-size:0.68rem;color:#888;margin-bottom:4px;">Precio normal (antes)</div>
+                                <div id="ajustePromoNormal" style="font-size:1.05rem;font-weight:700;color:#999;text-decoration:line-through;padding:8px 0;">$0</div>
+                            </div>
+                            <div style="flex:1.3;">
+                                <div style="font-size:0.68rem;color:#888;margin-bottom:4px;">Precio promo (ahora)</div>
+                                <input type="number" id="ajustePromoPrecio" min="0" step="100" placeholder="$" oninput="_ajustePromoPreview()"
+                                       style="width:100%;font-size:1.2rem;font-weight:800;border:2px solid #f57c00;border-radius:10px;padding:8px 10px;box-sizing:border-box;color:#e65100;">
+                            </div>
+                        </div>
+                        <div id="ajustePromoMsg" style="font-size:0.8rem;font-weight:700;margin-top:8px;"></div>
+                        <div style="font-size:0.68rem;color:#999;margin-top:4px;">Vacío = no se cambia · 0 = quitar la promo</div>
+                    </div>
                 <!-- Guardar -->
-                <button onclick="guardarAjuste()" id="ajusteBtn"
+                <button onclick="guardarAjuste()                <button onclick="guardarAjuste()" id="ajusteBtn"
                         style="width:100%;padding:14px;border:none;border-radius:12px;background:#1976d2;color:white;font-size:1rem;font-weight:700;cursor:pointer;margin-bottom:10px;">
                     ✅ Guardar
                 </button>
@@ -11356,6 +11373,43 @@ function seleccionarAjuste(id) {
 
     // v18/09/2026 — editor rápido de 2x1 real: precargar con el valor real actual
     document.getElementById('ajusteOferta2x1').checked = !!p.oferta2x1;
+
+    // v586 — precio promo/combo actual (columna L, llega como p.normal)
+    const _pp = document.getElementById('ajustePromoPrecio');
+    if (_pp) _pp.value = (p.normal && p.normal > 0 && p.normal < p.price) ? p.normal : '';
+    _ajustePromoActualizar();
+}
+
+// v586 — precio de promo / combo (columna L): solo con categoría PROMOS o COMBOS
+function _ajusteEsPromoCat(cat) { cat = String(cat || '').toUpperCase(); return cat === 'PROMOS' || cat === 'COMBOS'; }
+function _ajustePromoActualizar() {
+    const box = document.getElementById('ajustePromoBox'); if (!box || !ajusteProducto) return;
+    const cat = ajusteCategoriaSeleccionada || ajusteProducto.category;
+    const es = _ajusteEsPromoCat(cat);
+    box.style.display = es ? 'block' : 'none';
+    if (!es) return;
+    document.getElementById('ajustePromoTitulo').textContent = String(cat).toUpperCase() === 'COMBOS' ? '📦 Precio del combo' : '🎯 Precio de la promo';
+    _ajustePromoPreview();
+}
+function _ajustePromoValidar() {   // { ok, valor (null = no cambia), msg }
+    const inp = document.getElementById('ajustePromoPrecio');
+    const txt = String(inp ? inp.value : '').trim();
+    if (!ajusteProducto || txt === '') return { ok: true, valor: null, msg: '' };
+    const pp = Math.round(Number(txt));
+    const normal = parseInt(document.getElementById('ajustePrecioNuevo').value) || ajusteProducto.price;
+    const cat = ajusteCategoriaSeleccionada || ajusteProducto.category;
+    if (isNaN(pp) || pp < 0) return { ok: false, valor: null, msg: '⚠️ Precio promo inválido' };
+    if (pp === 0) return { ok: true, valor: 0, msg: '🗑 Se quita la promo (queda a precio normal)' };
+    if (!_ajusteEsPromoCat(cat)) return { ok: false, valor: null, msg: '⚠️ El precio promo es solo para PROMOS o COMBOS' };
+    if (pp >= normal) return { ok: false, valor: null, msg: '⚠️ Tiene que ser MENOR que el precio normal ($' + normal.toLocaleString('es-AR') + ')' };
+    return { ok: true, valor: pp, msg: '✅ Antes $' + normal.toLocaleString('es-AR') + ' → ahora $' + pp.toLocaleString('es-AR') + ' · ahorrás $' + (normal - pp).toLocaleString('es-AR') };
+}
+function _ajustePromoPreview() {
+    if (!ajusteProducto) return;
+    const normal = parseInt(document.getElementById('ajustePrecioNuevo').value) || ajusteProducto.price;
+    const n = document.getElementById('ajustePromoNormal'); if (n) n.textContent = '$' + normal.toLocaleString('es-AR');
+    const v = _ajustePromoValidar(), m = document.getElementById('ajustePromoMsg');
+    if (m) { m.textContent = v.msg; m.style.color = v.ok ? (v.valor === 0 ? '#c62828' : '#2e7d32') : '#c62828'; }
 }
 
 function _ajusteToggleMcCampos() {
@@ -11370,6 +11424,7 @@ function selAjusteCategoria(cat) {
     if (_ajusteCatBtnActivo) _ajusteCatBtnActivo.classList.remove('activo');
     const btn = document.getElementById('ajCatBtn_' + cat.replace(/\s/g,'_'));
     if (btn) { btn.classList.add('activo'); _ajusteCatBtnActivo = btn; }
+    try { _ajustePromoActualizar(); } catch (e) {}   // v586
 }
 
 function cambiarAjuste(delta) {
@@ -11381,10 +11436,16 @@ function ajustarPrecio(delta) {
     const input = document.getElementById('ajustePrecioNuevo');
     const actual = parseInt(input.value) || 0;
     input.value = Math.max(0, actual + delta);
+    try { _ajustePromoPreview(); } catch (e) {}   // v586
 }
 
 async function guardarAjuste() {
     if (!ajusteProducto) return;
+    // v586 — precio promo/combo: si no es válido, no se guarda nada
+    const _pv = _ajustePromoValidar();
+    if (!_pv.ok) { mostrarToast(_pv.msg, 'rojo'); _ajustePromoActualizar(); return; }
+    const _catFinal = ajusteCategoriaSeleccionada || ajusteProducto.category;
+    const _precioPromo = (_pv.valor !== null && (_ajusteEsPromoCat(_catFinal) || _pv.valor === 0) && _pv.valor !== (ajusteProducto.normal || 0)) ? _pv.valor : null;
     const btn = document.getElementById('ajusteBtn');
     btn.disabled = true;
     btn.textContent = '⏳ Guardando...';
@@ -11410,6 +11471,7 @@ async function guardarAjuste() {
             mcPrecio: mcPrecioNueva,
             oferta2x1: oferta2x1Nueva
         };
+        if (_precioPromo !== null) datos.precioPromo = _precioPromo;   // v586 — columna L (solo si cambió)
         const url = API_URL + '?action=ajusteRapido&data=' + encodeURIComponent(JSON.stringify(datos));
         const resp = await _apiFetchUrl('registrarMovimientoCaja', url);
         if (resp.success) {
@@ -11433,6 +11495,10 @@ async function guardarAjuste() {
                 mostrarToast('✅ Producto actualizado', 'verde');
             } else {
                 mostrarToast('✅ Stock ajustado a ' + ajusteValor, 'verde');
+            }
+            if (_precioPromo !== null) {   // v586
+                ajusteProducto.normal = _precioPromo;
+                mostrarToast(_precioPromo > 0 ? '✅ ' + (String(_catFinal).toUpperCase() === 'COMBOS' ? 'Combo' : 'Promo') + ' a $' + _precioPromo.toLocaleString('es-AR') : '🗑 Promo quitada', 'verde');
             }
             try { lcTrasAjuste(_nombreAntesLC, ajusteProducto); } catch (_eLC) {}   // v551
             cerrarAjuste();
