@@ -2383,6 +2383,10 @@ body.vista-inicio .info-bar{margin-top:18px;font-size:.85rem;opacity:.9}
 #barraSeccion button{border:none;background:#2e7d32;color:#fff;font-weight:800;font-size:.95rem;padding:10px 16px;border-radius:12px;cursor:pointer;font-family:inherit}
 #barraTitulo{font-weight:900;color:#1b5e20;font-size:1rem}
 .vm-oculto{display:none!important}
+/* v203 — 🏠 flotante (abajo a la derecha, a mano del pulgar): siempre dentro de una sección → vuelve a la portada; en la portada se esconde (salvo buscando) */
+body.vista-seccion #floatingHome{display:flex!important}
+body.vista-inicio #floatingHome{display:none!important}
+body.vista-inicio.pt-buscando #floatingHome{display:flex!important}
 .vm-caja{grid-column:1/-1;text-align:center;margin:14px 0 6px}
 .vm-caja button{border:2px solid #2e7d32;background:#fff;color:#2e7d32;font-weight:800;font-size:.95rem;padding:11px 22px;border-radius:14px;cursor:pointer;font-family:inherit}
 .vm-tope{font-size:.85rem;color:#555}
@@ -2906,7 +2910,7 @@ body.vista-inicio .info-bar{margin-top:18px;font-size:.85rem;opacity:.9}
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v202';
+const APP_VERSION = 'copihue-index-v203';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -6643,7 +6647,8 @@ function closeSearchModal() {
 
 // ========== BOTÓN HOME ==========
 function goToHome() {
-    try { _ptMostrarPortada(); } catch (e) {}   // v202
+    try { const pb = document.getElementById('pBuscar'); if (pb && pb.value) { pb.value = ''; pb.dispatchEvent(new Event('input')); } } catch (e) {}   // v203: también limpia la búsqueda de la portada
+    try { if (history.state && history.state.ptSeccion) { history.back(); } else { _ptMostrarPortada(); } } catch (e) { try { _ptMostrarPortada(); } catch (e2) {} }   // v203: igual que «Volver» (no deja pasos de más en el historial)
     // Restaurar categoría inicial
     currentCategory = "ALMACEN";
     
@@ -7588,6 +7593,7 @@ function buscar() {
     const inp = document.getElementById('pBuscar'), res = document.getElementById('pResultados'), tar = document.getElementById('pTarjetas'), x = document.getElementById('pBuscarX');
     const q = (inp.value || '').trim();
     x.style.display = q ? 'block' : 'none';
+    document.body.classList.toggle('pt-buscando', q.length >= 2);   // v203
     if (q.length < 2) { res.innerHTML = ''; tar.style.display = ''; return; }
     const r = _ibBuscar(q, 40);
     tar.style.display = 'none';
