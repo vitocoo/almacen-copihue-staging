@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimizador Inteligente - Almacén Copihue</title>
+    <style>
+        :root {
+            --primary: #2e7d32;
+            --primary-dark: #1b5e20;
+            --primary-light: #4caf50;
+            --secondary: #ff6f00;
+            --light: #f8fff8;
+            --dark: #1b5e20;
+            --white: #ffffff;
+            --shadow: 0 4px 15px rgba(46,125,50,0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f8fff8 0%, #e8f5e9 100%);
+            color: var(--dark);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--white);
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: var(--white);
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 2rem;
+        }
+        
+        .upload-section {
+            border: 3px dashed #c8e6c9;
+            border-radius: 15px;
+            padding: 3rem 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            background: var(--light);
+            transition: all 0.3s;
+        }
+        
+        .upload-section.dragover {
+            border-color: var(--primary);
+            background: #e8f5e9;
+        }
+        
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+        
+        .upload-btn {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin: 1rem 0;
+            transition: all 0.3s;
+        }
+        
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(46,125,50,0.3);
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .settings-panel {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+        
+        .setting-group {
+            margin-bottom: 1rem;
+        }
+        
+        .setting-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .slider {
+            flex: 1;
+            height: 6px;
+            background: #ddd;
+            border-radius: 3px;
+            outline: none;
+        }
+        
+        .slider-value {
+            min-width: 60px;
+            text-align: center;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .preview-section {
+            display: none;
+            margin-bottom: 2rem;
+        }
+        
+        .preview-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .preview-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+        
+        .preview-card h3 {
+            margin-bottom: 1rem;
+            color: var(--dark);
+            border-bottom: 2px solid var(--primary-light);
+            padding-bottom: 0.5rem;
+        }
+        
+        .image-container {
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .image-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .image-info {
+            font-size: 0.9rem;
+            color: var(--dark);
+        }
+        
+        .image-info div {
+            margin-bottom: 0.3rem;
+        }
+        
+        .savings {
+            color: var(--primary);
+            font-weight: bold;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .action-btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .optimize-btn {
+            background: linear-gradient(135deg, var(--secondary), #f57c00);
+            color: white;
+        }
+        
+        .download-btn {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .progress-section {
+            display: none;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .results-section {
+            display: none;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .result-card {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: var(--shadow);
+            border: 2px solid #e8f5e9;
+        }
+        
+        .result-card img {
+            max-width: 100%;
+            height: 80px;
+            object-fit: contain;
+            margin-bottom: 0.5rem;
+        }
+        
+        .result-info {
+            font-size: 0.8rem;
+        }
+        
+        .download-all-btn {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: bold;
+            display: block;
+            margin: 0 auto;
+            transition: all 0.3s;
+        }
+        
+        .download-all-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(46,125,50,0.3);
+        }
+        
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .feature-card {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+            border-left: 4px solid var(--primary);
+        }
+        
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+        
+        @media (max-width: 768px) {
+            .preview-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🖼️ Optimizador Inteligente</h1>
+            <p>Optimiza tus fotos para web automáticamente - Rápido, Simple y Eficiente</p>
+        </div>
+        
+        <div class="content">
+            <!-- Sección de Subida -->
+            <div class="upload-section" id="uploadSection">
+                <div class="upload-icon">📤</div>
+                <h2>Sube tus imágenes aquí</h2>
+                <p>Arrastra y suelta tus fotos o haz clic para seleccionar</p>
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    Seleccionar Imágenes
+                </button>
+                <input type="file" id="fileInput" class="file-input" multiple accept="image/*">
+                <p class="file-info">Formatos soportados: JPG, PNG, GIF, WebP</p>
+            </div>
+            
+            <!-- Panel de Configuración -->
+            <div class="settings-panel" id="settingsPanel" style="display: none;">
+                <h3>⚙️ Configuración de Optimización</h3>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Calidad de Compresión</label>
+                    <div class="slider-container">
+                        <input type="range" min="50" max="100" value="80" class="slider" id="qualitySlider">
+                        <span class="slider-value" id="qualityValue">80%</span>
+                    </div>
+                    <small>Mayor calidad = Archivo más grande | Menor calidad = Archivo más pequeño</small>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Ancho Máximo (px)</label>
+                    <div class="slider-container">
+                        <input type="range" min="400" max="2000" value="1200" class="slider" id="widthSlider">
+                        <span class="slider-value" id="widthValue">1200px</span>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="convertJpg" checked>
+                        <label class="setting-label">Convertir PNG a JPG automáticamente</label>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="keepMetadata" checked>
+                        <label class="setting-label">Mantener metadatos de la imagen</label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Vista Previa -->
+            <div class="preview-section" id="previewSection">
+                <h3>👁️ Vista Previa</h3>
+                <div class="preview-grid" id="previewGrid">
+                    <!-- Se llena dinámicamente -->
+                </div>
+                <div class="actions">
+                    <button class="action-btn optimize-btn" onclick="optimizeImages()">
+                        🚀 Optimizar Todas las Imágenes
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Progreso -->
+            <div class="progress-section" id="progressSection">
+                <h3>⏳ Optimizando...</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <p id="progressText">Procesando imagen 1 de 5...</p>
+            </div>
+            
+            <!-- Resultados -->
+            <div class="results-section" id="resultsSection">
+                <h3>✅ Optimización Completada</h3>
+                <div class="results-grid" id="resultsGrid">
+                    <!-- Se llena dinámicamente -->
+                </div>
+                <button class="download-all-btn" onclick="downloadAllImages()">
+                    📥 Descargar Todas las Imágenes Optimizadas
+                </button>
+            </div>
+            
+            <!-- Características -->
+            <div class="feature-list">
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h4>Rápido</h4>
+                    <p>Optimiza múltiples imágenes simultáneamente</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h4>Inteligente</h4>
+                    <p>Conversión automática PNG→JPG cuando conviene</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💾</div>
+                    <h4>Eficiente</h4>
+                    <p>Reduce el tamaño sin perder calidad visible</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h4>Privado</h4>
+                    <p>Tus imágenes no se suben a ningún servidor</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let originalImages = [];
+        let optimizedImages = [];
+        
+        // Elementos del DOM
+        const uploadSection = document.getElementById('uploadSection');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const previewSection = document.getElementById('previewSection');
+        const progressSection = document.getElementById('progressSection');
+        const resultsSection = document.getElementById('resultsSection');
+        const fileInput = document.getElementById('fileInput');
+        
+        // Configurar event listeners
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        // Configurar drag and drop
+        uploadSection.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+        
+        uploadSection.addEventListener('dragleave', function() {
+            uploadSection.classList.remove('dragover');
+        });
+        
+        uploadSection.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        
+        // Configurar sliders
+        document.getElementById('qualitySlider').addEventListener('input', function() {
+            document.getElementById('qualityValue').textContent = this.value + '%';
+        });
+        
+        document.getElementById('widthSlider').addEventListener('input', function() {
+            document.getElementById('widthValue').textContent = this.value + 'px';
+        });
+        
+        // Manejar selección de archivos
+        function handleFileSelect(e) {
+            handleFiles(e.target.files);
+        }
+        
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            
+            originalImages = [];
+            optimizedImages = [];
+            
+            Array.from(files).forEach(file => {
+                if (!file.type.startsWith('image/')) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    originalImages.push({
+                        name: file.name,
+                        type: file.type,
+                        size: file.size,
+                        dataUrl: e.target.result
+                    });
+                    
+                    // Cuando todas las imágenes estén cargadas
+                    if (originalImages.length === Array.from(files).filter(f => f.type.startsWith('image/')).length) {
+                        showPreview();
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        // Mostrar vista previa
+        function showPreview() {
+            settingsPanel.style.display = 'block';
+            previewSection.style.display = 'block';
+            resultsSection.style.display = 'none';
+            
+            const previewGrid = document.getElementById('previewGrid');
+            previewGrid.innerHTML = '';
+            
+            originalImages.forEach((img, index) => {
+                const previewCard = document.createElement('div');
+                previewCard.className = 'preview-card';
+                
+                previewCard.innerHTML = `
+                    <h3>${img.name}</h3>
+                    <div class="image-container">
+                        <img src="${img.dataUrl}" alt="${img.name}">
+                    </div>
+                    <div class="image-info">
+                        <div><strong>Tamaño original:</strong> ${formatFileSize(img.size)}</div>
+                        <div><strong>Tipo:</strong> ${img.type}</div>
+                    </div>
+                `;
+                
+                previewGrid.appendChild(previewCard);
+            });
+        }
+        
+        // Optimizar imágenes
+        function optimizeImages() {
+            const quality = parseInt(document.getElementById('qualitySlider').value) / 100;
+            const maxWidth = parseInt(document.getElementById('widthSlider').value);
+            const convertToJpg = document.getElementById('convertJpg').checked;
+            
+            previewSection.style.display = 'none';
+            progressSection.style.display = 'block';
+            
+            optimizedImages = [];
+            let processed = 0;
+            
+            originalImages.forEach((img, index) => {
+                setTimeout(() => {
+                    optimizeSingleImage(img, quality, maxWidth, convertToJpg).then(optimized => {
+                        optimizedImages.push(optimized);
+                        processed++;
+                        
+                        // Actualizar progreso
+                        const progress = (processed / originalImages.length) * 100;
+                        document.getElementById('progressFill').style.width = progress + '%';
+                        document.getElementById('progressText').textContent = 
+                            `Procesando imagen ${processed} de ${originalImages.length}...`;
+                        
+                        // Cuando terminen todas
+                        if (processed === originalImages.length) {
+                            showResults();
+                        }
+                    });
+                }, index * 100); // Pequeño delay para no bloquear el UI
+            });
+        }
+        
+        // Optimizar una sola imagen
+        function optimizeSingleImage(img, quality, maxWidth, convertToJpg) {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const image = new Image();
+                
+                image.onload = function() {
+                    // Calcular nuevas dimensiones manteniendo proporción
+                    let width = image.width;
+                    let height = image.height;
+                    
+                    if (width > maxWidth) {
+                        height = (height * maxWidth) / width;
+                        width = maxWidth;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    // Dibujar imagen optimizada
+                    ctx.drawImage(image, 0, 0, width, height);
+                    
+                    // Determinar formato de salida
+                    let outputType = 'image/jpeg';
+                    let outputExtension = 'jpg';
+                    
+                    // Si es PNG y no queremos convertir, mantener PNG
+                    if (img.type === 'image/png' && !convertToJpg) {
+                        outputType = 'image/png';
+                        outputExtension = 'png';
+                    }
+                    
+                    // Convertir a data URL
+                    const optimizedDataUrl = canvas.toDataURL(outputType, quality);
+                    
+                    // Calcular tamaño aproximado
+                    const sizeEstimate = Math.round((optimizedDataUrl.length * 3) / 4);
+                    
+                    resolve({
+                        name: img.name.replace(/\.[^/.]+$/, '') + '_optimized.' + outputExtension,
+                        type: outputType,
+                        size: sizeEstimate,
+                        dataUrl: optimizedDataUrl,
+                        originalSize: img.size,
+                        savings: Math.round((1 - sizeEstimate / img.size) * 100)
+                    });
+                };
+                
+                image.src = img.dataUrl;
+            });
+        }
+        
+        // Mostrar resultados
+        function showResults() {
+            progressSection.style.display = 'none';
+            resultsSection.style.display = 'block';
+            
+            const resultsGrid = document.getElementById('resultsGrid');
+            resultsGrid.innerHTML = '';
+            
+            let totalOriginalSize = 0;
+            let totalOptimizedSize = 0;
+            
+            optimizedImages.forEach(img => {
+                totalOriginalSize += img.originalSize;
+                totalOptimizedSize += img.size;
+                
+                const resultCard = document.createElement('div');
+                resultCard.className = 'result-card';
+                
+                resultCard.innerHTML = `
+                    <img src="${img.dataUrl}" alt="${img.name}">
+                    <div class="result-info">
+                        <div><strong>${img.name}</strong></div>
+                        <div class="savings">${img.savings}% más pequeño</div>
+                        <div>${formatFileSize(img.originalSize)} → ${formatFileSize(img.size)}</div>
+                    </div>
+                `;
+                
+                resultsGrid.appendChild(resultCard);
+            });
+            
+            const totalSavings = Math.round((1 - totalOptimizedSize / totalOriginalSize) * 100);
+            
+            // Agregar resumen general
+            const summaryCard = document.createElement('div');
+            summaryCard.className = 'result-card';
+            summaryCard.style.gridColumn = '1 / -1';
+            summaryCard.style.background = 'linear-gradient(135deg, #e8f5e9, #c8e6c9)';
+            
+            summaryCard.innerHTML = `
+                <h3>🎉 ¡Optimización Completada!</h3>
+                <div class="result-info">
+                    <div><strong>Total original:</strong> ${formatFileSize(totalOriginalSize)}</div>
+                    <div><strong>Total optimizado:</strong> ${formatFileSize(totalOptimizedSize)}</div>
+                    <div class="savings" style="font-size: 1.2em;"><strong>Ahorro total: ${totalSavings}%</strong></div>
+                </div>
+            `;
+            
+            resultsGrid.appendChild(summaryCard);
+        }
+        
+        // Descargar todas las imágenes
+        function downloadAllImages() {
+            optimizedImages.forEach(img => {
+                const link = document.createElement('a');
+                link.href = img.dataUrl;
+                link.download = img.name;
+                link.click();
+            });
+        }
+        
+        // Formatear tamaño de archivo
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,3760 @@
+<!DOCTYPE html>
+<!-- 010226_1245_PRECIO_ANTES_AHORA_FINAL -->
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Almacén Copihue - Productos de calidad con la confianza de siempre</title>
+    
+    <!-- META TAGS PARA PWA -->
+    <meta name="theme-color" content="#2e7d32">
+    <meta name="description" content="Almacén Copihue - Ofertas relámpago y productos de calidad">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Almacén Copihue">
+    
+<!-- META TAGS PARA WHATSAPP / REDES SOCIALES -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Almacén Copihue">
+<meta property="og:title" content="Almacén Copihue">
+<meta property="og:description" content="Ofertas en diferentes horarios: 10%, 15%, 20%, 2x1, 3x2 y más. ¡Aprovechá!">
+<meta property="og:image" content="https://almacen-copihue.vercel.app/kiosco-frente.jpg">
+<meta property="og:image:width" content="1080">
+<meta property="og:image:height" content="1920">
+<meta property="og:url" content="https://almacen-copihue.vercel.app">
+<meta property="og:locale" content="es_AR">
+
+    
+    <!-- SISTEMA ANTI-CACHE -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <!-- ICONOS -->
+    <link rel="icon" href="iconos-pwa/android/android-launchericon-48-48.png" type="image/png">
+    <link rel="apple-touch-icon" href="iconos-pwa/ios/180.png">
+    <link rel="manifest" href="manifest.json">
+
+    <style>
+        :root {
+            --primary: #2e7d32;
+            --primary-dark: #1b5e20;
+            --primary-light: #4caf50;
+            --secondary: #ff6f00;
+            --secondary-dark: #f57c00;
+            --accent: #ffeb3b;
+            --light: #f8fff8;
+            --dark: #1b5e20;
+            --gray: #757575;
+            --white: #ffffff;
+            --card-bg: #ffffff;
+            --shadow: 0 4px 15px rgba(46,125,50,0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--light);
+            color: var(--dark);
+            line-height: 1.6;
+            background-image: linear-gradient(135deg, #f8fff8 0%, #e8f5e9 100%);
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: var(--white);
+            padding: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+        }
+
+        .admin-badge {
+            background: var(--secondary);
+            color: white;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            margin-left: 0.5rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .cart-icon {
+            position: relative;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 50%;
+            transition: background 0.3s;
+        }
+        
+        .cart-icon:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .cart-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: var(--secondary);
+            color: white;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        /* Botón compartir discreto */
+        .share-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 255, 255, 0.7);
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 10;
+            font-size: 0.9rem;
+            backdrop-filter: blur(5px);
+        }
+        
+        /* Desktop: hover para mostrar */
+        .product-card:hover .share-btn,
+        .promo-card:hover .share-btn,
+        .ofertas-product-card:hover .share-btn {
+            opacity: 0.6;
+        }
+        
+        /* Móvil: sutilmente visible siempre */
+        @media (max-width: 768px) {
+            .share-btn {
+                opacity: 0.7;
+                background: rgba(255, 255, 255, 0.9);
+            }
+        }
+        
+        .share-btn:hover {
+            opacity: 1 !important;
+            background: rgba(255, 255, 255, 0.95);
+            transform: scale(1.1);
+        }
+        
+        .share-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* Badge ANTES/AHORA para PROMOS */
+        .price-badge-promo {
+            background: linear-gradient(135deg, #FF5722, #FF9800);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(255, 87, 34, 0.4);
+            font-weight: bold;
+            font-size: 1rem;
+            line-height: 1.4;
+            text-align: center;
+            margin: 10px 15px;
+            border: 2px solid #FFEB3B;
+        }
+        .price-badge-promo .antes {
+            font-size: 0.85rem;
+            text-decoration: line-through;
+            opacity: 0.9;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .price-badge-promo .ahora {
+            font-size: 1.2rem;
+            display: block;
+            font-weight: 900;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .price-badge-promo .ahorro {
+            font-size: 0.8rem;
+            display: block;
+            margin-top: 5px;
+            background: rgba(255, 235, 59, 0.3);
+            padding: 3px 8px;
+            border-radius: 8px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        
+        .hero {
+            background: linear-gradient(135deg, rgba(46,125,50,0.9), rgba(76,175,80,0.8));
+            color: white;
+            padding: 3rem 1rem;
+            text-align: center;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+        }
+        
+        .hero h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .hero p {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            opacity: 0.9;
+        }
+        
+        .info-bar {
+            background-color: var(--white);
+            padding: 1.2rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            text-align: center;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .info-item {
+            margin: 0.5rem;
+            font-weight: 500;
+        }
+
+        /* ========== CONTENEDOR GENÉRICO OFERTAS ========== */
+        .ofertas-container {
+            display: none;
+            margin-bottom: 2rem;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+            border: 3px solid;
+            position: relative;
+        }
+
+        .ofertas-container.relampago {
+            border-color: #ff3d00;
+            background: linear-gradient(135deg, #fff8e1, #ffecb3);
+        }
+
+        .ofertas-container.destacadas {
+            border-color: #ff6f00;
+            background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+        }
+
+        .ofertas-container.especiales {
+            border-color: #2196f3;
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+        }
+
+        .ofertas-header {
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .ofertas-container.relampago .ofertas-header {
+            background: linear-gradient(135deg, #ff3d00, #d50000);
+        }
+
+        .ofertas-container.destacadas .ofertas-header {
+            background: linear-gradient(135deg, #ff6f00, #f57c00);
+        }
+
+        .ofertas-container.especiales .ofertas-header {
+            background: linear-gradient(135deg, #2196f3, #1976d2);
+        }
+
+        .ofertas-header h2 {
+            font-size: 1.4rem;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .ofertas-badge {
+            background: #ffff00;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            animation: flash 1.5s infinite;
+        }
+
+        .ofertas-container.relampago .ofertas-badge {
+            color: #d50000;
+        }
+
+        .ofertas-container.destacadas .ofertas-badge {
+            color: #ff6f00;
+        }
+
+        .ofertas-container.especiales .ofertas-badge {
+            color: #1976d2;
+        }
+
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .ofertas-timer {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 15px;
+            border-radius: 25px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        .ofertas-products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            padding: 1.5rem;
+            background: white;
+        }
+
+        .ofertas-product-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 2px solid;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .ofertas-container.relampago .ofertas-product-card {
+            border-color: #ffccbc;
+        }
+
+        .ofertas-container.destacadas .ofertas-product-card {
+            border-color: #ffe0b2;
+        }
+
+        .ofertas-container.especiales .ofertas-product-card {
+            border-color: #bbdefb;
+        }
+
+        .ofertas-product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .ofertas-exclusive-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            z-index: 10;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .ofertas-container.relampago .ofertas-exclusive-badge {
+            background: linear-gradient(135deg, #ff3d00, #ff6d00);
+        }
+
+        .ofertas-container.destacadas .ofertas-exclusive-badge {
+            background: linear-gradient(135deg, #ff6f00, #f57c00);
+        }
+
+        .ofertas-container.especiales .ofertas-exclusive-badge {
+            background: linear-gradient(135deg, #2196f3, #1976d2);
+        }
+
+        .ofertas-stock-warning {
+            background: #ffecb3;
+            color: #ff6f00;
+            padding: 0.8rem;
+            border-radius: 8px;
+            margin: 1rem 1.5rem;
+            text-align: center;
+            font-size: 0.9rem;
+            border-left: 4px solid #ff9800;
+        }
+
+        .search-container {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #e8f5e9;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            position: relative;
+        }
+        
+        .search-wrapper {
+            position: relative;
+            width: 100%;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 14px 50px 14px 20px;
+            border: 2px solid var(--primary);
+            border-radius: 25px;
+            font-size: 1rem;
+            background: white;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(46,125,50,0.1);
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-dark);
+            box-shadow: 0 0 0 3px rgba(46,125,50,0.2);
+        }
+        
+        .clear-search {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: var(--gray);
+            transition: color 0.3s;
+            padding: 5px;
+            z-index: 2;
+            display: none;
+        }
+        
+        .clear-search:hover {
+            color: var(--primary);
+        }
+        
+        .search-results {
+            text-align: center;
+            padding: 12px;
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            border-left: 4px solid #2196f3;
+        }
+
+        .categories {
+            display: flex;
+            overflow-x: auto;
+            gap: 0.6rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: #0288D1 #e8f5e9;
+        }
+
+        .categories::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .categories::-webkit-scrollbar-track {
+            background: #e8f5e9;
+            border-radius: 10px;
+        }
+
+        .categories::-webkit-scrollbar-thumb {
+            background: #0288D1;
+            border-radius: 10px;
+        }
+
+        .category-btn {
+            background: #FF9800;
+            border: 2px solid #F57C00;
+            color: #FFFFFF;
+            box-shadow: 0 2px 6px rgba(245, 124, 0, 0.3);
+            font-weight: 600;
+            padding: 0.8rem 1rem;
+            border-radius: 25px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.25s ease;
+            position: relative;
+            user-select: none;
+            min-width: max-content;
+            flex-shrink: 0;
+            font-size: 0.85rem;
+        }
+
+        .category-btn.active {
+            background: #F57C00;
+            border-color: #FF9800;
+            color: #FFFFFF;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+            transform: translateY(-1px);
+        }
+
+        @media (hover: hover) {
+            .category-btn:hover:not(.active) {
+                background: #FB8C00;
+                border-color: #EF6C00;
+                transform: translateY(-1px);
+                box-shadow: 0 3px 8px rgba(239, 108, 0, 0.35);
+            }
+            .category-btn.active:hover {
+                background: #EF6C00;
+                border-color: #FFB74D;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .categories {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.8rem;
+                margin-bottom: 2rem;
+                justify-content: flex-start;
+            }
+
+/* ========== ANIMACIÓN PARA BOTÓN CATEGORÍA PROMO ========== */
+@keyframes categoriaPromoPulse {
+    0%, 100% {
+        background: linear-gradient(135deg, #FFC107, #FF9800);
+        box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
+        transform: scale(1);
+    }
+    50% {
+        background: linear-gradient(135deg, #FF5722, #FF9800);
+        box-shadow: 0 6px 20px rgba(255, 87, 34, 0.6);
+        transform: scale(1.05);
+    }
+}
+
+/* Aplicar animación SOLO al botón de categoría PROMOS cuando hay stock */
+.category-btn[data-category="PROMOS"].promo-activa {
+    animation: categoriaPromoPulse 2s infinite;
+    border: 2px solid #FF5722 !important;
+    color: white !important;
+    font-weight: bold !important;
+}
+
+/* Cuando está activo (seleccionado) */
+.category-btn[data-category="PROMOS"].active.promo-activa {
+    animation: categoriaPromoPulse 1.5s infinite;
+    background: linear-gradient(135deg, #FF5722, #FF9800) !important;
+    border: 2px solid #FFC107 !important;
+}
+
+/* Efecto hover extra para el botón de promo */
+.category-btn[data-category="PROMOS"]:hover:not(.active) {
+    background: linear-gradient(135deg, #FFD54F, #FFB300) !important;
+    border-color: #FF9800 !important;
+    transform: translateY(-2px);
+}
+
+ /* ========== PROMOS - TAMAÑO GIGANTE CON ANIMACIÓN ========== */
+.product-card.promo-card {
+    transform: scale(1);
+    transition: all 0.4s ease;
+    position: relative;
+    z-index: 5;
+    border: 2px solid #FFC107;
+    background: linear-gradient(135deg, #FFF8E1, #FFECB3);
+}
+
+/* Desktop: 30% más grande */
+@media (min-width: 768px) {
+    .product-card.promo-card {
+        transform: scale(1.3);
+        margin: 0 auto 2rem auto;
+        width: 90%;
+        max-width: 400px;
+        grid-column: span 2;
+    }
+    
+    .product-card.promo-card:hover {
+        transform: scale(1.35) translateY(-10px);
+        box-shadow: 0 15px 40px rgba(255, 152, 0, 0.3);
+    }
+}
+
+/* Móvil: CASI PANTALLA COMPLETA */
+@media (max-width: 767px) {
+    .product-card.promo-card {
+        transform: scale(1);
+        width: 95%;
+        margin: 1rem auto;
+        grid-column: 1 / -1; /* Ocupa TODAS las columnas */
+    }
+    
+    .products-grid .promo-card {
+        order: -1; /* Lo pone PRIMERO */
+    }
+    
+    .promo-card .product-image {
+        height: 250px !important;
+        background: linear-gradient(135deg, #FFECB3, #FFE082) !important;
+    }
+    
+    .promo-card .product-name {
+        font-size: 1.3rem !important;
+        min-height: auto;
+        font-weight: bold;
+        color: #333;
+        text-align: center;
+        padding: 0.5rem;
+    }
+    
+    .promo-card .product-price {
+        font-size: 1.6rem !important;
+        color: #FF5722;
+        font-weight: bold;
+        text-align: center;
+        display: block;
+        margin: 0.5rem 0;
+    }
+    
+    .promo-card .add-to-cart {
+        font-size: 1.1rem !important;
+        padding: 1rem !important;
+        background: linear-gradient(135deg, #FF9800, #F57C00) !important;
+        font-weight: bold;
+        border: none;
+        margin-top: 0.5rem;
+    }
+    
+    .promo-card .product-stock {
+        font-size: 1rem !important;
+        text-align: center;
+        font-weight: bold;
+        padding: 0.5rem;
+        border-radius: 8px;
+        margin: 0.5rem 0;
+    }
+}
+
+#productsGrid .product-card.promo-card {
+    margin-bottom: 50px;
+}
+
+#productsGrid .product-card.promo-card .product-info {
+    padding-top: 20px;
+}
+
+/* FOTOS MÁS GRANDES EN CATEGORÍA PROMOS */
+#productsGrid .product-card.promo-card .product-image {
+    height: 300px !important;
+}
+
+#productsGrid .product-card.promo-card .product-image img {
+    max-height: 260px !important;
+    max-width: 95% !important;
+}
+
+/* OPCIONAL: Si quieres que sean a pantalla completa en móvil */
+@media (max-width: 767px) {
+    #productsGrid .product-card.promo-card .product-image {
+        height: 320px !important;
+    }
+    
+    #productsGrid .product-card.promo-card .product-image img {
+        max-height: 280px !important;
+        max-width: 90% !important;
+    }
+}
+
+
+
+.promo-card.active .product-image {
+    background: linear-gradient(135deg, #FFECB3, #FFE082) !important;
+}
+
+.promo-card.active .add-to-cart {
+    background: linear-gradient(135deg, #FF5722, #FF9800) !important;
+    font-weight: bold;
+    animation: pulse 1.5s infinite;
+}
+
+/* PROMO AGOTADA */
+.promo-card.out-of-stock {
+    opacity: 0.7;
+    filter: grayscale(0.8);
+    border-color: #ccc !important;
+    background: linear-gradient(135deg, #f5f5f5, #e0e0e0) !important;
+}
+
+.promo-card.out-of-stock .product-image {
+    background: linear-gradient(135deg, #e0e0e0, #bdbdbd) !important;
+}
+
+.promo-card.out-of-stock .add-to-cart {
+    background: #9e9e9e !important;
+    cursor: not-allowed;
+}
+
+        
+        .category-btn {
+                padding: 0.8rem 1.5rem;
+                font-size: 0.9rem;
+                min-width: auto;
+            }
+        }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (min-width: 1200px) {
+            .products-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (min-width: 768px) and (max-width: 1199px) {
+            .products-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 767px) {
+            .products-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .cart-icon {
+                display: none;
+            }
+            
+            .search-container {
+                display: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .products-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .product-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            border: 1px solid #e8f5e9;
+            position: relative;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 8px 25px rgba(46,125,50,0.15);
+        }
+        
+        .product-image {
+            height: 160px;
+            background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0.8rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .product-image img {
+            max-width: 100%;
+            max-height: 130px;
+            object-fit: contain;
+            transition: transform 0.3s ease;
+        }
+        
+        .product-card:hover .product-image img {
+            transform: scale(1.05);
+        }
+        
+        .product-info {
+            padding: 1rem;
+        }
+        
+        .product-name {
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+            font-size: 0.9rem;
+            color: var(--dark);
+            line-height: 1.3;
+            min-height: 2.6rem;
+        }
+        
+        .product-price-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .original-price {
+            color: var(--gray);
+            text-decoration: line-through;
+            font-size: 0.9rem;
+        }
+        
+        .product-price {
+            color: var(--secondary);
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        
+        .discount-percent {
+            background: #ffeb3b;
+            color: #333;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        
+        .product-stock {
+            font-size: 0.75rem;
+            margin-bottom: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .in-stock {
+            color: var(--primary-light);
+        }
+        
+        .out-of-stock {
+            color: var(--gray);
+        }
+
+        .low-stock {
+            color: #ff9800;
+            font-weight: bold;
+        }
+        
+        .add-to-cart {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            border: none;
+            padding: 0.7rem;
+            border-radius: 8px;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .add-to-cart:hover {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            transform: translateY(-2px);
+        }
+        
+        .add-to-cart:disabled {
+            background: var(--gray);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .cart-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .cart-content {
+            background-color: var(--white);
+            width: 90%;
+            max-width: 500px;
+            border-radius: 15px;
+            padding: 1.5rem;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow);
+        }
+        
+        .cart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #e8f5e9;
+            padding-bottom: 0.8rem;
+        }
+        
+        .close-cart {
+            background: none;
+            border: none;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: var(--gray);
+            transition: color 0.3s;
+        }
+        
+        .close-cart:hover {
+            color: var(--primary);
+        }
+        
+        .cart-items {
+            margin-bottom: 1rem;
+        }
+        
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.8rem 0;
+            border-bottom: 1px solid #e8f5e9;
+        }
+        
+        .cart-item-info {
+            flex-grow: 1;
+        }
+        
+        .cart-item-name {
+            font-weight: bold;
+            color: var(--dark);
+            margin-bottom: 4px;
+        }
+        
+        .cart-item-price {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+        
+        .cart-item-quantity {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .quantity-btn {
+            background-color: var(--light);
+            border: 1px solid #c8e6c9;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .quantity-btn:hover {
+            background-color: var(--primary-light);
+            color: white;
+        }
+        
+        .quantity-value {
+            margin: 0 0.5rem;
+            font-weight: bold;
+            min-width: 20px;
+            text-align: center;
+        }
+        
+        .cart-total {
+            font-weight: bold;
+            font-size: 1.3rem;
+            text-align: right;
+            margin-bottom: 1rem;
+            color: var(--primary);
+            padding-top: 1rem;
+            border-top: 2px solid #e8f5e9;
+        }
+        
+        .total-savings {
+            background: #4caf50;
+            color: white;
+            padding: 0.8rem;
+            border-radius: 8px;
+            margin: 0.5rem 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .send-order {
+            background: linear-gradient(135deg, var(--secondary), var(--secondary-dark));
+            color: white;
+            border: none;
+            padding: 1.2rem;
+            border-radius: 10px;
+            width: 100%;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .send-order:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255,111,0,0.3);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gray);
+            font-size: 1.1rem;
+        }
+        
+        .error-message {
+            text-align: center;
+            padding: 2rem;
+            color: #d32f2f;
+            background: #ffebee;
+            border-radius: 10px;
+            margin: 1rem 0;
+            border-left: 4px solid #d32f2f;
+        }
+        
+        .retry-btn {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+        
+        .retry-btn:hover {
+            background: var(--primary-dark);
+        }
+        
+        footer {
+            background: linear-gradient(135deg, var(--dark), var(--primary));
+            color: var(--white);
+            padding: 2rem 1rem;
+            text-align: center;
+            margin-top: 3rem;
+        }
+        
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .admin-notification {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: white;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            text-align: center;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* ========== BOTONES FLOTANTES - TODOS EN DERECHA ========== */
+
+        /* 1. HOME - ARRIBA (CYAN como categorías) */
+        .floating-home {
+            position: fixed;
+            bottom: 160px; /* Encima de búsqueda */
+            right: 20px; /* ← DERECHA */
+            background: linear-gradient(135deg, #29B6F6, #0288D1);
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(41, 182, 246, 0.4);
+            z-index: 997;
+            transition: all 0.3s ease;
+            font-size: 1.5rem;
+        }
+
+        .floating-home:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(41, 182, 246, 0.6);
+        }
+
+        /* 2. BÚSQUEDA - EN MEDIO (VERDE) */
+        .floating-search {
+            position: fixed;
+            bottom: 90px; /* Encima de carrito */
+            right: 20px; /* ← DERECHA */
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(46,125,50,0.4);
+            z-index: 998;
+            transition: all 0.3s ease;
+            font-size: 1.5rem;
+        }
+
+        @media (max-width: 767px) {
+            .floating-search {
+                display: flex;
+            }
+        }
+
+        .floating-search:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(46,125,50,0.6);
+        }
+
+        /* 3. CARRITO - ABAJO (NARANJA) */
+        .floating-cart {
+            position: fixed;
+            bottom: 20px; /* Abajo del todo */
+            right: 20px; /* ← DERECHA */
+            background: linear-gradient(135deg, var(--secondary), var(--secondary-dark));
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(255,111,0,0.4);
+            z-index: 999;
+            transition: all 0.3s ease;
+            font-size: 1.5rem;
+        }
+
+        .floating-cart:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(255,111,0,0.6);
+        }
+
+        .floating-cart .cart-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: var(--primary);
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            border: 2px solid white;
+        }
+
+        .search-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1001;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 80px;
+        }
+        
+        .search-modal-content {
+            background-color: var(--white);
+            width: 90%;
+            max-width: 500px;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .search-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #e8f5e9;
+            padding-bottom: 0.8rem;
+        }
+        
+        .close-search {
+            background: none;
+            border: none;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: var(--gray);
+            transition: color 0.3s;
+        }
+        
+        .close-search:hover {
+            color: var(--primary);
+        }
+
+        .mobile-search-results {
+            margin-top: 1rem;
+        }
+
+        .stock-notification {
+            position: fixed;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1002;
+            font-weight: 500;
+            animation: slideDown 0.3s ease;
+        }
+        
+        @keyframes slideDown {
+            from { 
+                transform: translateX(-50%) translateY(-20px); 
+                opacity: 0; 
+            }
+            to { 
+                transform: translateX(-50%) translateY(0); 
+                opacity: 1; 
+            }
+        }
+
+
+/* PRODUCTOS DE CATEGORÍA PROMOS - 20% MÁS GRANDES */
+/* MÓVIL: IMAGEN GRANDE EN PROMOS */
+@media (max-width: 767px) {
+    #productsGrid .product-card.promo-card .product-image {
+        height: 350px !important;
+        padding: 30px !important;
+    }
+    
+    #productsGrid .product-card.promo-card .product-image img {
+        max-height: 300px !important;
+        max-width: 100% !important;
+    }
+    
+    /* ELIMINAR LETRERO PROMO ACTIVA */
+    #productsGrid .product-card.promo-card .product-image div[style*="PROMO ACTIVA"] {
+        display: none !important;
+    }
+}
+
+
+.product-card.promo-card {
+    transform: scale(1.2);
+    margin: 1.5rem;
+    z-index: 10;
+}
+        .product-card.promo-card:hover {
+    transform: scale(1.25) translateY(-8px);
+}
+
+/* PANEL ADMIN */
+.admin-panel {
+    position: fixed;
+    bottom: 230px;
+    right: 20px;
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    color: white;
+    padding: 1rem;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+    z-index: 996;
+    display: none;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 200px;
+    transition: all 0.3s ease;
+}
+
+.admin-panel.hidden {
+    transform: translateX(calc(100% + 20px));
+    opacity: 0;
+    pointer-events: none;
+}
+
+.admin-panel-toggle {
+    position: fixed;
+    bottom: 240px;
+    right: 20px;
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    color: white;
+    border: 2px solid rgba(255,255,255,0.5);
+    padding: 0.5rem 0.8rem;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.2rem;
+    z-index: 997;
+    display: none;
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+    transition: all 0.3s ease;
+}
+
+.admin-panel-toggle:hover {
+    transform: scale(1.1);
+    background: linear-gradient(135deg, #f57c00, #ff9800);
+}
+
+.admin-panel-toggle:active {
+    transform: scale(0.95);
+}
+
+.admin-panel h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+    text-align: center;
+    border-bottom: 2px solid rgba(255,255,255,0.3);
+    padding-bottom: 0.5rem;
+}
+
+.admin-btn {
+    background: rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.5);
+    color: white;
+    padding: 0.6rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.3s;
+    text-align: center;
+}
+
+.admin-btn:hover {
+    background: rgba(255,255,255,0.3);
+    border-color: white;
+    transform: translateY(-2px);
+}
+
+.admin-btn.active {
+    background: #4caf50;
+    border-color: #4caf50;
+}
+
+/* NOTIFICACIONES MÁS GRANDES PARA MENSAJES DE PROMO */
+.stock-notification {
+    min-width: 300px;
+    max-width: 90%;
+    font-size: 0.95rem;
+    text-align: center;
+}
+
+/* Cuando estamos en categoría PROMOS, agrandar la foto */
+.category-btn[data-category="PROMOS"].active ~ #productsGrid .product-card.promo-card .product-image {
+    height: 280px !important;
+}
+
+.category-btn[data-category="PROMOS"].active ~ #productsGrid .product-card.promo-card .product-image img {
+    max-height: 240px !important;
+}
+/* ESCRITORIO: CENTRAR PROMOS AQUI CENTRABA TODAS LAS CATEGORIAS*
+@media (min-width: 768px) {
+    #productsGrid .product-card.promo-card {
+        margin-left: auto !important;
+        margin-right: auto !important;
+        display: block !important;
+        float: none !important;
+    }
+    
+    .products-grid {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+}
+*/
+/* SOLO CENTRAR PROMOS EN ESCRITORIO */
+@media (min-width: 768px) {
+    body:has(.category-btn[data-category="PROMOS"].active) #productsGrid .product-card.promo-card {
+        margin-left: auto !important;
+        margin-right: auto !important;
+        display: block !important;
+        grid-column: 1 / -1 !important;
+        max-width: 500px !important;
+    }
+}
+
+/* MÁS SEPARACIÓN EN ESCRITORIO PARA PROMOS */
+@media (min-width: 768px) {
+    #productsGrid .product-card.promo-card {
+        margin-bottom: 80px !important;
+    }
+    
+    #productsGrid .product-card.promo-card .add-to-cart {
+        margin-top: 25px !important;
+    }
+}
+
+/* SOLO PARA MÓVIL EN PROMOS - MÁS SEPARACIÓN */
+@media (max-width: 767px) {
+    #productsGrid .product-card.promo-card {
+        margin-bottom: 100px !important;
+    }
+    
+    #productsGrid .product-card.promo-card:last-child {
+        margin-bottom: 30px !important;
+    }
+}
+
+    </style>
+</head>
+<body>
+<header>
+    <div class="header-content">
+        <div class="logo">
+            <img src="iconos-pwa/android/android-launchericon-48-48.png" alt="Logo Almacén Copihue" class="logo-icon">
+            Almacén Copihue
+            <span id="adminBadge" class="admin-badge" style="display: none;">ADMIN</span>
+        </div>
+        <div class="cart-icon" id="cartIcon">
+            🛒 <span class="cart-count" id="cartCount">0</span>
+        </div>
+    </div>
+</header>
+
+<div class="container">
+    <div id="adminNotification" class="admin-notification" style="display: none;">
+        <strong>🔐 MODO ADMIN ACTIVADO</strong> - Recibirás alertas de stock bajo
+    </div>
+
+    <section class="hero">
+        <h1>"Almacén Copihue"</h1>
+        <p>Productos de calidad con la confianza de siempre</p>
+    </section>
+
+    <section class="info-bar">
+        <div class="info-item">
+            <strong>📍 Retiro en el local:</strong> Copihue 457
+        </div>
+        <div class="info-item">
+            <strong>📞 WhatsApp:</strong> +5492944907380
+        </div>
+        <div class="info-item">
+            <strong>⏰ Horario:</strong> 11:30 a 23:30 hrs.
+        </div>
+    </section>
+
+    <!-- ========== OFERTAS RELÁMPAGO ========== -->
+    <div class="ofertas-container relampago" id="ofertasRelampago">
+        <div class="ofertas-header">
+            <h2>
+                ⚡ OFERTAS RELÁMPAGO 
+                <span class="ofertas-badge">HOY SOLO</span>
+            </h2>
+            <div class="ofertas-timer" id="relampago-timer">
+                ⏰ Termina en: <span id="relampago-countdown">--:--:--</span>
+            </div>
+        </div>
+        
+        <div class="ofertas-stock-warning">
+            ⚠️ <strong>ATENCIÓN:</strong> Ofertas válidas solo de Lunes a Jueves, de 11:30 a 17:00.
+            ¡Apurate, stock limitado!
+        </div>
+        
+        <div class="ofertas-products-grid" id="relampago-grid">
+            <!-- Productos relámpago -->
+        </div>
+    </div>
+
+    <!-- ========== OFERTAS DESTACADAS ========== -->
+    <div class="ofertas-container destacadas" id="ofertasDestacadas">
+        <div class="ofertas-header">
+            <h2>
+                🔥 OFERTAS DESTACADAS 
+                <span class="ofertas-badge">FINDE</span>
+            </h2>
+            <div class="ofertas-timer" id="destacadas-timer">
+                ⏰ Termina en: <span id="destacadas-countdown">--:--:--</span>
+            </div>
+        </div>
+        
+        <div class="ofertas-stock-warning">
+            ⭐ <strong>ESPECIAL FINDE:</strong> Viernes y Sábados de 20:00 a 23:00.
+            ¡Los mejores descuentos de la semana!
+        </div>
+        
+        <div class="ofertas-products-grid" id="destacadas-grid">
+            <!-- Productos destacadas -->
+        </div>
+    </div>
+
+    <!-- ========== OFERTAS ESPECIALES ========== -->
+    <div class="ofertas-container especiales" id="ofertasEspeciales">
+        <div class="ofertas-header">
+            <h2>
+                ⭐ OFERTAS ESPECIALES 
+                <span class="ofertas-badge">NOCHE</span>
+            </h2>
+            <div class="ofertas-timer" id="especiales-timer">
+                ⏰ Termina en: <span id="especiales-countdown">--:--:--</span>
+            </div>
+        </div>
+        
+        <div class="ofertas-stock-warning">
+            🌙 <strong>ESPECIAL NOCTURNO:</strong> Lunes a Jueves de 18:00 a 23:00.
+            ¡Aprovechá estas ofertas únicas!
+        </div>
+        
+        <div class="ofertas-products-grid" id="especiales-grid">
+            <!-- Productos especiales -->
+        </div>
+    </div>
+
+    <div class="search-container" id="desktopSearch">
+        <div class="search-wrapper">
+            <input type="text" id="productSearch" class="search-input" 
+                   placeholder="🔍 Buscar productos por nombre... (Presiona Enter para buscar)">
+            <button class="clear-search" id="clearSearchBtn">✖️</button>
+        </div>
+    </div>
+
+    <section class="categories" id="categories">
+        <!-- Categorías dinámicas -->
+    </section>
+
+    <section class="products-grid" id="productsGrid">
+        <div class="loading">🔄 Cargando productos desde tu API...</div>
+    </section>
+</div>
+
+<!-- BOTONES FLOTANTES -->
+<div class="floating-home" id="floatingHome" title="Volver al inicio">
+    🏠
+</div>
+
+<div class="floating-search" id="floatingSearch" title="Buscar productos">
+    🔍
+</div>
+
+<div class="floating-cart" id="floatingCart" title="Ver carrito">
+    🛒
+    <span class="cart-count" id="floatingCartCount">0</span>
+</div>
+
+<!-- BOTÓN TOGGLE PANEL ADMIN (solo visible en modo admin) -->
+<button class="admin-panel-toggle" id="adminPanelToggle" onclick="toggleAdminPanel()" title="Ocultar/Mostrar Panel Admin">
+    👁️
+</button>
+
+<!-- PANEL ADMIN (solo visible en modo admin) -->
+<div class="admin-panel" id="adminPanel">
+    <h3>🔧 PANEL ADMIN</h3>
+    <button class="admin-btn" id="btnMostrarTodasOfertas" onclick="toggleMostrarTodasOfertas()">
+        👀 Ver Todas las Ofertas
+    </button>
+    <div id="adminStatus" style="font-size: 0.75rem; text-align: center; margin-top: 0.5rem; opacity: 0.8;">
+        <!-- Estado admin -->
+    </div>
+</div>
+
+<div class="search-modal" id="searchModal">
+    <div class="search-modal-content">
+        <div class="search-modal-header">
+            <h2>Buscar Productos</h2>
+            <button class="close-search" id="closeSearch">&times;</button>
+        </div>
+        <div class="search-wrapper">
+            <input type="text" id="mobileSearch" class="search-input" 
+                   placeholder="🔍 Escribe nombre... (Presiona Enter para buscar)">
+            <button class="clear-search" id="clearMobileSearchBtn">✖️</button>
+        </div>
+        <div class="mobile-search-results" id="mobileSearchResults">
+            <!-- Resultados búsqueda móvil -->
+        </div>
+    </div>
+</div>
+
+<div class="cart-modal" id="cartModal">
+    <div class="cart-content">
+        <div class="cart-header">
+            <h2>Tu Pedido</h2>
+            <button class="close-cart" id="closeCart">&times;</button>
+        </div>
+        <div class="cart-items" id="cartItems">
+            <!-- Items del carrito -->
+        </div>
+        <div class="cart-total" id="cartTotal">Total: $0</div>
+        <button class="send-order" id="sendOrder">Enviar Pedido por WhatsApp</button>
+    </div>
+</div>
+
+<footer>
+    <div class="footer-content">
+        <p>Almacén Copihue - Productos de calidad con la confianza de siempre</p>
+        <p>📍 Copihue 457 | 📞 +5492944907380 | ⏰ 11:30 a 23:30 hrs.</p>
+    </div>
+</footer>
+
+<script>
+// ========== VERSIÓN Y CONFIGURACIÓN ==========
+const APP_VERSION = 'V2.4-CACHE-FIX-250127';
+
+// ========== MAPEO DE OFERTAS RELÁMPAGO ==========
+const OFERTAS_RELAMPAGO_SISTEMA = {
+    '1': { 
+        nombre: "2x1", 
+        tipo: "2x1", 
+        eslogan: "🎁 Llevás 2, pagás 1",
+        cantidad: 2,
+        pagas: 1,
+        color: "#d50000"
+    },
+    '2': { 
+        nombre: "3x2", 
+        tipo: "3x2", 
+        eslogan: "🎁 Llevás 3, pagás 2",
+        cantidad: 3,
+        pagas: 2,
+        color: "#ff6f00"
+    },
+    '3': { 
+        nombre: "4x3", 
+        tipo: "4x3", 
+        eslogan: "🎁 Llevás 4, pagás 3",
+        cantidad: 4,
+        pagas: 3,
+        color: "#2196f3"
+    },
+    '4': { 
+        nombre: "5x4", 
+        tipo: "5x4", 
+        eslogan: "🎁 Llevás 5, pagás 4",
+        cantidad: 5,
+        pagas: 4,
+        color: "#9c27b0"
+    },
+    '5': { 
+        nombre: "6x5", 
+        tipo: "6x5", 
+        eslogan: "🎁 Llevás 6, pagás 5",
+        cantidad: 6,
+        pagas: 5,
+        color: "#ff4081"
+    },
+    '6': { 
+        nombre: "7x6", 
+        tipo: "7x6", 
+        eslogan: "🎁 Llevás 7, pagás 6",
+        cantidad: 7,
+        pagas: 6,
+        color: "#00bcd4"
+    },
+    '10': { 
+        nombre: "2da50", 
+        tipo: "2da50", 
+        eslogan: "🎁 2DA UNIDAD 50% OFF",
+        cantidad: 2,
+        pagas: 1.5,
+        color: "#e91e63"
+    }
+};
+
+// ========== VARIABLES GLOBALES ==========
+let products = [];
+let cart = [];
+let currentCategory = "ALMACEN";
+let isSearching = false;
+let esAdmin = false;
+
+// Pools de ofertas
+let poolRelampago = [];
+let poolDestacadas = [];
+let poolEspeciales = [];
+
+// ========== FUNCIONES DE COMPARTIR (SCOPE GLOBAL) ==========
+function compartirProducto(productId, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    
+    const product = products.find(p => p.id == productId);
+    if (!product) {
+        console.error('Producto no encontrado:', productId);
+        return;
+    }
+    
+    // Calcular precio real según ofertas activas
+    let precioFinal = product.price;
+    let infoOferta = '';
+    
+    // 1. COMBO (PROMOS)
+    if (product.category === 'PROMOS' && product.normal && product.normal > product.price) {
+        precioFinal = product.price;
+        const ahorro = product.normal - product.price;
+        const porcentaje = Math.round((ahorro / product.normal) * 100);
+        infoOferta = ` (-${porcentaje}% OFF)`;
+    }
+    // 2. OFERTAS RELÁMPAGO (3x2, 2x1, etc.) - SIN validar horario
+    else if (product.relampago > 0) {
+        const ofertaConfig = OFERTAS_RELAMPAGO_SISTEMA[product.relampago];
+        if (ofertaConfig) {
+            infoOferta = ` (${ofertaConfig.nombre.toUpperCase()})`;
+            // Precio unitario sin cambio, pero indicar la oferta
+        }
+    }
+    // 3. OFERTAS DESTACADAS (ej: -15%) - SIN validar horario
+    else if (product.destacada && product.destacada > 0) {
+        precioFinal = Math.round(product.price * (1 - product.destacada / 100));
+        infoOferta = ` (-${product.destacada}% OFF)`;
+    }
+    // 4. OFERTAS ESPECIALES (-10%) - SIN validar horario
+    else if (product.especial === 1) {
+        precioFinal = Math.round(product.price * 0.9);
+        infoOferta = ' (-10% OFF)';
+    }
+    
+    const texto = `${product.name}${infoOferta}\n$${precioFinal}\n\n📍 Almacén Copihue\nhttps://almacen-copihue.vercel.app`;
+    
+    console.log('📤 Compartiendo producto:', product.name, '- Precio:', precioFinal);
+    
+    // En móvil: usar API nativa (incluye WhatsApp en opciones)
+    if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        fetch(product.image)
+            .then(response => response.blob())
+            .then(blob => {
+                const file = new File([blob], `${product.name}.jpg`, { type: 'image/jpeg' });
+                
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    navigator.share({
+                        text: texto,
+                        files: [file]
+                    }).then(() => {
+                        showNotification('📤 Producto compartido', 'success');
+                    }).catch((error) => {
+                        if (error.name !== 'AbortError') {
+                            console.error('Error compartiendo:', error);
+                            compartirPorWhatsApp(texto);
+                        }
+                    });
+                } else {
+                    compartirPorWhatsApp(texto);
+                }
+            })
+            .catch(() => {
+                compartirPorWhatsApp(texto);
+            });
+    } else {
+        // En desktop: abrir WhatsApp directamente
+        compartirPorWhatsApp(texto);
+    }
+}
+
+function compartirPorWhatsApp(texto) {
+    const mensajeEncoded = encodeURIComponent(texto);
+    const whatsappUrl = `https://wa.me/?text=${mensajeEncoded}`;
+    window.open(whatsappUrl, '_blank');
+    showNotification('📤 Abriendo WhatsApp...', 'success');
+}
+
+
+function copiarAlPortapapeles(texto) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(texto).then(() => {
+            showNotification('🔗 Link copiado al portapapeles', 'success');
+        }).catch(() => {
+            showNotification('❌ No se pudo copiar el link', 'error');
+        });
+    } else {
+        // Fallback para navegadores viejos
+        const textarea = document.createElement('textarea');
+        textarea.value = texto;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            showNotification('🔗 Link copiado al portapapeles', 'success');
+        } catch (err) {
+            showNotification('❌ No se pudo copiar el link', 'error');
+        }
+        document.body.removeChild(textarea);
+    }
+}
+
+function manejarDeepLink() {
+    const hash = window.location.hash;
+    
+    // Formato: #producto/ID
+    if (hash.startsWith('#producto/')) {
+        const productId = hash.replace('#producto/', '');
+        console.log('🔗 Deep link detectado para producto:', productId);
+        
+        // Esperar a que los productos estén cargados
+        const intentarMostrar = () => {
+            const product = products.find(p => p.id == productId);
+            if (product) {
+                // Simular click en el producto para abrir el detalle
+                showNotification(`📦 Mostrando: ${product.name}`, 'info');
+                
+                // Cambiar a la categoría del producto
+                currentCategory = product.category;
+                renderizarProductosNormales();
+                
+                // Scroll al producto después de renderizar
+                setTimeout(() => {
+                    const productCard = document.querySelector(`[data-id="${productId}"]`);
+                    if (productCard) {
+                        productCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        productCard.style.animation = 'pulse 1s ease-in-out 3';
+                    }
+                }, 300);
+            } else {
+                console.warn('⚠️ Producto no encontrado:', productId);
+                showNotification('Producto no encontrado', 'error');
+                window.location.hash = '';
+            }
+        };
+        
+        if (products.length > 0) {
+            intentarMostrar();
+        } else {
+            setTimeout(intentarMostrar, 1500);
+        }
+    }
+}
+
+
+// Productos activos en cada sección
+let productosRelampago = [];
+let productosDestacadas = [];
+let productosEspeciales = [];
+
+// IDs de productos ya mostrados (anti-duplicados)
+let idsEnOfertas = new Set();
+
+// MODO ADMIN: Mostrar todas las ofertas
+let modoMostrarTodasOfertas = false;
+
+// ========== SISTEMA DE ROTACIÓN DIARIA ==========
+const ROTACION_SISTEMA = {
+    getDateKey() {
+        const now = new Date();
+        return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+    },
+    
+    getRotationIndex(poolSize, visibleCount, storageKey) {
+        const dateKey = this.getDateKey();
+        const savedData = localStorage.getItem(storageKey);
+        
+        if (savedData) {
+            try {
+                const data = JSON.parse(savedData);
+                if (data.date === dateKey) {
+                    return data.index;
+                }
+            } catch (e) {
+                console.warn('Error leyendo rotación:', e);
+            }
+        }
+        
+        // Nueva rotación
+        const lastIndex = parseInt(localStorage.getItem(`${storageKey}_lastIndex`)) || 0;
+        const newIndex = (lastIndex + visibleCount) % poolSize;
+        
+        localStorage.setItem(storageKey, JSON.stringify({
+            date: dateKey,
+            index: newIndex
+        }));
+        localStorage.setItem(`${storageKey}_lastIndex`, newIndex);
+        
+        return newIndex;
+    },
+    
+    selectRotatedProducts(pool, visibleCount, storageKey) {
+        if (pool.length === 0) return [];
+        if (pool.length <= visibleCount) return pool;
+        
+        const startIndex = this.getRotationIndex(pool.length, visibleCount, storageKey);
+        const selected = [];
+        
+        for (let i = 0; i < visibleCount; i++) {
+            const index = (startIndex + i) % pool.length;
+            selected.push(pool[index]);
+        }
+        
+        return selected;
+    }
+};
+
+// ========== VALIDACIÓN HORARIOS ==========
+const HORARIOS = {
+    relampago: {
+        dias: [1, 2, 3, 4], // Lunes a Jueves
+        horaInicio: 11,
+        minInicio: 30,
+        horaFin: 17,
+        minFin: 0
+    },
+    destacadas: {
+        dias: [5, 6], // Viernes y Sábado
+        horaInicio: 20,
+        minInicio: 0,
+        horaFin: 23,
+        minFin: 0
+    },
+    especiales: {
+        dias: [1, 2, 3, 4], // Lunes a Jueves
+        horaInicio: 18,
+        minInicio: 0,
+        horaFin: 23,
+        minFin: 0
+    }
+};
+
+function validarHorario(tipo) {
+    const now = new Date();
+    const dia = now.getDay();
+    const hora = now.getHours();
+    const min = now.getMinutes();
+    
+    const config = HORARIOS[tipo];
+    if (!config) return false;
+    
+    // Validar día
+    if (!config.dias.includes(dia)) return false;
+    
+    // Validar hora
+    const horaActual = hora * 60 + min;
+    const horaInicio = config.horaInicio * 60 + config.minInicio;
+    const horaFin = config.horaFin * 60 + config.minFin;
+    
+    return horaActual >= horaInicio && horaActual < horaFin;
+}
+
+// ========== CONSTRUCCIÓN DE POOLS ==========
+function construirPools() {
+    if (!products || products.length === 0) return;
+    
+    console.log('🏗️ Construyendo pools de ofertas...');
+    
+    // POOL RELÁMPAGO: solo productos con relampago > 0
+    poolRelampago = products.filter(p => 
+        p.relampago > 0 && 
+        p.stockNumber > 0 &&
+        OFERTAS_RELAMPAGO_SISTEMA[p.relampago]
+    );
+    
+    // POOL DESTACADAS: solo productos con destacada > 0
+    poolDestacadas = products.filter(p => 
+        p.destacada > 0 && 
+        p.stockNumber > 0
+    ).sort((a, b) => b.destacada - a.destacada); // Ordenar por % DESC
+    
+    // POOL ESPECIALES: solo productos con especial = 1
+    poolEspeciales = products.filter(p => 
+        p.especial === 1 && 
+        p.stockNumber > 0
+    );
+    
+    console.log(`⚡ Pool Relámpago: ${poolRelampago.length} productos`);
+    console.log(`🔥 Pool Destacadas: ${poolDestacadas.length} productos`);
+    console.log(`⭐ Pool Especiales: ${poolEspeciales.length} productos`);
+}
+
+function seleccionarProductosOfertas() {
+    idsEnOfertas.clear();
+    productosRelampago = [];
+    productosDestacadas = [];
+    productosEspeciales = [];
+    
+    // MODO ADMIN: Mostrar TODOS los productos de oferta relámpago
+    if (modoMostrarTodasOfertas && esAdmin) {
+        productosRelampago = poolRelampago; // TODOS
+        productosRelampago.forEach(p => idsEnOfertas.add(p.id));
+        console.log(`⚡ [ADMIN] Mostrando TODOS los productos relámpago: ${productosRelampago.length}`);
+        return; // No procesar otras ofertas en modo admin
+    }
+    
+    // MODO NORMAL: 
+    // 1. RELÁMPAGO (prioridad máxima)
+    if (validarHorario('relampago')) {
+        productosRelampago = ROTACION_SISTEMA.selectRotatedProducts(
+            poolRelampago, 
+            3, 
+            'rotacion_relampago'
+        );
+        productosRelampago.forEach(p => idsEnOfertas.add(p.id));
+        console.log(`⚡ Relámpago activo: ${productosRelampago.length} productos`);
+    }
+    
+    // 2. DESTACADAS (segunda prioridad)
+    if (validarHorario('destacadas')) {
+        const poolFiltrado = poolDestacadas.filter(p => !idsEnOfertas.has(p.id));
+        productosDestacadas = poolFiltrado.slice(0, 9); // Sin rotación
+        productosDestacadas.forEach(p => idsEnOfertas.add(p.id));
+        console.log(`🔥 Destacadas activo: ${productosDestacadas.length} productos`);
+    }
+    
+    // 3. ESPECIALES (solo si NO hay destacadas)
+    if (validarHorario('especiales') && productosDestacadas.length === 0) {
+        const poolFiltrado = poolEspeciales.filter(p => !idsEnOfertas.has(p.id));
+        productosEspeciales = ROTACION_SISTEMA.selectRotatedProducts(
+            poolFiltrado, 
+            2, 
+            'rotacion_especiales'
+        );
+        productosEspeciales.forEach(p => idsEnOfertas.add(p.id));
+        console.log(`⭐ Especiales activo: ${productosEspeciales.length} productos`);
+    }
+}
+
+function renderizarContenedorOfertas(tipo, productos) {
+    const containerId = tipo === 'relampago' ? 'ofertasRelampago' :
+                       tipo === 'destacadas' ? 'ofertasDestacadas' :
+                       'ofertasEspeciales';
+    
+    const gridId = `${tipo}-grid`;
+    const container = document.getElementById(containerId);
+    const grid = document.getElementById(gridId);
+    
+    if (!container || !grid) return;
+    
+    if (productos.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    container.style.display = 'block';
+    
+    grid.innerHTML = productos.map(product => {
+        let badgeTexto = '';
+        let precioHTML = '';
+        
+        /* ================= RELÁMPAGO ================= */
+        if (tipo === 'relampago' && product.relampago) {
+            const oferta = OFERTAS_RELAMPAGO_SISTEMA[product.relampago];
+            if (oferta) {
+                // Badge con tipo de oferta (3x2, 2x1, etc.)
+                badgeTexto = `🎁 ${oferta.nombre.toUpperCase()}`;
+                
+                // Precio unitario SIEMPRE visible
+                precioHTML = `
+                    <div style="margin: 10px 0;">
+                        <div style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">
+                            💰 Precio unitario:
+                        </div>
+                        <div style="font-size: 1.2rem; font-weight: bold; color: #333;">
+                            $${product.price} c/u
+                        </div>
+                    </div>
+                    <div style="background: #fff3e0; padding: 10px; border-radius: 8px; border-left: 4px solid #ff6f00; margin-top: 10px;">
+                        <div style="font-weight: bold; color: #ff6f00; margin-bottom: 5px;">
+                            ${oferta.eslogan}
+                        </div>
+                        <div style="font-size: 0.85rem; color: #666;">
+                            Llevando ${oferta.cantidad}, ahorrás $${product.price * (oferta.cantidad - oferta.pagas)}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        /* ================= DESTACADAS ================= */
+        else if (tipo === 'destacadas' && product.destacada) {
+            const descuento = product.destacada;
+            const precioConDescuento = Math.round(product.price * (1 - descuento / 100));
+            badgeTexto = `🔥 ${descuento}% OFF`;
+            
+            precioHTML = `
+                <div style="margin: 10px 0;">
+                    <div style="text-decoration: line-through; color: #999; font-size: 0.9rem;">
+                        $${product.price}
+                    </div>
+                    <div style="font-size: 1.3rem; font-weight: bold; color: #ff6f00;">
+                        $${precioConDescuento}
+                    </div>
+                    <div style="background: #4caf50; color: white; padding: 5px 10px; border-radius: 15px; display: inline-block; margin-top: 5px; font-size: 0.85rem;">
+                        ✅ Ahorrás $${product.price - precioConDescuento}
+                    </div>
+                </div>
+            `;
+        }
+
+        /* ================= ESPECIALES ================= */
+        else if (tipo === 'especiales' && product.especial) {
+            const precioConDescuento = Math.round(product.price * 0.9);
+            badgeTexto = `⭐ ESPECIAL -10%`;
+            
+            precioHTML = `
+                <div style="margin: 10px 0;">
+                    <div style="text-decoration: line-through; color: #999; font-size: 0.9rem;">
+                        $${product.price}
+                    </div>
+                    <div style="font-size: 1.3rem; font-weight: bold; color: #2196f3;">
+                        $${precioConDescuento}
+                    </div>
+                    <div style="background: #4caf50; color: white; padding: 5px 10px; border-radius: 15px; display: inline-block; margin-top: 5px; font-size: 0.85rem;">
+                        ✅ Ahorrás $${product.price - precioConDescuento}
+                    </div>
+                </div>
+            `;
+        }
+        
+        return `
+            <div class="ofertas-product-card">
+                <div class="ofertas-exclusive-badge">${badgeTexto}</div>
+                
+                <div class="product-image">
+                    <button class="share-btn" onclick="compartirProducto('${product.id}', event)" title="Compartir">🔗</button>
+                    <img src="${product.image}" 
+                         alt="${product.name}"
+                         onerror="handleImageError(this, '${product.name.replace(/'/g, "\\'")}')">
+                </div>
+                
+                <div class="product-info">
+                    <div class="product-name">${product.name}</div>
+                    
+                    <div class="product-price-container">
+                        ${precioHTML}
+                    </div>
+                    
+                    <div class="product-stock in-stock">
+                        ✅ Stock: ${product.stockNumber}
+                    </div>
+                    
+                    <button class="add-to-cart" data-id="${product.id}" data-testid="add-to-cart-${product.id}">
+                        🛒 Agregar al Carrito
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    iniciarCountdown(tipo);
+}
+
+// ========== COUNTDOWN ==========
+function iniciarCountdown(tipo) {
+    const countdownId = `${tipo}-countdown`;
+    const config = HORARIOS[tipo];
+    
+    if (!config) return;
+    
+    const countdownElement = document.getElementById(countdownId);
+    if (!countdownElement) return;
+    
+    const updateCountdown = () => {
+        const now = new Date();
+        const endTime = new Date();
+        
+        endTime.setHours(config.horaFin, config.minFin, 0, 0);
+        
+        if (now >= endTime) {
+            countdownElement.textContent = '00:00:00';
+            return;
+        }
+        
+        const diff = endTime - now;
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        
+        countdownElement.textContent = 
+            `${hours.toString().padStart(2, '0')}:` +
+            `${minutes.toString().padStart(2, '0')}:` +
+            `${seconds.toString().padStart(2, '0')}`;
+        
+        setTimeout(updateCountdown, 1000);
+    };
+    
+    updateCountdown();
+}
+
+function renderizarProductosNormales() {
+    const productsGrid = document.getElementById('productsGrid');
+    if (!productsGrid) return;
+    
+    // Filtrar productos que NO están en ofertas
+    const productosNormales = products.filter(p => 
+        !idsEnOfertas.has(p.id) && 
+        p.stockNumber > 0
+    );
+    
+    // Filtrar por categoría si no estamos en búsqueda
+    let productosFiltrados = productosNormales;
+    if (!isSearching && currentCategory !== 'ALL') {
+        productosFiltrados = productosNormales.filter(p => 
+            p.category === currentCategory
+        );
+    }
+    
+    if (productosFiltrados.length === 0) {
+        productsGrid.innerHTML = `
+            <div class="loading">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">😕</div>
+                <h3>No hay productos disponibles</h3>
+            </div>
+        `;
+        return;
+    }
+    
+    // Si es categoría PROMOS, hacer grid de 1 columna
+    if (currentCategory === 'PROMOS') {
+        productsGrid.style.gridTemplateColumns = '1fr';
+    } else {
+        // Restaurar grid normal
+        productsGrid.style.gridTemplateColumns = '';
+    }
+    
+    let htmlProductos = productosFiltrados.map((product, index) => {
+    const esPromo = product.category === 'PROMOS';
+    const clasePromo = esPromo ? 'promo-card' : '';
+    
+    const stock = product.stockNumber || 0;
+    const estaActiva = esPromo && stock > 0;
+    const claseActiva = estaActiva ? 'active' : '';
+    const estaAgotada = esPromo && stock === 0;
+    const claseAgotada = estaAgotada ? 'out-of-stock' : '';
+    
+    // Badge ANTES/AHORA solo para PROMOS con precio normal
+    const tienePrecioNormal = esPromo && product.normal && product.normal > product.price;
+    
+    // Para PROMOS: SIEMPRE mostrar badge (aunque sea solo precio)
+    const badgePrecioHTML = esPromo ? `
+        <div class="price-badge-promo">
+            ${tienePrecioNormal ? `
+                <span class="antes">ANTES $${product.normal}</span>
+                <span class="ahora">AHORA<br>$${product.price}</span>
+                <span class="ahorro">-${Math.round(((product.normal - product.price) / product.normal) * 100)}%</span>
+            ` : `
+                <span class="ahora" style="font-size:1.8rem;font-weight:900;">$${product.price}</span>
+            `}
+        </div>
+    ` : '';
+    
+    if (esPromo && stock === 0) {
+        return `
+            <div class="product-card promo-card out-of-stock" style="opacity:0.6;filter:grayscale(0.7);">
+                <div class="product-image">
+                    <button class="share-btn" onclick="compartirProducto('${product.id}', event)" title="Compartir">🔗</button>
+                    <img src="${product.image}" 
+                         alt="${product.name}"
+                         onerror="handleImageError(this, '${product.name.replace(/'/g, "\\'")}')">
+                    <div style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.7);color:white;padding:5px 10px;border-radius:5px;font-size:0.9rem;font-weight:bold;z-index:11;">
+                        🔴 AGOTADA
+                    </div>
+                </div>
+                ${badgePrecioHTML}
+                <div class="product-info">
+                    <div class="product-name">${product.name}</div>
+                    <div class="product-stock out-of-stock" style="background:#ffebee;color:#d32f2f;padding:0.5rem;border-radius:8px;">
+                        ⚠️ Volverá pronto
+                    </div>
+                    <button class="add-to-cart" disabled style="background:#ccc;color:#666;cursor:not-allowed;">
+                        🛒 Temporalmente no disponible
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    return `
+        <div class="product-card ${clasePromo} ${claseActiva} ${claseAgotada}">
+            <div class="product-image">
+                <button class="share-btn" onclick="compartirProducto('${product.id}', event)" title="Compartir">🔗</button>
+                <img src="${product.image}" 
+                     alt="${product.name}"
+                     onerror="handleImageError(this, '${product.name.replace(/'/g, "\\'")}')">
+                ${estaActiva ? `
+                    <div style="position:absolute;top:10px;right:10px;background:#4CAF50;color:white;padding:8px 12px;border-radius:8px;font-size:0.9rem;font-weight:bold;z-index:10;box-shadow:0 3px 10px rgba(0,0,0,0.3);">
+                        🔥 COMBO ${index + 1}
+                    </div>
+                ` : ''}
+            </div>
+            ${badgePrecioHTML}
+            <div class="product-info">
+                <div class="product-name">${product.name}</div>
+                ${!esPromo ? `
+                    <div class="product-price-container">
+                        <span class="product-price">$${product.price}</span>
+                    </div>
+                ` : ''}
+                <div class="product-stock ${stock > 5 ? 'in-stock' : stock > 0 ? 'low-stock' : 'out-of-stock'}">
+                    ${stock > 5 ? '✅' : stock > 0 ? '⚠️' : '❌'} Stock: ${stock}
+                </div>
+                <button class="add-to-cart" data-id="${product.id}" data-testid="add-to-cart-${product.id}"
+                        ${stock === 0 ? 'disabled style="background:#ccc;color:#666;cursor:not-allowed;"' : ''}>
+                    ${stock === 0 ? '🛒 Agotado' : '🛒 Agregar al Carrito'}
+                </button>
+            </div>
+        </div>
+    `;
+}).join('');
+    
+    // Si estamos en PROMOS y hay activas, agregar header especial
+    if (currentCategory === 'PROMOS') {
+        const promosActivas = productosFiltrados.filter(p => p.stockNumber > 0).length;
+        const totalPromos = productosFiltrados.length;
+        
+        const headerHTML = `
+            <div style="background:linear-gradient(135deg, #FF9800, #FF5722);color:white;padding:20px;border-radius:12px;margin-bottom:25px;text-align:center;box-shadow:0 8px 25px rgba(255,87,34,0.3);grid-column:1/-1;">
+                <h2 style="margin:0 0 10px 0;font-size:1.8rem;display:flex;align-items:center;justify-content:center;gap:10px;">
+                    🎯 COMBOS DISPONIBLES
+                </h2>
+                <p style="margin:0;font-size:1.1rem;opacity:0.95;background:rgba(255,255,255,0.2);padding:8px 15px;border-radius:20px;display:inline-block;">
+                    ${promosActivas} de ${totalPromos} combos disponibles
+                </p>
+                ${promosActivas > 0 ? `
+                    <div style="margin-top:15px;font-size:0.9rem;color:#FFECB3;">
+                        ⭐ Gracias por preferirnos¡¡¡
+                    </div>
+                ` : ''}
+            </div>
+        `;
+        
+        htmlProductos = headerHTML + htmlProductos;
+    }
+    
+    productsGrid.innerHTML = htmlProductos;
+}
+
+// ========== ACTUALIZAR TODAS LAS VISTAS ==========
+function actualizarTodasLasVistas() {
+    construirPools();
+    seleccionarProductosOfertas();
+    
+    renderizarContenedorOfertas('relampago', productosRelampago);
+    renderizarContenedorOfertas('destacadas', productosDestacadas);
+    renderizarContenedorOfertas('especiales', productosEspeciales);
+    
+    renderizarProductosNormales();
+}
+
+// ========== CARGAR PRODUCTOS DESDE API ==========
+async function loadProductsFromAPI() {
+    try {
+        console.log('🚀 Cargando productos desde API...');
+        
+        const TU_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxhKFk2WAi-KRY5xGBsI6_6Pvp3jDjt8mSRXvy7I1WehNmBpJamqK9G9Q1ZJSCSgAdfDA/exec';
+        
+        const urlConCache = TU_APPS_SCRIPT_URL + '?cache=' + Date.now();
+        
+        const respuesta = await fetch(urlConCache, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (!respuesta.ok) {
+            throw new Error(`Error ${respuesta.status}`);
+        }
+        
+        const datos = await respuesta.json();
+        
+        if (datos.productos && Array.isArray(datos.productos)) {
+            processAPIData(datos);
+        } else if (Array.isArray(datos)) {
+            processAPIData({ productos: datos });
+        } else {
+            throw new Error('Formato de datos no reconocido');
+        }
+        
+    } catch (error) {
+        console.error('💥 ERROR:', error);
+        document.getElementById('productsGrid').innerHTML = `
+            <div class="error-message">
+                <h3>Error al cargar productos</h3>
+                <p>${error.message}</p>
+                <button onclick="loadProductsFromAPI()" class="retry-btn">
+                    🔄 Reintentar
+                </button>
+            </div>
+        `;
+    }
+}
+
+function processAPIData(apiData) {
+    console.log('📦 Procesando datos de API...');
+    
+    const productosArray = apiData.productos || apiData;
+    
+    // ========== ADAPTADOR: CONVERTIR NOMBRES ANTIGUOS ==========
+    console.log('🔄 Adaptando nombres de columnas...');
+    productosArray.forEach(item => {
+        // Convertir oferta1 → relampago
+        if (item.oferta1 !== undefined && item.relampago === undefined) {
+            item.relampago = parseInt(item.oferta1) || 0;
+        }
+        
+        // Convertir oferta2 → destacada
+        if (item.oferta2 !== undefined && item.destacada === undefined) {
+            item.destacada = parseInt(item.oferta2) || 0;
+        }
+        
+        // Convertir categoriaOferta → especial
+        if (item.categoriaOferta !== undefined && item.especial === undefined) {
+            item.especial = parseInt(item.categoriaOferta) || 0;
+        }
+    });
+    console.log('✅ Adaptación completada');
+    // ========== FIN ADAPTADOR ==========
+    
+    products = [];
+    
+    productosArray.forEach((item, index) => {
+        const nombre = item.name || 'Producto sin nombre';
+        const precio = parseInt(item.price) || 0;
+        const descripcion = item.descripcion || `ID${String(index).padStart(3, '0')}`;
+        const categoria = String(item.category || 'ALMACEN').trim().toUpperCase();
+        const stockNumber = parseInt(item.stock) || 0;
+        
+        // Leer columnas de ofertas (ahora adaptadas)
+        const relampago = parseInt(item.relampago) || 0;
+        const destacada = parseInt(item.destacada) || 0;
+        const especial = parseInt(item.especial) || 0;
+        const normal = parseInt(item.normal) || 0;
+        
+        // Validar anti-duplicados
+        let ofertasActivas = 0;
+        if (relampago > 0) ofertasActivas++;
+        if (destacada > 0) ofertasActivas++;
+        if (especial > 0) ofertasActivas++;
+        
+        if (ofertasActivas > 1) {
+            console.warn(`⚠️ DUPLICADO: ${nombre} tiene ${ofertasActivas} ofertas`);
+        }
+        
+        const product = {
+            id: item.id || index + 1,
+            name: nombre,
+            price: precio,
+            category: categoria,
+            stockNumber: stockNumber,
+            image: `imagenes-productos/${simplificarNombre(nombre)}.jpg`,
+            descripcion: descripcion,
+            relampago: relampago,
+            destacada: destacada,
+            especial: especial,
+            normal: normal
+        };
+        
+        products.push(product);
+    });
+    
+    console.log(`✅ ${products.length} productos cargados`);
+    
+    renderCategories();
+    actualizarTodasLasVistas();
+    
+    // Actualizar cada minuto
+    setInterval(actualizarTodasLasVistas, 60000);
+}
+
+function simplificarNombre(nombre) {
+    return nombre
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9 ]/g, "")
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim();
+}
+
+function renderCategories() {
+    const categoriesContainer = document.getElementById('categories');
+    if (!categoriesContainer) return;
+    
+    const categories = [...new Set(products.map(p => p.category))];
+    
+    // Verificar si hay PROMOS con stock
+    const promosConStock = products.filter(p => 
+        p.category === 'PROMOS' && 
+        p.stockNumber > 0
+    ).length > 0;
+    
+    categoriesContainer.innerHTML = categories.map(category => {
+        const esPromo = category === 'PROMOS';
+        const tieneStockPromo = esPromo && promosConStock;
+        const clasePromoActiva = tieneStockPromo ? 'promo-activa' : '';
+        
+        return `
+            <button class="category-btn ${category === currentCategory ? 'active' : ''} ${clasePromoActiva}" 
+                    data-category="${category}">
+                ${category} ${tieneStockPromo ? '✨' : ''}
+            </button>
+        `;
+    }).join('');
+    
+    categoriesContainer.querySelectorAll('.category-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            currentCategory = this.getAttribute('data-category');
+            categoriesContainer.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            renderizarProductosNormales();
+            
+            document.getElementById('floatingHome').style.display = 'flex';
+        });
+    });
+    
+    // Si hay promos activas, mostrar notificación sutil
+    if (promosConStock && currentCategory !== 'PROMOS') {
+        setTimeout(() => {
+            showNotification("🎉 ¡Hay promociones disponibles! Toca 'PROMOS' para ver", "info");
+        }, 1000);
+    }
+}
+
+// ========== FUNCIONES DE CÁLCULO DE OFERTAS ==========
+function calcularPrecioConOferta(producto, cantidad, esRelampago = false, ofertaRelampago = null) {
+    if (!producto) return producto.price * cantidad;
+    
+    // Si es oferta relámpago y tenemos config
+    if (esRelampago && ofertaRelampago) {
+        const tipo = ofertaRelampago.tipo;
+        const cantidadOferta = ofertaRelampago.cantidad;
+        const pagas = ofertaRelampago.pagas;
+        
+        switch(tipo) {
+            case "2x1":
+                // 2x1: pagas 1 por cada 2 unidades
+                const pares2x1 = Math.floor(cantidad / 2);
+                const resto2x1 = cantidad % 2;
+                return (pares2x1 + resto2x1) * producto.price;
+                
+            case "3x2":
+                // 3x2: pagas 2 por cada 3 unidades
+                const grupos3x2 = Math.floor(cantidad / 3);
+                const resto3x2 = cantidad % 3;
+                return (grupos3x2 * 2 + resto3x2) * producto.price;
+                
+            case "4x3":
+                // 4x3: pagas 3 por cada 4 unidades
+                const grupos4x3 = Math.floor(cantidad / 4);
+                const resto4x3 = cantidad % 4;
+                return (grupos4x3 * 3 + resto4x3) * producto.price;
+                
+            case "5x4":
+                // 5x4: pagas 4 por cada 5 unidades
+                const grupos5x4 = Math.floor(cantidad / 5);
+                const resto5x4 = cantidad % 5;
+                return (grupos5x4 * 4 + resto5x4) * producto.price;
+                
+            case "6x5":
+                // 6x5: pagas 5 por cada 6 unidades
+                const grupos6x5 = Math.floor(cantidad / 6);
+                const resto6x5 = cantidad % 6;
+                return (grupos6x5 * 5 + resto6x5) * producto.price;
+                
+            case "7x6":
+                // 7x6: pagas 6 por cada 7 unidades
+                const grupos7x6 = Math.floor(cantidad / 7);
+                const resto7x6 = cantidad % 7;
+                return (grupos7x6 * 6 + resto7x6) * producto.price;
+                
+            case "2da50":
+                // 2da unidad 50% OFF: pagas 1.5 por cada 2 unidades
+                const pares2da50 = Math.floor(cantidad / 2);
+                const resto2da50 = cantidad % 2;
+                const precioPar = producto.price * 1.5; // 100% + 50% = 150%
+                return (pares2da50 * precioPar) + (resto2da50 * producto.price);
+                
+            default:
+                return producto.price * cantidad;
+        }
+    }
+    // Si es oferta destacada
+    else if (producto.destacada && producto.destacada > 0) {
+        const descuento = producto.destacada / 100;
+        return Math.round(producto.price * (1 - descuento) * cantidad);
+    }
+    // Si es oferta especial
+    else if (producto.especial && producto.especial === 1) {
+        return Math.round(producto.price * 0.9 * cantidad);
+    }
+    
+    // Sin oferta
+    return producto.price * cantidad;
+}
+
+function calcularAhorro(producto, cantidad, esRelampago = false, ofertaRelampago = null) {
+    const precioNormal = producto.price * cantidad;
+    const precioConOferta = calcularPrecioConOferta(producto, cantidad, esRelampago, ofertaRelampago);
+    return Math.max(0, precioNormal - precioConOferta);
+}
+
+// ========== FIX: CORREGIR AGREGAR AL CARRITO DUPLICADO ==========
+// Variable para controlar clics rápidos
+let clickEnProgreso = false;
+
+function addToCart(productId) {
+    // Prevenir clics rápidos duplicados
+    if (clickEnProgreso) return;
+    clickEnProgreso = true;
+    
+    setTimeout(() => {
+        clickEnProgreso = false;
+    }, 500);
+    
+    const product = products.find(p => p.id === productId);
+    if (!product) {
+        showNotification("❌ Producto no encontrado", "error");
+        return;
+    }
+    
+    const existingItem = cart.find(item => item.id === productId);
+    const currentQuantity = existingItem ? existingItem.quantity : 0;
+    
+    // Verificar stock
+    if (currentQuantity >= product.stockNumber) {
+        showNotification(`⚠️ Stock máximo: ${product.stockNumber} unidades`, 'warning');
+        return;
+    }
+    
+    // Determinar tipo de oferta activa
+    let esOfertaEspecial = false;
+    let esOfertaDestacada = false;
+    let esOfertaRelampago = false;
+    let esPromo = false;
+    let ofertaConfig = null;
+    
+    // ===== IMPORTANTE: Verificar ofertas ACTIVAS =====
+    
+    // 0. Verificar si es PROMO
+    if (product.category === 'PROMOS') {
+        esPromo = true;
+    }
+    
+    // 1. Verificar ESPECIALES
+    if (productosEspeciales.some(p => p.id === productId) && validarHorario('especiales')) {
+        esOfertaEspecial = true;
+        ofertaConfig = {
+            nombre: "Especial",
+            tipo: "especial",
+            descuento: 10,
+            eslogan: "🎁 OFERTA ESPECIAL -10%"
+        };
+        console.log('✅ Producto tiene oferta ESPECIAL');
+    } 
+    // 2. Verificar DESTACADAS
+    else if (productosDestacadas.some(p => p.id === productId) && validarHorario('destacadas')) {
+        esOfertaDestacada = true;
+        ofertaConfig = {
+            nombre: "Destacada",
+            tipo: "destacada",
+            descuento: product.destacada,
+            eslogan: `${product.destacada}% OFF`
+        };
+        console.log('✅ Producto tiene oferta DESTACADA:', product.destacada + '%');
+    }
+    // 3. Verificar RELÁMPAGO
+    else if (productosRelampago.some(p => p.id === productId) && validarHorario('relampago')) {
+        esOfertaRelampago = true;
+        const configRelampago = OFERTAS_RELAMPAGO_SISTEMA[product.relampago];
+        if (configRelampago) {
+            ofertaConfig = {
+                nombre: configRelampago.nombre,
+                tipo: configRelampago.tipo,
+                eslogan: configRelampago.eslogan,
+                cantidad: configRelampago.cantidad,
+                pagas: configRelampago.pagas
+            };
+            console.log('✅ Producto tiene oferta RELÁMPAGO:', configRelampago.nombre);
+        }
+    }
+    // 4. SI ESTÁS EN MODO ADMIN CON "MOSTRAR TODAS", también validar
+    else if (modoMostrarTodasOfertas && esAdmin && product.relampago > 0) {
+        esOfertaRelampago = true;
+        const configRelampago = OFERTAS_RELAMPAGO_SISTEMA[product.relampago];
+        if (configRelampago) {
+            ofertaConfig = {
+                nombre: configRelampago.nombre,
+                tipo: configRelampago.tipo,
+                eslogan: configRelampago.eslogan,
+                cantidad: configRelampago.cantidad,
+                pagas: configRelampago.pagas
+            };
+            console.log('✅ [ADMIN] Producto tiene oferta RELÁMPAGO:', configRelampago.nombre);
+        }
+    }
+    
+    console.log('🔍 Ofertas detectadas:', {
+        esOfertaEspecial,
+        esOfertaDestacada,
+        esOfertaRelampago,
+        esPromo,
+        ofertaConfig
+    });
+    
+    // Actualizar o agregar al carrito
+    if (existingItem) {
+        existingItem.quantity++;
+        // IMPORTANTE: Actualizar la info de oferta SIEMPRE
+        existingItem.oferta = ofertaConfig;
+        existingItem.esOfertaEspecial = esOfertaEspecial;
+        existingItem.esOfertaDestacada = esOfertaDestacada;
+        existingItem.esOfertaRelampago = esOfertaRelampago;
+        existingItem.esPromo = esPromo;
+        existingItem.productRef = product; // Actualizar referencia
+    } else {
+        cart.push({
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            quantity: 1,
+            maxStock: product.stockNumber,
+            oferta: ofertaConfig,
+            esOfertaEspecial: esOfertaEspecial,
+            esOfertaDestacada: esOfertaDestacada,
+            esOfertaRelampago: esOfertaRelampago,
+            esPromo: esPromo,
+            productRef: product
+        });
+    }
+    
+    console.log('🛒 Item agregado al carrito:', cart[cart.length - 1]);
+    
+    updateCartCount();
+    renderCartItems();
+    
+    // Mensaje de confirmación MEJORADO
+    let mensaje = `✅ ${product.name} agregado`;
+    
+    if (esOfertaRelampago && ofertaConfig) {
+        const nuevaCantidad = existingItem ? existingItem.quantity : 1;
+        const cantidadNecesaria = ofertaConfig.cantidad;
+        
+        if (nuevaCantidad >= cantidadNecesaria) {
+            const gratisTotal = Math.floor(nuevaCantidad / cantidadNecesaria);
+            mensaje = `🎉 ¡${ofertaConfig.nombre.toUpperCase()} ACTIVADO! Llevás ${gratisTotal} GRATIS`;
+        } else {
+            const faltan = cantidadNecesaria - nuevaCantidad;
+            mensaje = `🎁 ${ofertaConfig.nombre.toUpperCase()} - Agregá ${faltan} más para activar`;
+        }
+    }
+    else if (esOfertaEspecial) mensaje = `✅ ${product.name} (🎁 OFERTA ESPECIAL -10%)`;
+    else if (esOfertaDestacada) mensaje = `✅ ${product.name} (🔥 ${product.destacada}% OFF)`;
+    
+    showNotification(mensaje, 'success');
+}
+
+function updateCartCount() {
+    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+    const cartCountElement = document.getElementById('cartCount');
+    const floatingCartCountElement = document.getElementById('floatingCartCount');
+    
+    if (cartCountElement) cartCountElement.textContent = totalItems;
+    if (floatingCartCountElement) floatingCartCountElement.textContent = totalItems;
+    
+    console.log('🛒 Carrito actualizado:', totalItems, 'productos');
+}
+
+function renderCartItems() {
+    const cartItems = document.getElementById('cartItems');
+    const cartTotal = document.getElementById('cartTotal');
+    
+    if (cart.length === 0) {
+        cartItems.innerHTML = "<p style='text-align: center; padding: 2rem; color: #666;'>Tu carrito está vacío</p>";
+        cartTotal.textContent = "Total: $0";
+        return;
+    }
+    
+    let total = 0;
+    let totalNormal = 0;
+    let totalAhorro = 0;
+    
+    cartItems.innerHTML = cart.map(item => {
+        const product = item.productRef || products.find(p => p.id === item.id);
+        if (!product) return '';
+        
+        const precioNormalTotal = product.price * item.quantity;
+        let precioAntes = precioNormalTotal; // Este es el "precio antes" para mostrar
+        
+        let precioTotalItem = precioNormalTotal;
+        let ahorroItem = 0;
+        let badge = '';
+        let formula = '';
+        let badgeColor = '#ddd';
+        
+        // ===== OFERTAS RELÁMPAGO =====
+        if (item.esOfertaRelampago && item.oferta) {
+            // 2da50
+            if (item.oferta.tipo === '2da50') {
+                const pares = Math.floor(item.quantity / 2);
+                const sueltas = item.quantity % 2;
+                const precioPar = product.price * 1.5;
+                precioTotalItem = (pares * precioPar) + (sueltas * product.price);
+                ahorroItem = pares * (product.price * 0.5);
+                
+                if (pares > 0) {
+                    badgeColor = '#4caf50';
+                    badge = `2da50`;
+                    formula = `<div style="color:#4caf50;font-size:0.7rem;">👉 2da unidad 50% off</div>`;
+                } else {
+                    badgeColor = '#ff9800';
+                    badge = `2da50`;
+                }
+                
+                if (sueltas > 0 && pares > 0) {
+                    formula += `<div style="color:#666;font-size:0.65rem;">+${sueltas} sin promo</div>`;
+                }
+            } 
+            // 2x1, 3x2, 4x3, etc.
+            else {
+                const lleva = item.oferta.cantidad;    // ej: 4
+                const paga = item.oferta.pagas;        // ej: 3
+                const gruposCompletos = Math.floor(item.quantity / lleva);
+                const unidadesSueltas = item.quantity % lleva;
+                
+                const totalGrupos = gruposCompletos * Math.round(product.price * paga);
+                const totalSueltas = unidadesSueltas * product.price;
+                precioTotalItem = totalGrupos + totalSueltas;
+                ahorroItem = (product.price * (lleva - paga)) * gruposCompletos;
+                
+                if (gruposCompletos > 0) {
+                    badgeColor = '#4caf50';
+                    badge = `${item.oferta.nombre}`;
+                    formula = `<div style="color:#4caf50;font-size:0.7rem;">👉 Llevás ${lleva}, pagás ${paga}</div>`;
+                } else {
+                    badgeColor = '#ff9800';
+                    badge = `${item.oferta.nombre}`;
+                }
+                
+                if (unidadesSueltas > 0 && gruposCompletos > 0) {
+                    formula += `<div style="color:#666;font-size:0.65rem;">+${unidadesSueltas} sin promo</div>`;
+                }
+            }
+        }
+        // ===== OFERTAS DESTACADAS =====
+        else if (item.esOfertaDestacada && item.oferta) {
+            badgeColor = '#ff6f00';
+            const descuento = item.oferta.descuento / 100;
+            const precioUnitario = Math.round(product.price * (1 - descuento));
+            precioTotalItem = precioUnitario * item.quantity;
+            ahorroItem = precioNormalTotal - precioTotalItem;
+            badge = `${item.oferta.descuento}%`;
+            formula = `<div style="color:#ff6f00;font-size:0.7rem;">👉 -${item.oferta.descuento}% c/u</div>`;
+        }
+        // ===== OFERTAS ESPECIALES =====
+        else if (item.esOfertaEspecial && item.oferta) {
+            badgeColor = '#2196f3';
+            const precioUnitario = Math.round(product.price * 0.9);
+            precioTotalItem = precioUnitario * item.quantity;
+            ahorroItem = precioNormalTotal - precioTotalItem;
+            badge = `-10%`;
+            formula = `<div style="color:#2196f3;font-size:0.7rem;">👉 -10% c/u</div>`;
+        }
+        // ===== COMBOS (PROMOS) =====
+        else if (item.esPromo) {
+            badgeColor = '#ff9800';
+            badge = `COMBO`;
+            
+            // Calcular ahorro si tiene precio normal
+            if (product.normal && product.normal > product.price) {
+                precioAntes = product.normal * item.quantity; // Actualizar precio antes
+                ahorroItem = (product.normal - product.price) * item.quantity;
+                const porcentaje = Math.round(((product.normal - product.price) / product.normal) * 100);
+                formula = `<div style="color:#ff9800;font-size:0.7rem;">👉 -${porcentaje}% combo</div>`;
+            }
+        }
+        
+        totalNormal += precioAntes;
+        total += precioTotalItem;
+        totalAhorro += ahorroItem;
+        
+        // Precio info compacta
+        const precioInfo = ahorroItem > 0 ? 
+            `<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px;font-size:0.75rem;">
+                <div style="text-decoration:line-through;color:#999;">$${precioAntes}</div>
+                <div style="font-weight:bold;color:#2e7d32;">$${precioTotalItem}</div>
+            </div>` :
+            `<div style="font-weight:bold;color:#2e7d32;margin-top:5px;">$${precioTotalItem}</div>`;
+        
+        // Ahorro mini-badge
+        const ahorroBadge = ahorroItem > 0 ? 
+            `<div style="background:#4caf50;color:white;padding:2px 6px;border-radius:10px;font-size:0.65rem;display:inline-block;margin-top:3px;">
+                -$${ahorroItem}
+            </div>` : '';
+        
+        return `
+            <div class="cart-item" style="padding:10px 0;border-bottom:1px solid #eee;display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;">
+                <!-- BADGE -->
+                <div style="background:${badgeColor};color:white;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:0.8rem;">
+                    ${badge}
+                </div>
+                
+                <!-- INFO PRODUCTO -->
+                <div>
+                    <div style="font-weight:600;color:#333;font-size:0.9rem;line-height:1.2;margin-bottom:3px;">
+                        ${item.name}
+                    </div>
+                    ${formula}
+                    ${ahorroBadge}
+                </div>
+                
+                <!-- CONTROLES -->
+                <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
+                    ${precioInfo}
+                    <div style="display:flex;align-items:center;gap:8px;margin-top:3px;">
+                        <button class="quantity-btn decrease-btn" data-id="${item.id}" 
+                                style="width:26px;height:26px;border:1px solid #ddd;background:white;border-radius:50%;cursor:pointer;font-size:0.9rem;">−</button>
+                        <span style="font-weight:600;font-size:0.9rem;min-width:20px;">${item.quantity}</span>
+                        <button class="quantity-btn increase-btn" data-id="${item.id}" 
+                                style="width:26px;height:26px;border:1px solid #ddd;background:white;border-radius:50%;cursor:pointer;font-size:0.9rem;">+</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    // ===== FOOTER COMPACTO =====
+    let footerHTML = '';
+    
+    if (totalAhorro > 0) {
+        footerHTML = `
+            <div style="background:#4caf50;color:white;padding:12px;border-radius:10px;margin:15px 0;text-align:center;font-weight:bold;">
+                🎉 ¡AHORRASTE $${totalAhorro}!
+                <div style="font-size:0.85rem;opacity:0.95;margin-top:3px;">
+                    (Precio normal: $${totalNormal})
+                </div>
+            </div>
+        `;
+    }
+    
+    footerHTML += `
+        <div style="text-align:right;padding-top:10px;border-top:2px solid #2e7d32;font-size:1.2rem;font-weight:bold;color:#2e7d32;">
+            TOTAL: $${total}
+        </div>
+    `;
+    
+    cartItems.innerHTML += footerHTML;
+    cartTotal.textContent = '';
+    
+    // ===== BOTONES DE CANTIDAD =====
+    setTimeout(() => {
+        cartItems.querySelectorAll('.increase-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const productId = parseInt(btn.getAttribute('data-id'));
+                addToCart(productId);
+            });
+        });
+        
+        cartItems.querySelectorAll('.decrease-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const productId = parseInt(btn.getAttribute('data-id'));
+                updateCartQuantity(productId, -1);
+            });
+        });
+    }, 100);
+}
+
+
+function updateCartQuantity(productId, change) {
+    const itemIndex = cart.findIndex(item => item.id === productId);
+    if (itemIndex === -1) return;
+    
+    const item = cart[itemIndex];
+    const product = item.productRef || products.find(p => p.id === productId);
+    
+    if (!product) {
+        cart.splice(itemIndex, 1);
+        updateCartCount();
+        renderCartItems();
+        return;
+    }
+    
+    const newQuantity = item.quantity + change;
+    
+    // Verificar límites
+    if (newQuantity < 1) {
+        cart.splice(itemIndex, 1);
+        showNotification(`❌ ${item.name} eliminado del carrito`, "info");
+    } else if (newQuantity > product.stockNumber) {
+        showNotification(`⚠️ Stock máximo: ${product.stockNumber} unidades`, 'warning');
+        return;
+    } else {
+        item.quantity = newQuantity;
+    }
+    
+    updateCartCount();
+    renderCartItems();
+}
+
+function sendOrderViaWhatsApp() {
+    if (cart.length === 0) {
+        showNotification("⚠️ Tu carrito está vacío", "warning");
+        return;
+    }
+
+    const phoneNumber = "5492944907380";
+
+    let total = 0;
+    let totalNormal = 0;
+    let totalAhorro = 0;
+    let orderLines = [];
+
+    cart.forEach(item => {
+        const product = item.productRef || products.find(p => p.id === item.id);
+        if (!product) return;
+
+        const precioNormalItem = product.price * item.quantity;
+        let precioParaTotal = precioNormalItem; // Este será el "precio antes" para calcular ahorro
+
+        let precioItem = precioNormalItem;
+        let ofertaInfo = '';
+
+        // OFERTA ESPECIAL (-10%)
+        if (item.esOfertaEspecial && item.oferta) {
+            const precioUnitario = Math.round(product.price * 0.9);
+            precioItem = precioUnitario * item.quantity;
+            const ahorro = precioNormalItem - precioItem;
+            ofertaInfo = `\n⭐ Ahorrás $${ahorro}`;
+        }
+        // OFERTA DESTACADA (ej: 15% OFF)
+        else if (item.esOfertaDestacada && item.oferta) {
+            const descuento = item.oferta.descuento / 100;
+            const precioUnitario = Math.round(product.price * (1 - descuento));
+            precioItem = precioUnitario * item.quantity;
+            const ahorro = precioNormalItem - precioItem;
+            ofertaInfo = `\n🔥 Ahorrás $${ahorro}`;
+        }
+        // OFERTA RELÁMPAGO (ej: 3x2)
+        else if (item.esOfertaRelampago && item.oferta) {
+            precioItem = calcularPrecioConOferta(
+                product,
+                item.quantity,
+                true,
+                item.oferta
+            );
+            const ahorro = precioNormalItem - precioItem;
+            ofertaInfo = `\n🎁 ${item.oferta.eslogan}`;
+        }
+        // COMBO (PROMOS)
+        else if (item.esPromo && product.normal && product.normal > product.price) {
+            const precioNormalCombo = product.normal * item.quantity;
+            precioParaTotal = precioNormalCombo; // Usar precio normal para el cálculo
+            const ahorro = (product.normal - product.price) * item.quantity;
+            const porcentaje = Math.round(((product.normal - product.price) / product.normal) * 100);
+            ofertaInfo = `\n🎯 Ahorrás $${ahorro} (-${porcentaje}%)`;
+        }
+
+        totalNormal += precioParaTotal;
+        total += precioItem;
+        totalAhorro += (precioParaTotal - precioItem);
+
+        // LÍNEA CON FORMATO MEJORADO
+        const nombreLinea = item.esOfertaEspecial || item.esOfertaDestacada || item.esOfertaRelampago || item.esPromo
+            ? `${item.name} (OFERTA)` 
+            : item.name;
+            
+        orderLines.push(
+            `${nombreLinea}\n${item.quantity} unidad${item.quantity > 1 ? 'es' : ''} — $${precioItem}${ofertaInfo}`
+        );
+    });
+
+    // ===== ARMADO DEL MENSAJE SIMPLIFICADO =====
+    let message = `🛒 *PEDIDO – ALMACÉN COPIHUE*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += orderLines.join('\n\n');
+    message += `\n\n━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    
+    if (totalAhorro > 0) {
+        message += `SUBTOTAL: $${totalNormal}\n`;
+        message += `AHORRO:   -$${totalAhorro}\n`;
+        message += `TOTAL:    $${total}\n`;
+    } else {
+        message += `TOTAL: $${total}\n`;
+    }
+    
+    message += `━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `📍 Copihue 457\n`;
+    message += `🕒 11:30 a 23:30 hs\n`;
+    message += `⏱️ Pedido listo en 15-20 min`;
+
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappURL = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
+
+    // Limpiar carrito
+    cart = [];
+    updateCartCount();
+    closeCartModal();
+
+    showNotification("📤 Enviando pedido por WhatsApp...", "success");
+
+    setTimeout(() => {
+        window.open(whatsappURL, "_blank");
+    }, 500);
+}
+
+
+// ========== BÚSQUEDA MEJORADA CON ENTER ==========
+function setupSearch() {
+    const productSearch = document.getElementById('productSearch');
+    const mobileSearch = document.getElementById('mobileSearch');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    const clearMobileSearchBtn = document.getElementById('clearMobileSearchBtn');
+    
+    // Función para realizar búsqueda
+    function performSearch(searchInput, isMobile = false) {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        
+        if (searchTerm === '') {
+            if (!isMobile) {
+                isSearching = false;
+                renderizarProductosNormales();
+            } else {
+                document.getElementById('mobileSearchResults').innerHTML = '';
+            }
+            return;
+        }
+        
+        if (searchTerm.length >= 2) {
+            if (!isMobile) {
+                isSearching = true;
+                filterProducts(searchTerm);
+            } else {
+                filterMobileProducts(searchTerm);
+            }
+        }
+    }
+    
+    // Event listeners para input
+    productSearch.addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        clearSearchBtn.style.display = searchTerm.length > 0 ? 'block' : 'none';
+        
+        if (searchTerm === '') {
+            isSearching = false;
+            renderizarProductosNormales();
+            return;
+        }
+        
+        if (searchTerm.length >= 2) {
+            isSearching = true;
+            filterProducts(searchTerm);
+        }
+    });
+    
+    mobileSearch.addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        clearMobileSearchBtn.style.display = searchTerm.length > 0 ? 'block' : 'none';
+        
+        if (searchTerm === '') {
+            document.getElementById('mobileSearchResults').innerHTML = '';
+            return;
+        }
+        
+        if (searchTerm.length >= 2) {
+            filterMobileProducts(searchTerm);
+        }
+    });
+    
+    // Event listeners para Enter
+    productSearch.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            performSearch(this, false);
+        }
+    });
+    
+    mobileSearch.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            performSearch(this, true);
+            // Ocultar teclado virtual en móviles
+            this.blur();
+        }
+    });
+    
+    clearSearchBtn.addEventListener('click', clearSearch);
+    clearMobileSearchBtn.addEventListener('click', clearMobileSearch);
+}
+
+function filterProducts(searchTerm) {
+    const productsGrid = document.getElementById('productsGrid');
+    
+    const results = products.filter(p => 
+        p.name.toLowerCase().includes(searchTerm) && 
+        p.stockNumber > 0
+    );
+    
+    if (results.length === 0) {
+        productsGrid.innerHTML = `
+            <div class="loading">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+                <h3>No se encontraron productos para "${searchTerm}"</h3>
+                <button onclick="clearSearch()" class="retry-btn">
+                    ✨ Ver todos los productos
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    productsGrid.innerHTML = `
+        <div class="search-results">
+            <strong>🔍 Búsqueda: "${searchTerm}"</strong>
+            <br>
+            <small>Encontraste ${results.length} producto(s)</small>
+            <button onclick="clearSearch()" style="margin-left: 10px; padding: 6px 12px; 
+                    background: #ff6f00; color: white; border: none; border-radius: 15px; 
+                    cursor: pointer; font-size: 0.8rem;">
+                ✖️ Limpiar búsqueda
+            </button>
+        </div>
+    ` + results.map(product => `
+        <div class="product-card">
+            <div class="product-image">
+                <button class="share-btn" onclick="compartirProducto('${product.id}', event)" title="Compartir">🔗</button>
+                <img src="${product.image}" 
+                     alt="${product.name}"
+                     onerror="handleImageError(this, '${product.name.replace(/'/g, "\\'")}')">
+            </div>
+            <div class="product-info">
+                <div class="product-name">${product.name}</div>
+                <div class="product-price-container">
+                    <span class="product-price">$${product.price}</span>
+                </div>
+                <div class="product-stock in-stock">
+                    ✅ Stock: ${product.stockNumber}
+                </div>
+                <button class="add-to-cart" data-id="${product.id}" data-testid="add-to-cart-${product.id}">
+                    🛒 Agregar al Carrito
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function filterMobileProducts(searchTerm) {
+    const resultsContainer = document.getElementById('mobileSearchResults');
+    
+    const results = products.filter(p => 
+        p.name.toLowerCase().includes(searchTerm) && 
+        p.stockNumber > 0
+    );
+    
+    if (results.length === 0) {
+        resultsContainer.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: #666;">
+                🔍 No se encontraron productos para "<strong>${searchTerm}</strong>"
+            </div>
+        `;
+        return;
+    }
+    
+    resultsContainer.innerHTML = '<div style="display: grid; gap: 1rem;">' + 
+        results.map(product => `
+            <div class="product-card" style="margin: 0;">
+                <div class="product-image">
+                    <button class="share-btn" onclick="compartirProducto('${product.id}', event)" title="Compartir">🔗</button>
+                    <img src="${product.image}" 
+                         alt="${product.name}"
+                         onerror="handleImageError(this, '${product.name.replace(/'/g, "\\'")}')">
+                </div>
+                <div class="product-info">
+                    <div class="product-name">${product.name}</div>
+                    <div class="product-price-container">
+                        <span class="product-price">$${product.price}</span>
+                    </div>
+                    <div class="product-stock in-stock">
+                        ✅ Stock: ${product.stockNumber}
+                    </div>
+                    <button class="add-to-cart" data-id="${product.id}" data-testid="add-to-cart-${product.id}">
+                        🛒 Agregar al Carrito
+                    </button>
+                </div>
+            </div>
+        `).join('') + '</div>';
+}
+
+function clearSearch() {
+    document.getElementById('productSearch').value = '';
+    document.getElementById('clearSearchBtn').style.display = 'none';
+    isSearching = false;
+    renderizarProductosNormales();
+}
+
+function clearMobileSearch() {
+    document.getElementById('mobileSearch').value = '';
+    document.getElementById('clearMobileSearchBtn').style.display = 'none';
+    document.getElementById('mobileSearchResults').innerHTML = '';
+}
+
+// ========== MODALES ==========
+function openCart() {
+    renderCartItems();
+    document.getElementById('cartModal').style.display = "flex";
+}
+
+function closeCartModal() {
+    document.getElementById('cartModal').style.display = "none";
+}
+
+function openSearchModal() {
+    document.getElementById('searchModal').style.display = "flex";
+    document.getElementById('mobileSearch').focus();
+}
+
+function closeSearchModal() {
+    document.getElementById('searchModal').style.display = "none";
+    clearMobileSearch();
+}
+
+// ========== BOTÓN HOME ==========
+function goToHome() {
+    // Restaurar categoría inicial
+    currentCategory = "ALMACEN";
+    
+    // Limpiar búsqueda
+    document.getElementById('productSearch').value = '';
+    document.getElementById('clearSearchBtn').style.display = 'none';
+    isSearching = false;
+    
+    // Limpiar búsqueda móvil si está activa
+    document.getElementById('mobileSearch').value = '';
+    document.getElementById('clearMobileSearchBtn').style.display = 'none';
+    document.getElementById('mobileSearchResults').innerHTML = '';
+    
+    // Actualizar botones de categoría
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-category') === "ALMACEN") {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Renderizar productos
+    renderizarProductosNormales();
+    
+    // Ocultar botón de inicio (opcional)
+    document.getElementById('floatingHome').style.display = 'none';
+    
+    // Scroll suave al inicio
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+    
+    showNotification("🏠 Volviendo al inicio...", "success");
+}
+
+// ========== UTILIDADES ==========
+function handleImageError(img, productName) {
+    const colors = ['#e8f5e9', '#f1f8e9', '#f9fbe7', '#fffde7', '#fff3e0'];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    
+    img.src = '';
+    img.onerror = null;
+    
+    const container = img.parentElement;
+    container.style.background = `linear-gradient(135deg, ${randomColor}, #c8e6c9)`;
+    container.style.display = 'flex';
+    container.style.justifyContent = 'center';
+    container.style.alignItems = 'center';
+    
+    const icon = document.createElement('div');
+    icon.innerHTML = '🛒';
+    icon.style.fontSize = '3rem';
+    icon.style.opacity = '0.5';
+    
+    const text = document.createElement('div');
+    text.textContent = productName.length > 20 ? productName.substring(0, 20) + '...' : productName;
+    text.style.position = 'absolute';
+    text.style.bottom = '10px';
+    text.style.fontSize = '0.7rem';
+    text.style.color = '#666';
+    text.style.padding = '0 10px';
+    text.style.textAlign = 'center';
+    
+    container.innerHTML = '';
+    container.appendChild(icon);
+    container.appendChild(text);
+}
+
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.className = 'stock-notification';
+    notification.style.background = type === 'success' ? '#4CAF50' : '#ff9800';
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 2000);
+}
+
+// ========== EVENT LISTENERS MEJORADOS ==========
+function setupEventListeners() {
+    // Carrito
+    document.getElementById('cartIcon').addEventListener('click', openCart);
+    document.getElementById('floatingCart').addEventListener('click', openCart);
+    document.getElementById('closeCart').addEventListener('click', closeCartModal);
+    
+    // Búsqueda
+    document.getElementById('floatingSearch').addEventListener('click', openSearchModal);
+    document.getElementById('closeSearch').addEventListener('click', closeSearchModal);
+    
+    // Home
+    document.getElementById('floatingHome').addEventListener('click', goToHome);
+    
+    // WhatsApp
+    document.getElementById('sendOrder').addEventListener('click', sendOrderViaWhatsApp);
+    
+    // Modales
+    document.getElementById('cartModal').addEventListener('click', function(e) {
+        if (e.target === this) closeCartModal();
+    });
+    
+    document.getElementById('searchModal').addEventListener('click', function(e) {
+        if (e.target === this) closeSearchModal();
+    });
+    
+    // EVENT DELEGATION MEJORADO PARA TODOS LOS BOTONES "AGREGAR AL CARRITO"
+    document.addEventListener('click', function(e) {
+        // Verificar si el clic fue en un botón "Agregar al Carrito" o en un elemento dentro
+        const addToCartBtn = e.target.closest('.add-to-cart');
+        if (addToCartBtn) {
+            const productId = parseInt(addToCartBtn.getAttribute('data-id'));
+            if (!isNaN(productId)) {
+                addToCart(productId);
+                e.stopPropagation(); // Prevenir propagación
+                e.preventDefault(); // Prevenir comportamiento por defecto
+            }
+        }
+    });
+}
+
+function handleImageError(img, productName) {
+    const colors = ['#e8f5e9', '#f1f8e9', '#f9fbe7', '#fffde7', '#fff3e0'];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    
+    img.src = '';
+    img.onerror = null;
+    
+    const container = img.parentElement;
+    container.style.background = `linear-gradient(135deg, ${randomColor}, #c8e6c9)`;
+    container.style.display = 'flex';
+    container.style.justifyContent = 'center';
+    container.style.alignItems = 'center';
+    container.style.flexDirection = 'column';
+    container.style.gap = '10px';
+    
+    const icon = document.createElement('div');
+    icon.innerHTML = '🛒';
+    icon.style.fontSize = '3rem';
+    icon.style.opacity = '0.5';
+    
+    container.innerHTML = '';
+    container.appendChild(icon);
+    
+    // MODO ADMIN: Mostrar nombre de archivo JPG
+    if (esAdmin) {
+        const nombreArchivo = simplificarNombre(productName) + '.jpg';
+        
+        const adminInfo = document.createElement('div');
+        adminInfo.style.position = 'absolute';
+        adminInfo.style.bottom = '10px';
+        adminInfo.style.left = '10px';
+        adminInfo.style.right = '10px';
+        adminInfo.style.background = 'rgba(255, 152, 0, 0.95)';
+        adminInfo.style.color = 'white';
+        adminInfo.style.padding = '8px';
+        adminInfo.style.borderRadius = '8px';
+        adminInfo.style.fontSize = '0.7rem';
+        adminInfo.style.textAlign = 'center';
+        adminInfo.style.fontWeight = 'bold';
+        adminInfo.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+        adminInfo.style.wordBreak = 'break-all';
+        adminInfo.innerHTML = `📁 ADMIN<br>${nombreArchivo}`;
+        
+        container.appendChild(adminInfo);
+    }
+    // MODO NORMAL: Mostrar nombre de producto
+    else {
+        const text = document.createElement('div');
+        text.textContent = productName.length > 20 ? productName.substring(0, 20) + '...' : productName;
+        text.style.position = 'absolute';
+        text.style.bottom = '10px';
+        text.style.fontSize = '0.7rem';
+        text.style.color = '#666';
+        text.style.padding = '0 10px';
+        text.style.textAlign = 'center';
+        
+        container.appendChild(text);
+    }
+}
+
+function detectarAdmin() {
+    const urlParams = new URLSearchParams(window.location.search);
+    esAdmin = urlParams.has('admin');
+    
+    if (esAdmin) {
+        document.getElementById('adminBadge').style.display = 'inline-block';
+        document.getElementById('adminNotification').style.display = 'block';
+        document.getElementById('adminPanel').style.display = 'flex';
+        document.getElementById('adminPanelToggle').style.display = 'block';
+        actualizarEstadoAdmin();
+        console.log('🔧 Modo Admin activado');
+    }
+}
+
+function actualizarEstadoAdmin() {
+    const statusElement = document.getElementById('adminStatus');
+    if (!statusElement) return;
+    
+    const totalRelampago = poolRelampago.length;
+    const visiblesRelampago = productosRelampago.length;
+    
+    if (modoMostrarTodasOfertas) {
+        statusElement.innerHTML = `✅ Mostrando ${visiblesRelampago}/${totalRelampago} ofertas`;
+    } else {
+        statusElement.innerHTML = `🔒 Modo normal: ${visiblesRelampago}/${totalRelampago}`;
+    }
+}
+
+function toggleAdminPanel() {
+    const panel = document.getElementById('adminPanel');
+    const toggle = document.getElementById('adminPanelToggle');
+    
+    if (panel.classList.contains('hidden')) {
+        panel.classList.remove('hidden');
+        toggle.textContent = '👁️';
+        toggle.title = 'Ocultar Panel Admin';
+    } else {
+        panel.classList.add('hidden');
+        toggle.textContent = '👀';
+        toggle.title = 'Mostrar Panel Admin';
+    }
+}
+
+function toggleMostrarTodasOfertas() {
+    modoMostrarTodasOfertas = !modoMostrarTodasOfertas;
+    
+    const btn = document.getElementById('btnMostrarTodasOfertas');
+    if (modoMostrarTodasOfertas) {
+        btn.classList.add('active');
+        btn.textContent = '✅ Mostrando Todas';
+        showNotification('🔧 ADMIN: Mostrando TODAS las ofertas relámpago', 'success');
+    } else {
+        btn.classList.remove('active');
+        btn.textContent = '👀 Ver Todas las Ofertas';
+        showNotification('🔧 ADMIN: Modo normal restaurado', 'info');
+    }
+    
+    actualizarTodasLasVistas();
+    actualizarEstadoAdmin();
+}
+
+// ========== FUNCIÓN PARA LIMPIAR CACHÉ VIEJO ==========
+function limpiarCacheViejo() {
+    const versionActual = APP_VERSION;
+    const versionGuardada = localStorage.getItem('app_version');
+    
+    if (versionGuardada !== versionActual) {
+        console.log('🧹 Detectada nueva versión, limpiando caché...');
+        
+        // Limpiar localStorage viejo (excepto datos de rotación)
+        const datosRotacion = {
+            rotacion_relampago: localStorage.getItem('rotacion_relampago'),
+            rotacion_relampago_lastIndex: localStorage.getItem('rotacion_relampago_lastIndex'),
+            rotacion_especiales: localStorage.getItem('rotacion_especiales'),
+            rotacion_especiales_lastIndex: localStorage.getItem('rotacion_especiales_lastIndex')
+        };
+        
+        localStorage.clear();
+        
+        // Restaurar datos de rotación
+        Object.keys(datosRotacion).forEach(key => {
+            if (datosRotacion[key]) {
+                localStorage.setItem(key, datosRotacion[key]);
+            }
+        });
+        
+        // Guardar nueva versión
+        localStorage.setItem('app_version', versionActual);
+        
+        console.log('✅ Caché limpiado, versión actualizada a: ' + versionActual);
+    }
+}
+
+function init() {
+    console.log('🚀 Inicializando Almacén Copihue ' + APP_VERSION);
+    
+    limpiarCacheViejo();
+    detectarAdmin();
+    
+    // Detectar deep links (compartir productos)
+    manejarDeepLink();
+    window.addEventListener('hashchange', manejarDeepLink);
+    
+    setupEventListeners();
+    setupSearch();
+    updateCartCount();
+    
+    window.addEventListener('scroll', function() {
+        const floatingHome = document.getElementById('floatingHome');
+        if (floatingHome) {
+            if (window.pageYOffset > 300 || currentCategory !== "ALMACEN" || isSearching) {
+                floatingHome.style.display = 'flex';
+            } else {
+                floatingHome.style.display = 'none';
+            }
+        }
+    });
+    
+    loadProductsFromAPI();
+    
+    // Iniciar monitor de stock después de cargar productos
+    setTimeout(() => {
+        renderCategories(); // Renderizar categorías primero
+        monitorearStockPromos(); // Luego iniciar monitor
+    }, 500);
+    
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for(let registration of registrations) {
+                registration.unregister();
+                console.log('🗑️ Service Worker antiguo eliminado');
+            }
+            
+            navigator.serviceWorker.register('./sw.js?v=' + APP_VERSION)
+                .then(registration => {
+                    console.log('✅ Service Worker registrado - Versión: ' + APP_VERSION);
+                    
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.log('🔄 Nueva versión disponible - Recargando...');
+                                window.location.reload(true);
+                            }
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('❌ Error Service Worker:', error);
+                });
+        });
+    }
+}
+
+// AHORA
+document.addEventListener("DOMContentLoaded", init);
+
+// ========== DETECTOR DE ACTUALIZACIONES ==========
+// Verificar cada 5 minutos si hay nueva versión
+setInterval(() => {
+    fetch(window.location.href, {
+        method: 'HEAD',
+        cache: 'no-cache'
+    }).then(() => {
+        console.log('✅ Verificación de versión completada');
+    }).catch(err => {
+        console.warn('⚠️ Error verificando versión:', err);
+    });
+}, 300000); // 5 minutos
+
+// ========== MONITOR DE STOCK PROMOS ==========
+// ========== MONITOR DE STOCK PROMOS ==========
+function monitorearStockPromos() {
+    setInterval(() => {
+        // Verificar si hay cambios en stock de PROMOS
+        const promosConStock = products.filter(p => 
+            p.category === 'PROMOS' && 
+            p.stockNumber > 0
+        ).length > 0;
+        
+        const botonPromo = document.querySelector('.category-btn[data-category="PROMOS"]');
+        
+        if (botonPromo) {
+            // Agregar o quitar clase de animación
+            if (promosConStock) {
+                botonPromo.classList.add('promo-activa');
+                botonPromo.innerHTML = botonPromo.innerHTML.includes('✨') 
+                    ? botonPromo.innerHTML 
+                    : botonPromo.innerHTML.replace('PROMOS', 'PROMOS ✨');
+            } else {
+                botonPromo.classList.remove('promo-activa');
+                botonPromo.innerHTML = botonPromo.innerHTML.replace(' ✨', '');
+            }
+        }
+        
+        // Si estamos viendo PROMOS, actualizar la vista
+        if (currentCategory === 'PROMOS' && !isSearching) {
+            console.log('🔄 Actualizando vista de PROMOS...');
+            renderizarProductosNormales();
+        }
+    }, 15000);
+}
+
+console.log('✅ Sistema mejorado con Home, Enter en búsqueda y fix carrito - Versión ' + APP_VERSION);
+</script>
+</body>
+</html>
