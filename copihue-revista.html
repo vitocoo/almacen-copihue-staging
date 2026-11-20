@@ -91,6 +91,33 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 .login-c input{width:100%;padding:12px;border:2px solid var(--verde);border-radius:12px;font-size:1.3rem;text-align:center;letter-spacing:6px;font-family:inherit;margin-bottom:10px}
 .login-c button.go{width:100%;padding:13px;border:none;border-radius:12px;background:var(--verde);color:#fff;font-weight:900;font-size:1rem;font-family:inherit;cursor:pointer}
 .login-c .err{color:var(--rojo);font-size:.8rem;font-weight:800;min-height:1.2em;margin-bottom:6px}
+/* v215 — distintivo de oferta configurable (forma · color · texto · movimiento) */
+.rv-dist { position: absolute; top: 8px; right: 8px; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-weight: 900; line-height: 1; pointer-events: none; }
+.rv-dist b { font-size: 1.35rem; letter-spacing: -.5px; } .rv-dist small { font-size: .58rem; letter-spacing: .5px; margin-top: 2px; }
+.rv-dist.t-largo b { font-size: .82rem; letter-spacing: 0; }
+.rv-dist.f-ESTALLIDO { width: 92px; height: 92px; clip-path: polygon(50% 0%, 57.76% 21.02%, 75% 6.7%, 71.21% 28.79%, 93.3% 25%, 78.98% 42.24%, 100% 50%, 78.98% 57.76%, 93.3% 75%, 71.21% 71.21%, 75% 93.3%, 57.76% 78.98%, 50% 100%, 42.24% 78.98%, 25% 93.3%, 28.79% 71.21%, 6.7% 75%, 21.02% 57.76%, 0% 50%, 21.02% 42.24%, 6.7% 25%, 28.79% 28.79%, 25% 6.7%, 42.24% 21.02%); }
+.rv-dist.f-CIRCULO { width: 78px; height: 78px; border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,.3); border: 3px solid #fff; }
+.rv-dist.f-CINTA { top: 18px; right: -34px; width: 150px; height: 34px; transform: rotate(40deg); flex-direction: row; gap: 5px; box-shadow: 0 3px 8px rgba(0,0,0,.3); }
+.rv-dist.f-CINTA b { font-size: 1rem; } .rv-dist.f-CINTA small { margin: 0; }
+.rv-dist.f-CINTA.t-largo { top: 22px; right: -46px; width: 190px; } .rv-dist.f-CINTA.t-largo b { font-size: .72rem; } .rv-dist.f-CINTA.t-largo small { font-size: .52rem; }
+.rv-dist.f-ETIQUETA { min-width: 82px; height: 44px; padding: 0 12px 0 20px; flex-direction: row; gap: 5px; clip-path: polygon(16px 0, 100% 0, 100% 100%, 16px 100%, 0 50%); border-radius: 0 10px 10px 0; }
+.rv-dist.f-ETIQUETA b { font-size: 1.05rem; } .rv-dist.f-ETIQUETA small { margin: 0; }
+.rv-dist.c-ROJO { background: linear-gradient(135deg, #ff6f00, #e53935); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.rv-dist.c-DORADO { background: linear-gradient(135deg, #fff176, #ffb300 55%, #ff8f00); color: #3e2723; }
+.rv-dist.c-VERDE { background: linear-gradient(135deg, #43a047, #1b5e20); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.rv-dist.m-LATIDO { animation: rvLatido 2.4s ease-in-out infinite; }
+.rv-dist.f-CINTA.m-LATIDO { animation: rvLatidoCinta 2.4s ease-in-out infinite; }
+@keyframes rvLatido { 0%, 70%, 100% { transform: scale(1); } 80% { transform: scale(1.14); } 90% { transform: scale(.97); } }
+@keyframes rvLatidoCinta { 0%, 70%, 100% { transform: rotate(40deg) scale(1); } 80% { transform: rotate(40deg) scale(1.1); } 90% { transform: rotate(40deg) scale(.98); } }
+@media (prefers-reduced-motion: reduce) { .rv-dist.m-LATIDO, .rv-dist.f-CINTA.m-LATIDO { animation: none; } }
+.rv-pag .rv-foto { overflow: hidden; }
+
+.dist-prev{position:relative;height:120px;border-radius:14px;background:linear-gradient(135deg,#fafafa,#e8f5e9);overflow:hidden;margin:6px 0 10px;border:1px solid var(--borde)}
+.dist-prev .ph{position:absolute;left:14px;bottom:12px;font-size:.72rem;color:var(--gris);font-weight:700}
+.dist-prev .ph b{display:block;color:var(--rojo);font-size:1.2rem}
+.dist-prev .ph s{color:#9e9e9e}
+.ops{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.txt-propio{width:100%;padding:9px 11px;border:1.5px solid var(--borde);border-radius:10px;font-size:.9rem;font-family:inherit;text-transform:uppercase;margin-bottom:6px}
 </style>
 </head>
 <body>
@@ -121,7 +148,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 </div>
 
 <script>
-const APP_VERSION = 3;
+const APP_VERSION = 4;
 const API_URL = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 const POS_URL = 'seba21-staging.html';
 const SEG_SESION_KEY = 'copihue_sesion';   // la misma sesión que guarda el POS (seba21)
@@ -156,6 +183,7 @@ async function cargar() {
         DEST = (r1.destacados || []).map(d => ({ producto: d.producto, texto: d.texto, precioRevista: d.precioRevista || '', existe: d.existe, stock: d.stock, precio: d.precio }));
         HOY = r1.hoy || new Date().toISOString().slice(0, 10);
         OCULTOS = (r1.ocultos || []).slice();
+        if (r1.config && r1.config.estallido) EST = Object.assign({}, EST, r1.config.estallido);
         const lista = (r2 && (r2.productos || r2)) || [];
         CATALOGO = (Array.isArray(lista) ? lista : []).map(p => ({ name: String(p.name || p.nombre || '').trim(), price: Number(p.price || p.precio) || 0, stock: parseFloat(p.stock) || 0, cat: String(p.category || p.categoria || '').toUpperCase() })).filter(p => p.name);
         DEST.forEach(d => { const p = CATALOGO.find(x => x.name.toUpperCase() === d.producto.toUpperCase()); if (p) { d.precio = p.price; d.stock = p.stock; d.existe = true; } });
@@ -166,7 +194,19 @@ async function cargar() {
         $('app').innerHTML = '<div class="ldg">😕 No se pudo cargar la revista.<br><small>' + esc(e.message) + '</small><br><br><button class="chip" onclick="location.reload()">🔄 Reintentar</button></div>';
     }
 }
-let AUTO = { items: [] }, HOY = '', OCULTOS = [];
+let AUTO = { items: [] }, HOY = '', OCULTOS = [], EST = { mov: 'LATIDO', texto: 'PORCENTAJE', color: 'ROJO', forma: 'ESTALLIDO' };
+function pintarEst() {
+    const esPropio = !['PORCENTAJE', 'OFERTA'].includes(EST.texto);
+    [['oForma', EST.forma], ['oColor', EST.color], ['oMov', EST.mov], ['oTexto', esPropio ? 'PROPIO' : EST.texto]].forEach(([id, v]) => document.querySelectorAll('#' + id + ' .chip').forEach(b => b.classList.toggle('on', b.dataset.v === v)));
+    const tp = $('oTextoPropio'); if (tp) { tp.style.display = esPropio ? '' : 'none'; if (esPropio && document.activeElement !== tp) tp.value = EST.texto; }
+    const pv = $('distPrev'); if (!pv) return;
+    const vieja = pv.querySelector('.rv-dist'); if (vieja) vieja.remove();
+    if (EST.mov === 'NO') return;
+    const b = EST.texto === 'PORCENTAJE' ? '-14%' : EST.texto, s2 = EST.texto === 'PORCENTAJE' ? 'OFF' : '-14%';
+    pv.insertAdjacentHTML('beforeend', `<div class="rv-dist f-${EST.forma} c-${EST.color} m-${EST.mov}${b.length > 5 ? ' t-largo' : ''}"><b>${esc(b)}</b><small>${esc(s2)}</small></div>`);
+}
+function setEst(k, v) { EST[k] = v; marcarSucio(true); pintarEst(); }
+function setEstTexto(v) { if (v === 'PROPIO') { EST.texto = ($('oTextoPropio').value || 'REGALO').toUpperCase().slice(0, 10); } else EST.texto = v; marcarSucio(true); pintarEst(); if (v === 'PROPIO') $('oTextoPropio').focus(); }
 const DIAS_SEM = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 function sumarDias(iso, n) { const [y, m, d] = iso.split('-').map(Number); const f = new Date(Date.UTC(y, m - 1, d, 12)); f.setUTCDate(f.getUTCDate() + n); return f.toISOString().slice(0, 10); }
 function lindaFecha(iso) { const [y, m, d] = iso.split('-').map(Number); return DIAS_SEM[new Date(y, m - 1, d).getDay()] + ' ' + d + '/' + m; }
@@ -195,6 +235,19 @@ function dibujar() {
       <div class="chips" id="cCats">${CATS_INV.map(k => `<button type="button" class="chip ${c.categorias.includes(k) ? 'on' : ''}" data-cat="${esc(k)}" onclick="toggleCat(this)">${esc(k)}</button>`).join('')}</div>
     </div></div>
 
+    <div class="card"><div class="card-t">💥 Distintivo de oferta <small>en los productos con precio revista</small></div><div class="card-b">
+      <div class="dist-prev" id="distPrev"><div class="ph">Ejemplo<br><s>$140.000</s><b>$120.000</b></div></div>
+      <div class="sel-lbl" style="font-size:.72rem;font-weight:900;color:var(--gris);margin:2px 0 6px">FORMA</div>
+      <div class="ops" id="oForma">${[['ESTALLIDO','💥 Estallido'],['CIRCULO','⭕ Círculo'],['CINTA','🎀 Cinta'],['ETIQUETA','🏷️ Etiqueta']].map(([v,t]) => `<button type="button" class="chip" data-v="${v}" onclick="setEst('forma','${v}')">${t}</button>`).join('')}</div>
+      <div class="sel-lbl" style="font-size:.72rem;font-weight:900;color:var(--gris);margin:2px 0 6px">COLOR</div>
+      <div class="ops" id="oColor">${[['ROJO','🔴 Rojo-amarillo'],['DORADO','🟡 Dorado'],['VERDE','🟢 Verde navideño']].map(([v,t]) => `<button type="button" class="chip" data-v="${v}" onclick="setEst('color','${v}')">${t}</button>`).join('')}</div>
+      <div class="sel-lbl" style="font-size:.72rem;font-weight:900;color:var(--gris);margin:2px 0 6px">QUÉ DICE</div>
+      <div class="ops" id="oTexto">${[['PORCENTAJE','-14% (automático)'],['OFERTA','OFERTA'],['PROPIO','✏️ Texto mío']].map(([v,t]) => `<button type="button" class="chip" data-v="${v}" onclick="setEstTexto('${v}')">${t}</button>`).join('')}</div>
+      <input class="txt-propio" id="oTextoPropio" maxlength="10" placeholder="Hasta 10 letras (ej: REGALO)" style="display:none" oninput="EST.texto=this.value.toUpperCase().slice(0,10)||'PORCENTAJE';marcarSucio(true);pintarEst()">
+      <div class="sel-lbl" style="font-size:.72rem;font-weight:900;color:var(--gris);margin:2px 0 6px">MOVIMIENTO</div>
+      <div class="ops" id="oMov">${[['LATIDO','💓 Latido'],['QUIETO','⏸ Quieto'],['NO','🚫 Sin distintivo']].map(([v,t]) => `<button type="button" class="chip" data-v="${v}" onclick="setEst('mov','${v}')">${t}</button>`).join('')}</div>
+    </div></div>
+
     <div class="card"><div class="card-t">⭐ Mis productos destacados <small>${DEST.length} · van primero</small></div><div class="card-b">
       <input class="buscar" id="bus" type="text" placeholder="🔍 Buscar producto para agregar…" autocomplete="off" oninput="buscar()">
       <div class="res" id="res"></div>
@@ -208,7 +261,7 @@ function dibujar() {
       <div id="ocultosBox"></div>
     </div></div>`;
     ['cTitulo', 'cPrecio', 'cLimite'].forEach(id => $(id).addEventListener('input', () => marcarSucio(true)));
-    dibujarLista(); dibujarAuto(); textoVigencia();
+    dibujarLista(); dibujarAuto(); textoVigencia(); pintarEst();
     document.querySelectorAll('.prv input').forEach((inp, i) => revisarPrv(inp, i));
 }
 function setActiva(v) { CFG.activa = v; document.querySelectorAll('.sw button').forEach(b => b.classList.toggle('on', b.classList.contains(v ? 'si' : 'no'))); marcarSucio(true); }
@@ -317,7 +370,7 @@ async function guardar() {
     if (!$('cDesde').value && DEST.some(d => (parseInt(d.precioRevista) || 0) > 0) && !confirm('No pusiste fecha de inicio: los precios revista NO se van a aplicar. ¿Guardar igual?')) return;
     const datos = {
         token: s.token,
-        config: { titulo: $('cTitulo').value.trim() || 'Revista de Navidad', activa: CFG.activa, categorias: cats, precioMin: parseInt($('cPrecio').value) || 0, limite: Math.min(60, Math.max(1, parseInt($('cLimite').value) || 24)), desde: $('cDesde').value || '', dias: CFG.dias || 14 },
+        config: { titulo: $('cTitulo').value.trim() || 'Revista de Navidad', activa: CFG.activa, categorias: cats, precioMin: parseInt($('cPrecio').value) || 0, limite: Math.min(60, Math.max(1, parseInt($('cLimite').value) || 24)), desde: $('cDesde').value || '', dias: CFG.dias || 14, estallido: Object.assign({}, EST) },
         destacados: DEST.map(d => ({ producto: d.producto, texto: (d.texto || '').trim(), precioRevista: parseInt(d.precioRevista) || 0 })),
         ocultos: OCULTOS.slice()
     };

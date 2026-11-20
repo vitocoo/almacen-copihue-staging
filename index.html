@@ -475,6 +475,26 @@
         }
 
         /* 🆕 RECIÉN LLEGADOS — verde agua (misma arquitectura de tema que relampago/destacadas/especiales/ultimas) */
+        /* v215 — distintivo de oferta configurable (forma · color · texto · movimiento) */
+        .rv-dist { position: absolute; top: 8px; right: 8px; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-weight: 900; line-height: 1; pointer-events: none; }
+        .rv-dist b { font-size: 1.35rem; letter-spacing: -.5px; } .rv-dist small { font-size: .58rem; letter-spacing: .5px; margin-top: 2px; }
+        .rv-dist.t-largo b { font-size: .82rem; letter-spacing: 0; }
+        .rv-dist.f-ESTALLIDO { width: 92px; height: 92px; clip-path: polygon(50% 0%, 57.76% 21.02%, 75% 6.7%, 71.21% 28.79%, 93.3% 25%, 78.98% 42.24%, 100% 50%, 78.98% 57.76%, 93.3% 75%, 71.21% 71.21%, 75% 93.3%, 57.76% 78.98%, 50% 100%, 42.24% 78.98%, 25% 93.3%, 28.79% 71.21%, 6.7% 75%, 21.02% 57.76%, 0% 50%, 21.02% 42.24%, 6.7% 25%, 28.79% 28.79%, 25% 6.7%, 42.24% 21.02%); }
+        .rv-dist.f-CIRCULO { width: 78px; height: 78px; border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,.3); border: 3px solid #fff; }
+        .rv-dist.f-CINTA { top: 18px; right: -34px; width: 150px; height: 34px; transform: rotate(40deg); flex-direction: row; gap: 5px; box-shadow: 0 3px 8px rgba(0,0,0,.3); }
+        .rv-dist.f-CINTA b { font-size: 1rem; } .rv-dist.f-CINTA small { margin: 0; }
+.rv-dist.f-CINTA.t-largo { top: 22px; right: -46px; width: 190px; } .rv-dist.f-CINTA.t-largo b { font-size: .72rem; } .rv-dist.f-CINTA.t-largo small { font-size: .52rem; }
+        .rv-dist.f-ETIQUETA { min-width: 82px; height: 44px; padding: 0 12px 0 20px; flex-direction: row; gap: 5px; clip-path: polygon(16px 0, 100% 0, 100% 100%, 16px 100%, 0 50%); border-radius: 0 10px 10px 0; }
+        .rv-dist.f-ETIQUETA b { font-size: 1.05rem; } .rv-dist.f-ETIQUETA small { margin: 0; }
+        .rv-dist.c-ROJO { background: linear-gradient(135deg, #ff6f00, #e53935); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.3); }
+        .rv-dist.c-DORADO { background: linear-gradient(135deg, #fff176, #ffb300 55%, #ff8f00); color: #3e2723; }
+        .rv-dist.c-VERDE { background: linear-gradient(135deg, #43a047, #1b5e20); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.3); }
+        .rv-dist.m-LATIDO { animation: rvLatido 2.4s ease-in-out infinite; }
+        .rv-dist.f-CINTA.m-LATIDO { animation: rvLatidoCinta 2.4s ease-in-out infinite; }
+        @keyframes rvLatido { 0%, 70%, 100% { transform: scale(1); } 80% { transform: scale(1.14); } 90% { transform: scale(.97); } }
+        @keyframes rvLatidoCinta { 0%, 70%, 100% { transform: rotate(40deg) scale(1); } 80% { transform: rotate(40deg) scale(1.1); } 90% { transform: rotate(40deg) scale(.98); } }
+        @media (prefers-reduced-motion: reduce) { .rv-dist.m-LATIDO, .rv-dist.f-CINTA.m-LATIDO { animation: none; } }
+        .rv-pag .rv-foto { overflow: hidden; }
         /* v213 — 🎄 Revista */
         .ofertas-container.revista { border-color: #b71c1c; background: linear-gradient(160deg, #7f0000, #1b5e20); padding-bottom: 14px; }
         .rv-tapa { display: flex; align-items: center; gap: 12px; padding: 16px 16px 8px; color: #fff; }
@@ -3023,7 +3043,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v214';
+const APP_VERSION = 'copihue-index-v215';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -8534,6 +8554,34 @@ function _rvVigencia(largo) {
                  : `Válido del ${_rvFecha(_poolRevista.desde, true)} al ${_rvFecha(_poolRevista.hasta, true)} o hasta agotar stock`;
 }
 function _rvAhora() { const d = new Date(); return d.getDate() + '/' + (d.getMonth() + 1) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+// v215 — distintivo de oferta (configurable desde copihue-revista.html)
+function _rvEst() { const e = (_poolRevista && _poolRevista.estallido) || {}; return { mov: e.mov || 'LATIDO', texto: e.texto || 'PORCENTAJE', color: e.color || 'ROJO', forma: e.forma || 'ESTALLIDO' }; }
+function _rvDistTextos(normal, oferta, e) {
+    const pct = Math.round((1 - oferta / normal) * 100);
+    if (e.texto === 'PORCENTAJE') return { b: '-' + pct + '%', s: 'OFF' };
+    if (e.texto === 'OFERTA') return { b: 'OFERTA', s: '-' + pct + '%' };
+    return { b: e.texto, s: '-' + pct + '%' };
+}
+function _rvDistHTML(normal, oferta) {
+    const e = _rvEst(); if (e.mov === 'NO' || !(oferta > 0)) return '';
+    const t = _rvDistTextos(normal, oferta, e);
+    return `<div class="rv-dist f-${e.forma} c-${e.color} m-${e.mov}${t.b.length > 5 ? ' t-largo' : ''}"><b>${_rvEsc(t.b)}</b><small>${_rvEsc(t.s)}</small></div>`;
+}
+const _RV_COL = { ROJO: ['#ff6f00', '#e53935', '#fff'], DORADO: ['#fff176', '#ff8f00', '#3e2723'], VERDE: ['#43a047', '#1b5e20', '#fff'] };
+function _rvDistCanvas(c, cx, cy, R, normal, oferta) {   // mismo distintivo, dibujado en las imágenes para compartir
+    const e = _rvEst(); if (e.mov === 'NO' || !(oferta > 0)) return;
+    const t = _rvDistTextos(normal, oferta, e), col = _RV_COL[e.color] || _RV_COL.ROJO;
+    const g = c.createLinearGradient(cx - R, cy - R, cx + R, cy + R); g.addColorStop(0, col[0]); g.addColorStop(1, col[1]);
+    c.save(); c.fillStyle = g;
+    if (e.forma === 'CIRCULO') { c.beginPath(); c.arc(cx, cy, R * .86, 0, Math.PI * 2); c.fill(); c.lineWidth = R * .08; c.strokeStyle = '#fff'; c.stroke(); }
+    else if (e.forma === 'CINTA') { c.translate(cx, cy); c.rotate(Math.PI * 40 / 180); c.fillRect(-R * 1.7, -R * .36, R * 3.4, R * .72); c.rotate(-Math.PI * 40 / 180); c.translate(-cx, -cy); }
+    else if (e.forma === 'ETIQUETA') { const w = R * 2, h = R * 1.05, x = cx - w / 2, y = cy - h / 2, n = h * .35; c.beginPath(); c.moveTo(x + n, y); c.lineTo(x + w, y); c.lineTo(x + w, y + h); c.lineTo(x + n, y + h); c.lineTo(x, y + h / 2); c.closePath(); c.fill(); }
+    else { c.beginPath(); for (let k = 0; k < 24; k++) { const a = -Math.PI / 2 + k * Math.PI / 12, r = k % 2 ? R * .62 : R; c.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } c.closePath(); c.fill(); }
+    c.fillStyle = col[2]; c.textAlign = 'center'; c.textBaseline = 'middle';
+    if (e.forma === 'CINTA') { c.translate(cx, cy); c.rotate(Math.PI * 40 / 180); c.font = `900 ${R * .42}px sans-serif`; c.fillText(t.b + ' ' + t.s, 0, 0); }
+    else { const big = t.b.length > 5 ? R * .3 : R * .52; c.font = `900 ${big}px sans-serif`; c.fillText(t.b, cx, cy - R * .1); c.font = `800 ${R * .2}px sans-serif`; c.fillText(t.s, cx, cy + R * .3); }
+    c.restore();
+}
 function _rvLista() {
     if (!_poolRevista || !_poolRevista.activa) return [];
     return (_poolRevista.items || []).map(it => { const p = products.find(x => x.id === Number(it.id)); return p && p.stockNumber > 0 ? { ...p, rvTexto: it.texto || '', rvDestacado: !!it.destacado, rvPrecio: _rvPrecioVigente(p.id), rvOtra: _rvOtraOferta(p) } : null; }).filter(Boolean);
@@ -8554,8 +8602,8 @@ function renderizarRevista() {
         const vg = document.getElementById('rvVig'); if (vg) { const t = _rvVigencia(false); vg.textContent = t ? '🗓 ' + t : ''; vg.style.display = t ? '' : 'none'; }
         const html = lista.map((p, i) => `
             <div class="rv-pag ofertas-product-card" data-i="${i}">
-                ${p.rvPrecio ? '<div class="rv-sello rv-sello-precio">🎄 Precio revista</div>' : (p.rvDestacado ? '<div class="rv-sello">⭐ Recomendado</div>' : '')}
-                <div class="rv-foto"><img src="${p.image}" loading="lazy" alt="${_rvEsc(p.name)}" onerror="handleImageError(this, '${p.name.replace(/'/g, "\\'")}')"></div>
+                ${p.rvPrecio && _rvEst().mov === 'NO' ? '<div class="rv-sello rv-sello-precio">🎄 Precio revista</div>' : (p.rvDestacado ? '<div class="rv-sello">⭐ Recomendado</div>' : '')}
+                <div class="rv-foto">${p.rvPrecio ? _rvDistHTML(p.price, p.rvPrecio) : ''}<img src="${p.image}" loading="lazy" alt="${_rvEsc(p.name)}" onerror="handleImageError(this, '${p.name.replace(/'/g, "\\'")}')"></div>
                 <div class="rv-info">
                     <div class="product-name rv-nombre">${_rvEsc(p.name)}</div>
                     ${p.rvTexto ? `<div class="rv-texto">“${_rvEsc(p.rvTexto)}”</div>` : ''}
@@ -8626,6 +8674,7 @@ async function _rvTapa(lista, titulo) {
         const x = x0 + (k % cols) * (cw + 24), y = 520 + Math.floor(k / cols) * (ch + 24);
         c.fillStyle = '#fff'; c.beginPath(); c.roundRect(x, y, cw, ch, 24); c.fill();
         _rvImgEn(c, await _rvImg(cel[k].image), x + 20, y + 14, cw - 40, 178);
+        if (cel[k].rvPrecio) _rvDistCanvas(c, x + cw - 46, y + 46, 50, cel[k].price, cel[k].rvPrecio);
         if (cel[k].rvPrecio) { c.fillStyle = '#9e9e9e'; c.font = '700 22px sans-serif'; c.fillText('antes $' + Number(cel[k].price).toLocaleString('es-AR'), x + cw / 2, y + 206); }
         c.fillStyle = '#c62828'; c.font = '900 40px sans-serif'; c.fillText('$' + Number(cel[k].rvPrecio || cel[k].price).toLocaleString('es-AR') + (cel[k].rvPrecio ? ' 🎄' : ''), x + cw / 2, y + 240);
         c.fillStyle = '#333'; c.font = '700 22px sans-serif'; c.fillText(_rvCortar(c, cel[k].name, cw - 30, 1)[0], x + cw / 2, y + 280);
@@ -8650,7 +8699,8 @@ async function _rvPagina(p, n, total, titulo) {
         c.fillStyle = '#9e9e9e'; c.font = '700 48px sans-serif'; const ya = Math.max(y + 30, 1040), ta = '$' + Number(p.price).toLocaleString('es-AR'); c.fillText(ta, W / 2, ya);
         const tw = c.measureText(ta).width; c.strokeStyle = '#9e9e9e'; c.lineWidth = 4; c.beginPath(); c.moveTo(W / 2 - tw / 2, ya - 16); c.lineTo(W / 2 + tw / 2, ya - 16); c.stroke();
         c.fillStyle = '#c62828'; c.font = '900 110px sans-serif'; c.fillText('$' + Number(p.rvPrecio).toLocaleString('es-AR'), W / 2, ya + 110);
-        c.fillStyle = '#c62828'; c.beginPath(); c.roundRect(W - 400, 150, 310, 64, 32); c.fill(); c.fillStyle = '#fff'; c.font = '900 30px sans-serif'; c.fillText('🎄 Precio revista', W - 245, 193);
+        if (_rvEst().mov === 'NO') { c.fillStyle = '#c62828'; c.beginPath(); c.roundRect(W - 400, 150, 310, 64, 32); c.fill(); c.fillStyle = '#fff'; c.font = '900 30px sans-serif'; c.fillText('🎄 Precio revista', W - 245, 193); }
+        else _rvDistCanvas(c, W - 190, 260, 120, p.price, p.rvPrecio);
     } else { c.fillStyle = '#c62828'; c.font = '900 110px sans-serif'; c.fillText('$' + Number(p.price).toLocaleString('es-AR'), W / 2, Math.max(y + 80, 1110)); }
     c.fillStyle = '#fff'; c.font = '800 34px sans-serif'; c.fillText('📲 Pedilo por WhatsApp · 📍 Copihue 457', W / 2, H - 88);
     c.fillStyle = '#ffe082'; c.font = '700 26px sans-serif'; c.fillText('🗓 ' + (_rvVigencia(true) || ('Precios del ' + _rvAhora() + ' · sujetos a stock')), W / 2, H - 42);
