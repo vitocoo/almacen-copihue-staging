@@ -2389,6 +2389,8 @@ body.vista-inicio .info-bar{margin-top:18px;font-size:.85rem;opacity:.9}
 #pCompartir{display:none;width:100%;margin:10px 0 6px;padding:14px;border:none;border-radius:16px;background:#25d366;color:#fff;font-weight:900;font-size:1.02rem;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.15);font-family:inherit}
 body.pt-listo #pCompartir{display:block}
 body.pt-buscando #pCompartir{display:none!important}
+#pCompartir .cmp-si{display:none} body.ofertas-listas #pCompartir .cmp-si{display:inline} body.ofertas-listas #pCompartir .cmp-no{display:none}
+body:not(.ofertas-listas) #pCompartir{opacity:.6;cursor:wait}
 #cmpOverlay{display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.75);overflow:auto;padding:16px}
 #cmpOverlay.open{display:block}
 .cmp-caja{max-width:440px;margin:0 auto}
@@ -2454,7 +2456,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
       <div id="pAviso" class="pt-aviso" style="display:none"></div>
       <div id="pResultados"></div>
       <div id="pTarjetas" class="pt-tarjetas"><div class="pt-esperando">⏳ Cargando productos y ofertas…</div></div>
-      <button type="button" id="pCompartir" onclick="abrirCompartirOfertas()">📲 Compartir ofertas de hoy</button>
+      <button type="button" id="pCompartir" onclick="if(document.body.classList.contains('ofertas-listas'))abrirCompartirOfertas()"><span class="cmp-si">📲 Compartir ofertas de hoy</span><span class="cmp-no">⏳ Cargando ofertas…</span></button>
     </div>
     <div id="barraSeccion"><button type="button" onclick="_ptVolver()">← Volver</button><span id="barraTitulo"></span></div>
     <div id="adminNotification" class="admin-notification" style="display: none;">
@@ -2951,7 +2953,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v208';
+const APP_VERSION = 'copihue-index-v209';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -4865,6 +4867,7 @@ async function loadProductsFromAPI() {
 
         renderCategories();
         actualizarTodasLasVistas();
+        setTimeout(() => document.body.classList.add('ofertas-listas'), 400);   // v209 — recién ahora «Compartir ofertas de hoy» sabe qué ofertas hay
 
         if (window._intervaloActualizacion) clearInterval(window._intervaloActualizacion);
         window._intervaloActualizacion = setInterval(actualizarSoloOfertas, 60000);
@@ -8275,6 +8278,7 @@ document.getElementById('raspBtnReveal').addEventListener('click',()=>{
             btn.disabled = false;
         } catch (e) { console.warn('compartir ofertas:', e); wrap.innerHTML = '<div style="color:#fff;padding:30px;text-align:center">No se pudo armar la imagen. Probá de nuevo.</div>'; }
     };
+    setTimeout(() => document.body.classList.add('ofertas-listas'), 25000);   // v209 — si las ofertas nunca llegan, igual deja compartir (sale genérico)
     window.cerrarCompartirOfertas = function () { document.getElementById('cmpOverlay').classList.remove('open'); };
     window.enviarCompartirOfertas = async function () {
         if (!_cmpFile) return;
