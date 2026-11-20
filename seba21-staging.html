@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v584</title>
+    <title>🛒 POS · Copihue v585</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -7365,7 +7365,7 @@ function _dcCongelar() {
 function _vdTs(f) {
     let m = /^f_(\d{13})_/.exec(String(f.idFiado || ''));
     if (m) return parseInt(m[1], 10);
-    m = /^FIADO-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/.exec(String(f.idFiado || ''));
+    m = /^(?:FIADO|FIADOMIXTO)-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/.exec(String(f.idFiado || ''));   // v585: + FIADOMIXTO
     if (m) return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime();
     const t = Date.parse(String(f.fecha || ''));
     return isNaN(t) ? 0 : t;
@@ -7960,10 +7960,14 @@ async function confirmarVentaMixta() {
         // silencio como sí puede pasar hoy en el fiado puro).
         let _fiadoMixtoGuardado = false, _datosFiadoMixto = null; // v533
         if (pagoFiado) {
-            const idFiado = 'f_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+            // v585 — nombre legible: FIADOMIXTO-aaaammdd-hhmmss-xxxxx (antes f_<milisegundos>_xxxxx; los viejos quedan igual)
+            const _fm = new Date();
+            const idFiado = 'FIADOMIXTO-' + _fm.getFullYear() + String(_fm.getMonth() + 1).padStart(2, '0') + String(_fm.getDate()).padStart(2, '0') + '-' +
+                String(_fm.getHours()).padStart(2, '0') + String(_fm.getMinutes()).padStart(2, '0') + String(_fm.getSeconds()).padStart(2, '0') + '-' + Math.random().toString(36).slice(2, 7);
             if (ticketNum && _fiadoMixtoPrefijo) _fiadoMixtoPrefijo = _fiadoMixtoPrefijo.replace('🔀 Parte fiada de venta', '🔀 Parte fiada del ticket ' + ticketNum); // v581
             const datosFiado = {
                 idFiado,
+                idVenta,   // v585: para poder completar el ticket más tarde (la planilla ignora este dato)
                 cliente: pagoFiado.cliente,
                 telefono: pagoFiado.telefono || '',
                 total: pagoFiado.equivalenteARS,
@@ -8048,9 +8052,11 @@ async function confirmarVentaMixta() {
                         }
                         if (tk) {
                             _datosFiadoMixto.ticket = tk;
-                            const rU = await _apiFetchUrl('actualizarTicketFiado', API_URL + '?action=actualizarTicketFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: _datosFiadoMixto.idFiado, ticket: tk })) + '&t=' + Date.now());
+                            let rU = null;
+                            try { rU = await _apiFetchUrl('actualizarTicketFiado', API_URL + '?action=actualizarTicketFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: _datosFiadoMixto.idFiado, ticket: tk })) + '&t=' + Date.now()); } catch (eU) { rU = null; }
+                            if (!rU || rU.success !== true) _fiadoTicketPendAgregar(_datosFiadoMixto.idFiado, idVenta);   // v585
                             _dbgTk('actualizar ticket ' + tk + ': ' + JSON.stringify(rU));
-                        } else _dbgTk('NO se completó el ticket (queda vacío, no se pisa nada)');
+                        } else { _dbgTk('NO se completó el ticket (queda vacío, no se pisa nada)'); _fiadoTicketPendAgregar(_datosFiadoMixto.idFiado, idVenta); }   // v585: se reintenta más tarde
                     } catch (eTk) { _dbgTk('ERROR: ' + (eTk && eTk.message || eTk)); console.warn('⚠️ no se pudo completar el ticket del fiado:', eTk); }
                 })();
             }
@@ -18361,8 +18367,49 @@ async function _fiadoCerrarConfirmado(df, est, resultado) {
             if (r && r.success === true) ticket = String(df.ticket);
         } catch (e) { /* queda sin ticket vinculado; se informa */ }
     }
+    if (!ticket && df && df.idFiado) { try { _fiadoTicketPendAgregar(df.idFiado, df.idVenta || (String(df.idFiado).indexOf('FIADO-') === 0 ? df.idFiado + '_v' : '')); } catch (e) {} }   // v585
     return { resultado: resultado, ticket: ticket, sinTicket: !ticket };
 }
+// ===== v585 — TICKETS DE FIADO POR COMPLETAR =====
+// Si el N° de ticket de un fiado no se pudo poner (planilla lenta), se anota en el teléfono y se reintenta solo:
+// consulta la venta (solo lectura) y, si está REGISTRADA, usa actualizarTicketFiado (escribe SOLO si la columna C está vacía).
+const _FTP_KEY = 'fiado_ticket_pend';
+function _fiadoTicketPendLeer() { try { const a = JSON.parse(localStorage.getItem(_FTP_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function _fiadoTicketPendGuardar(a) { try { localStorage.setItem(_FTP_KEY, JSON.stringify(a)); } catch (e) {} }
+function _fiadoTicketPendAgregar(idFiado, idVenta) {
+    if (!idFiado || !idVenta) return;
+    const a = _fiadoTicketPendLeer();
+    if (!a.some(x => x && x.idFiado === idFiado)) { a.push({ idFiado: idFiado, idVenta: idVenta, ts: Date.now() }); _fiadoTicketPendGuardar(a); }
+}
+let _ftpOcupado = false;
+async function _fiadoTicketPendProcesar() {
+    if (_ftpOcupado) return; _ftpOcupado = true;
+    try {
+        const orig = _fiadoTicketPendLeer();
+        const a = orig.filter(x => x && Date.now() - (x.ts || 0) < 24 * 3600 * 1000);   // más de 24 h: se deja
+        const quedan = [];
+        for (const x of a) {
+            let listo = false;
+            try {
+                const rT = await _apiFetchUrl('consultarEstadoOperacion', API_URL + '?action=consultarEstadoOperacion&data=' + encodeURIComponent(JSON.stringify({ idVenta: x.idVenta })) + '&t=' + Date.now());
+                const tk = (rT && rT.venta && String(rT.venta.estado || '').toUpperCase() === 'REGISTRADA' && rT.venta.ticket) ? String(rT.venta.ticket) : '';
+                if (tk) {
+                    const rU = await _apiFetchUrl('actualizarTicketFiado', API_URL + '?action=actualizarTicketFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: x.idFiado, ticket: tk })) + '&t=' + Date.now());
+                    if (rU && rU.success === true) { listo = true; console.log('✅ Ticket ' + tk + ' completado en el fiado ' + x.idFiado); }
+                }
+            } catch (e) { /* se reintenta en la próxima vuelta */ }
+            if (!listo) quedan.push(x);
+        }
+        // conservar también lo que se haya agregado mientras tanto
+        const nuevos = _fiadoTicketPendLeer().filter(y => y && !orig.some(x => x && x.idFiado === y.idFiado));
+        _fiadoTicketPendGuardar(quedan.concat(nuevos));
+    } finally { _ftpOcupado = false; }
+}
+try {
+    setTimeout(() => { try { _fiadoTicketPendProcesar(); } catch (e) {} }, 55000);   // al abrir (después del arranque escalonado)
+    setInterval(() => { try { _fiadoTicketPendProcesar(); } catch (e) {} }, 600000);   // cada 10 min
+    window.addEventListener('online', () => { setTimeout(() => { try { _fiadoTicketPendProcesar(); } catch (e) {} }, 6000); });
+} catch (e) {}
 
 // Núcleo: consulta → (solo si NO_EXISTE) guarda → consulta de nuevo. Nunca guarda a ciegas.
 // resultado: GUARDADO | YA_EXISTIA | DUPLICADO | NO_VERIFICABLE | SIN_CONFIRMAR | ESPERAR | EN_CURSO
