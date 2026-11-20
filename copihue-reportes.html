@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>🧪 STAGING · ver.39 · Copihue · Reportes</title>
+<title>🧪 STAGING · ver.41 · Copihue · Reportes</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -385,6 +385,7 @@ const fmtQ=n=>(Math.round(n*10)/10).toLocaleString('es-AR');
 // ===== COMPRA SUGERIDA INTELIGENTE — estado =====
 let showCSI=false, csiFiltroPeriodo='todos';
 let showRecienLlegados=false;
+let showControl=false; // ver.40
 let showClientes=false, clientesBusqueda='', clientesFiltro='pendiente'; // 'pendiente'|'vencido'|'pagado'
 
 // ====== HELPER HORA ======
@@ -565,6 +566,82 @@ function _pagosDeCliente(fiados){
     }
   });
   return orden.map(k=>ops[k]).sort((a,b)=>((b.fecha||'')+(b.hora||'')).localeCompare((a.fecha||'')+(a.hora||'')));
+}
+
+// ── ver.40 — 🔍 CONTROL CRUZADO Ventas ↔ Fiados (solo lectura) ─────────────────────────
+// Compara TODO el historial de la hoja Ventas (raw.totales) con la hoja FIADOS (rawFiados).
+// No escribe nada. «Revisado» se guarda solo en este teléfono (para ocultar lo ya visto).
+const _CTRL_KEY='copihue_ctrl_revisados';
+function _ctrlRev(){ try{ return JSON.parse(localStorage.getItem(_CTRL_KEY)||'{}')||{}; }catch(e){ return {}; } }
+function _ctrlMarcar(k){ const r=_ctrlRev(); if(r[k]) delete r[k]; else r[k]=Date.now(); try{ localStorage.setItem(_CTRL_KEY,JSON.stringify(r)); }catch(e){} renderApp(); }
+let _ctrlVerRevisados=false;
+function _ctrlCalc(){
+  const tkN=t=>{const x=String(t==null?'':t).trim(); return /^\d+$/.test(x)?String(parseInt(x,10)):x;};
+  const tots=(raw&&raw.totales)||[], fia=rawFiados||[];
+  const porTk={}; tots.forEach(t=>{const k=tkN(t.ticket); if(k) (porTk[k]=porTk[k]||[]).push(t);});
+  const esFiadoOMixto=k=>(porTk[k]||[]).some(t=>/FIADO|MIXTO/i.test(t.metodo||''));
+  const fPorTk={}; fia.forEach(f=>{const k=tkN(f.ticket); (fPorTk[k]=fPorTk[k]||[]).push(f);});
+  const esFiadoPuro=t=>/FIADO/i.test(t.metodo||'')&&!/MIXTO/i.test(t.metodo||'');
+  const cli=t=>{const m=String(t.metodo||'').split('|')[1]; return m?m.replace(/^\s*\S+\s*/,'').trim():'';};
+  const fdia=f=>{const d=new Date(f.fecha); return isNaN(d)?String(f.fecha||'').slice(0,10):d.toLocaleDateString('en-CA',{timeZone:'America/Argentina/Buenos_Aires'});};
+  const A=[],B=[],C=[],D=[],E=[],usadosF=new Set();
+  Object.entries(porTk).forEach(([k,l])=>{ if(l.length>1) E.push({k:'E'+k,tk:k,t:l[0],txt:'el número #'+k+' está '+l.length+' veces en Ventas: '+l.map(t=>t.fechaStr+' '+(t.hora||'')+' '+String(t.metodo||'').replace(/\|.*/,'').trim()+' '+fmt(t.total)).join(' / ')}); });
+  tots.forEach(t=>{
+    const k=tkN(t.ticket); if(!k||!esFiadoPuro(t)) return;
+    const fs=fPorTk[k];
+    if(!fs){
+      // ¿quedó anotado con el número corrido (±1) mismo día y mismo monto?
+      const alt=[String(+k-1),String(+k+1)].filter(x=>!esFiadoOMixto(x)).map(x=>(fPorTk[x]||[]).find(f=>Math.abs((+f.totalOriginal||0)-(+t.total||0))<0.5&&fdia(f)===t.fechaStr)).find(Boolean);
+      if(alt){ usadosF.add(alt.idFiado); A.push({k:'A'+k,tk:k,t,txt:'está en FIADOS con el ticket #'+alt.ticket+' (número corrido)',leve:true}); }
+      else A.push({k:'A'+k,tk:k,t,txt:'NO tiene fila en FIADOS — nunca figuró como deuda'});
+      return;
+    }
+    fs.forEach(f=>usadosF.add(f.idFiado));
+    const sum=fs.reduce((a,f)=>a+(+f.totalOriginal||+f.total||0),0);
+    if(Math.abs(sum-(+t.total||0))>0.5) B.push({k:'B'+k,tk:k,t,txt:'Ventas $'+Math.round(t.total).toLocaleString('es-AR')+' · FIADOS $'+Math.round(sum).toLocaleString('es-AR')+' (dif. $'+Math.round((+t.total||0)-sum).toLocaleString('es-AR')+')'});
+  });
+  // C) ventas repetidas: tickets consecutivos, mismo minuto, mismo total, mismo método y vendedor
+  const ord=tots.filter(t=>tkN(t.ticket)).slice().sort((a,b)=>(+tkN(a.ticket))-(+tkN(b.ticket)));
+  for(let i=1;i<ord.length;i++){const a=ord[i-1],b=ord[i];
+    if(+tkN(b.ticket)===+tkN(a.ticket)+1&&a.fechaStr===b.fechaStr&&a.hora===b.hora&&Math.abs((+a.total||0)-(+b.total||0))<0.5&&a.metodo===b.metodo&&a.vendedor===b.vendedor&&(+a.total||0)>0)
+      C.push({k:'C'+tkN(b.ticket),tk:tkN(b.ticket),t:b,txt:'igual al #'+tkN(a.ticket)+' (mismo minuto, monto, método y vendedor) — ¿se registró dos veces?'});}
+  // D) fiados sin venta fiada
+  fia.forEach(f=>{ if(usadosF.has(f.idFiado)) return; const k=tkN(f.ticket); const t=porTk[k];
+    if(esFiadoOMixto(k)) return;   // venta fiada o mixta con ese ticket: OK
+    D.push({k:'D'+f.idFiado,tk:k,f,txt:!k?'sin número de ticket':(t?'el ticket #'+k+' es una venta '+String(t[0].metodo||'').toLowerCase()+' del '+t[0].fechaStr:'el ticket #'+k+' no existe en Ventas')}); });
+  return {A,B,C,D,E,ok:!!(raw&&raw.totales&&rawFiados&&rawFiados.length)};
+}
+function _ctrlBoton(){
+  let R; try{ R=_ctrlCalc(); }catch(e){ return ''; }
+  if(!R.ok) return '';
+  const rev=_ctrlRev(); const vivos=[...R.A,...R.B,...R.C,...R.D,...R.E].filter(x=>!rev[x.k]&&!x.leve);
+  return '<button class="toggle-btn" onclick="showControl=!showControl;renderApp()" style="margin-top:4px;border-color:#6a1b9a;color:#6a1b9a">'+
+      (showControl?'▲':'▼')+' 🔍 Control Ventas ↔ Fiados'+
+      (vivos.length?' <span style="background:#6a1b9a;color:#fff;border-radius:10px;padding:1px 7px;font-size:.68rem;margin-left:4px">'+vivos.length+' para revisar</span>':' <span style="font-size:.7rem">✅</span>')+
+    '</button>'+(showControl?_ctrlHTML(R,rev):'');
+}
+function _ctrlHTML(R,rev){
+  const fila=(x,col)=>{const r=!!rev[x.k]; if(r&&!_ctrlVerRevisados) return '';
+    const t=x.t, f=x.f;
+    const tit=t?('#'+x.tk+' · '+t.fechaStr+' '+(t.hora||'')+' · '+fmt(t.total)+' · '+(String(t.metodo||'').replace(/\|.*/,'').trim())+(t.vendedor?' · 🧑 '+t.vendedor:'')+(String(t.metodo||'').includes('|')?'<br><span style="color:var(--gris)">'+String(t.metodo).split('|')[1].trim()+'</span>':''))
+                :(f.cliente+' · '+fmt(+f.totalOriginal||+f.total||0)+' · '+(f.estado||'')+(f.ticket?' · #'+f.ticket:'')+'<br><span style="color:var(--gris)">'+String(f.idFiado)+'</span>');
+    return '<div style="display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-bottom:1px solid #eee;'+(r?'opacity:.45':'')+'">'+
+      '<div style="flex:1;font-size:.74rem;line-height:1.35"><b>'+tit+'</b><div style="color:'+col+';font-size:.7rem;margin-top:2px">'+x.txt+'</div></div>'+
+      '<button onclick="_ctrlMarcar(\''+x.k.replace(/'/g,'')+'\')" style="flex:none;border:1.5px solid #ccc;background:#fff;border-radius:8px;padding:4px 8px;font-size:.68rem;cursor:pointer;font-family:inherit">'+(r?'↩︎ volver':'✔ revisado')+'</button></div>';};
+  const caja=(titulo,expl,lista,col)=>{ if(!lista.length) return ''; const n=lista.filter(x=>!rev[x.k]).length;
+    return '<div class="tar"><div class="tar-t" style="color:'+col+'">'+titulo+' <span style="font-size:.66rem;color:var(--gris)">('+n+(n!==lista.length?' de '+lista.length:'')+')</span></div><div style="font-size:.68rem;color:var(--gris);margin-bottom:4px">'+expl+'</div>'+lista.map(x=>fila(x,col)).join('')+'</div>'; };
+  const nRev=[...R.A,...R.B,...R.C,...R.D,...R.E].filter(x=>rev[x.k]).length;
+  return '<div style="margin:6px 0 10px">'+
+    '<div style="font-size:.7rem;color:var(--gris);margin:4px 2px 8px">Revisa TODO el historial (no solo el período elegido). Solo lectura: no cambia nada en la planilla. «✔ revisado» lo oculta solo en este teléfono.'+
+      (nRev?' <a href="#" onclick="_ctrlVerRevisados=!_ctrlVerRevisados;renderApp();return false">'+(_ctrlVerRevisados?'Ocultar':'Ver')+' revisados ('+nRev+')</a>':'')+'</div>'+
+    caja('🔴 Venta fiada sin fiado','La venta dice FIADO pero no está en la hoja FIADOS: nadie la tiene como deuda.',R.A.filter(x=>!x.leve),'#c62828')+
+    caja('🟣 Venta posiblemente repetida','Dos tickets seguidos idénticos. Si fue doble toque, la venta y el stock se contaron dos veces.',R.C,'#6a1b9a')+
+    caja('🟠 Fiado sin venta fiada','Fila de FIADOS cuyo ticket no es una venta fiada (cargado a mano o con el número equivocado).',R.D,'#e65100')+
+    caja('🔢 Número de ticket repetido','El mismo número de ticket se usó para dos ventas distintas.',R.E,'#1565c0')+
+    caja('🟡 Monto distinto','El fiado quedó por otro monto que la venta (antes del 13/11 el redondeo no llegaba a Ventas).',R.B,'#f9a825')+
+    caja('ℹ️ Número de ticket corrido','Está bien anotado, pero con el ticket de al lado.',R.A.filter(x=>x.leve),'#546e7a')+
+    (!R.A.length&&!R.B.length&&!R.C.length&&!R.D.length&&!R.E.length?'<div class="tar" style="text-align:center">✅ Todo coincide</div>':'')+
+  '</div>';
 }
 
 function calcStats(its,tots){
@@ -1459,6 +1536,7 @@ function renderApp(){
         '</button>'+
         (showClientes?renderClientes():'');
       })()+
+      _ctrlBoton()+   // ver.40 — control cruzado Ventas ↔ Fiados
     '</div>'+
     '<div class="pb"></div>';
 }
@@ -1967,24 +2045,41 @@ function cliSearch(val){
   });
 }
 
+// ver.41 — ARREGLADO: antes mandaba ticket/fecha sin el código del fiado y la planilla contestaba «Falta ID del fiado».
+// Ahora busca el fiado en la hoja FIADOS (rawFiados) por número de ticket, cobra el SALDO real (si hubo abonos),
+// manda código de operación (si se reintenta no cobra dos veces) y quién cobró.
+const _repIdOpCobro={};   // idFiado → idOperacion (se reutiliza si el mismo cobro se reintenta)
+function _repCobrador(){
+  try{ const x=JSON.parse(sessionStorage.getItem('copihue_sesion')||'null'); if(x&&x.vendedor) return String(x.vendedor).trim(); }catch(e){}
+  try{ return String(localStorage.getItem('copihue_vendedor')||'').trim(); }catch(e){ return ''; }
+}
 async function cobrarFiadoReporte(nomEnc,tkEnc,feEnc,total,clienteNomEnc,phoneEnc,btn){
   const nombre=decodeURIComponent(nomEnc);
   const ticket=decodeURIComponent(tkEnc);
-  const fecha=decodeURIComponent(feEnc);
   const clienteNom=decodeURIComponent(clienteNomEnc);
   const phone=decodeURIComponent(phoneEnc);
-  const metodo=prompt('💰 Cobrar fiado — '+nombre+'\nTicket #'+ticket+' · Total: '+fmt(total)+'\n\nMétodo de pago:\n1 → Efectivo\n2 → Transferencia\n3 → QR\n\nEscribí el número:');
+  const tkN=t=>{const x=String(t==null?'':t).trim(); return /^\d+$/.test(x)?String(parseInt(x,10)):x;};
+  if(!rawFiados||!rawFiados.length){ alert('⚠️ No se pudo leer la hoja FIADOS. Tocá 🔄 o cobrá desde Fiados.'); return; }
+  const cand=rawFiados.filter(f=>tkN(f.ticket)===tkN(ticket)&&String(f.estado||'').toUpperCase()!=='PAGADO');
+  if(!cand.length){ alert('⚠️ No encontré un fiado pendiente con el ticket #'+ticket+' en la hoja FIADOS (puede estar ya pagado o anotado con otro número).\n\nNo se cobró nada. Revisalo en Fiados o en «🔍 Control Ventas ↔ Fiados».'); return; }
+  if(cand.length>1){ alert('⚠️ Hay '+cand.length+' fiados pendientes con el ticket #'+ticket+'. Para no cobrar el equivocado, cobralo desde Fiados.'); return; }
+  const f=cand[0];
+  const saldo=parseFloat(f.total)||0, orig=parseFloat(f.totalOriginal)||saldo;
+  const metodo=prompt('💰 Cobrar fiado — '+nombre+'\nTicket #'+ticket+(orig>saldo+0.5?' · Total '+fmt(orig)+' · ya abonó '+fmt(orig-saldo):'')+
+    '\nA COBRAR: '+fmt(saldo)+'\n\nMétodo de pago:\n1 → Efectivo\n2 → Transferencia\n3 → Posnet\n4 → QR\n\nEscribí el número:');
   if(!metodo) return;
-  const metMap={'1':'EFECTIVO','2':'TRANSFERENCIA','3':'QR'};
-  const metodoStr=metMap[metodo.trim()]||metodo.trim().toUpperCase();
+  const metMap={'1':'EFECTIVO','2':'TRANSFERENCIA','3':'POSNET','4':'QR'};
+  const metodoStr=metMap[metodo.trim()];
+  if(!metodoStr){ alert('⚠️ Opción no válida. No se cobró nada.'); return; }
+  const idOp=_repIdOpCobro[f.idFiado]||(_repIdOpCobro[f.idFiado]='rep_'+Date.now()+'_'+Math.random().toString(36).slice(2,8));
   btn.disabled=true; btn.textContent='⏳...';
   try{
     const r=await fetch(API_FIADOS+'?action=cobrarFiado&data='+encodeURIComponent(JSON.stringify({
-      ticket, fecha, metodoPago:metodoStr
-    })),{redirect:'follow',signal:AbortSignal.timeout(12000)});
+      idFiado:f.idFiado, metodoPago:metodoStr, idOperacion:idOp, cobrador:_repCobrador()
+    })),{redirect:'follow',signal:AbortSignal.timeout(40000)});
     const resp=await r.json();
     if(resp.success||resp.ok){
-      // Enviar comprobante por WA si tiene teléfono
+      delete _repIdOpCobro[f.idFiado];
       if(phone){
         const MNOM3=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
         const hoy=new Date();
@@ -1996,21 +2091,22 @@ async function cobrarFiadoReporte(nomEnc,tkEnc,feEnc,total,clienteNomEnc,phoneEn
           '🎫 Ticket #'+ticket+'\n'+
           '📅 '+fechaHoy+' · '+horaHoy+'hs\n'+
           '💳 Método: '+metodoStr+'\n'+
-          '💰 Total abonado: *'+fmt(total)+'*\n\n'+
+          '💰 Pagado: *'+fmt(saldo)+'*\n\n'+
           '¡Muchas gracias! 🙏'
         );
         const waHref='intent://send/'+phone+'?text='+txt+'#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end';
         window.open(waHref,'_blank');
       }
-      alert('✅ Cobrado: '+fmt(total)+' · '+metodoStr);
+      alert(resp.yaExistia?'✅ Ese cobro ya estaba registrado (no se cobró dos veces).':'✅ Cobrado: '+fmt(saldo)+' · '+metodoStr);
       rawFiados=[];
       await init();
     } else {
-      alert('❌ '+(resp.mensaje||resp.error||'Error al cobrar'));
+      if(resp.yaPagado) delete _repIdOpCobro[f.idFiado];
+      alert('❌ '+(resp.ocupado?'La planilla está ocupada: no se registró nada. Probá de nuevo en unos segundos (no se cobra dos veces).':(resp.mensaje||resp.error||'Error al cobrar')));
       btn.disabled=false; btn.textContent='💰 Cobrar';
     }
   }catch(e){
-    alert('❌ Sin conexión');
+    alert('⚠️ No hubo respuesta de la planilla. Puede que SÍ se haya registrado.\nVolvé a tocar «💰 Cobrar» con el mismo método: usa el mismo código y no se cobra dos veces.');
     btn.disabled=false; btn.textContent='💰 Cobrar';
   }
 }
