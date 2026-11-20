@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <script>const APP_VERSION = 15;</script>
+  <title>🧪 STAGING · Herramientas · Copihue</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0e0e1a;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    #header {
+      background: linear-gradient(135deg, #c0392b, #8e1a12);
+      padding: 14px 16px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    #header-left { display: flex; align-items: center; gap: 10px; }
+    #header h1 { font-size: 0.92rem; font-weight: 900; color: #fff; letter-spacing: 0.3px; }
+    #header-sub { font-size: 0.66rem; color: rgba(255,255,255,0.6); margin-top: 1px; }
+    #btn-back {
+      background: rgba(255,255,255,0.15);
+      border: none; border-radius: 50%;
+      width: 34px; height: 34px;
+      color: #fff; cursor: pointer; font-size: 1.1rem;
+      display: flex; align-items: center; justify-content: center;
+      text-decoration: none; flex-shrink: 0;
+    }
+    #btn-back:hover { background: rgba(255,255,255,0.25); }
+
+    /* ── SEARCH ── */
+    #search-wrap { padding: 10px 12px 6px; flex-shrink: 0; }
+    #searchInput {
+      width: 100%;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 10px;
+      padding: 8px 12px;
+      color: #fff; font-size: 0.82rem; outline: none;
+    }
+    #searchInput::placeholder { color: rgba(255,255,255,0.35); }
+    #searchInput:focus { border-color: rgba(192,57,43,0.6); }
+
+    /* ── CONTENT ── */
+    #content { padding: 8px 12px 20px; flex: 1; }
+
+    /* ── SECTION TITLE ── */
+    .sec-title {
+      display: flex; align-items: center; gap: 8px;
+      color: rgba(255,255,255,0.4);
+      font-size: 0.66rem; font-weight: 800; letter-spacing: 0.8px;
+      margin: 14px 2px 8px;
+    }
+    .sec-title:first-child { margin-top: 2px; }
+    .sec-title::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.08); }
+    .sec-count { background: rgba(255,255,255,0.08); border-radius: 20px; padding: 1px 7px; font-size: 0.62rem; }
+
+    /* ── CARD — 1 sola columna, todas iguales ── */
+    .col-lista { display: flex; flex-direction: column; gap: 8px; }
+
+    .h-card {
+      display: block;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-left: 3px solid #444;
+      border-radius: 12px;
+      padding: 12px 14px;
+      transition: background 0.15s, transform 0.12s;
+    }
+    .h-card.expandible { cursor: pointer; }
+    .h-card.expandible:active { transform: scale(0.98); }
+    .h-card.expandible:hover  { background: rgba(255,255,255,0.08); }
+
+    /* colores de borde por estado */
+    .h-card.est-correcto   { border-left-color: #3dd68c; }
+    .h-card.est-trabajando { border-left-color: #f0a83c; }
+    .h-card.est-esperar    { border-left-color: #5b8def; }
+    .h-card.est-pendiente  { border-left-color: #a78bfa; }
+    .h-card.est-descartada { border-left-color: #e05050; opacity: 0.55; }
+
+    /* ── detalle colapsable (descripción/observaciones/cuenta) ── */
+    .h-details { display: none; }
+    .h-details.show { display: block; }
+    .h-toggle-ico { color: #666; font-size: 0.62rem; margin-left: 2px; }
+
+    /* ── FILA SUPERIOR: nombre + tags ── */
+    .h-top {
+      display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 10px;
+      margin-bottom: 6px;
+    }
+    .h-nombre {
+      color: #fff; font-size: 0.8rem; font-weight: 800;
+      line-height: 1.25; flex: 1;
+    }
+    .h-tags { display: flex; align-items: center; gap: 5px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+
+    /* ── FILA DE ESTADO — debajo del nombre ── */
+    .h-estado-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-bottom: 6px; }
+
+    /* ── TAGS ── */
+    .tag {
+      font-size: 0.56rem; font-weight: 800; letter-spacing: 0.3px;
+      border-radius: 20px; padding: 2px 7px; white-space: nowrap;
+    }
+    .tag-ok         { background: rgba(61,214,140,0.16);  color: #6bebae; }
+    .tag-trabajando { background: rgba(240,168,60,0.18);  color: #f0a83c; }
+    .tag-esperar    { background: rgba(91,141,239,0.18);  color: #7ea3f5; }
+    .tag-pendiente  { background: rgba(167,139,250,0.18); color: #c4b5fd; }
+    .tag-descartada { background: rgba(224,80,80,0.18);   color: #f87171; }
+    .tag-otro       { background: rgba(255,255,255,0.08); color: #999; }
+    .tag-ver        { background: rgba(255,255,255,0.07); color: #aaa; font-family: monospace; }
+    .tag-icono      { background: rgba(79,142,247,0.14);  color: #7ea3f5; font-family: monospace; }
+
+    /* ── DESCRIPCION ── */
+    .h-desc { color: #888; font-size: 0.7rem; line-height: 1.35; margin-bottom: 5px; }
+
+    /* ── BOTÓN ABRIR — solo en los que tienen link ── */
+    .h-open {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(61,214,140,0.1);
+      border: 1px solid rgba(61,214,140,0.3);
+      border-radius: 8px;
+      padding: 7px 11px;
+      margin-top: 8px;
+      color: #6bebae;
+    }
+    .h-open-icon { font-size: 1rem; flex-shrink: 0; }
+    .h-open-text { display: flex; flex-direction: column; flex: 1; line-height: 1.3; }
+    .h-open-label { font-size: 0.72rem; font-weight: 700; }
+    .h-open-url { font-size: 0.6rem; color: rgba(255,255,255,0.35); font-family: monospace; white-space: normal; overflow-wrap: anywhere; word-break: break-all; }
+    .h-open-arrow { font-size: 0.9rem; opacity: 0.6; flex-shrink: 0; }
+
+    /* ── OBS / META ── */
+    .h-obs  { color: #999; font-size: 0.74rem; line-height: 1.45; margin-top: 4px; }
+    .h-meta { color: #f0a83c; font-size: 0.74rem; margin-top: 4px; }
+
+    /* ── ESTADO (carga/error) ── */
+    #estado {
+      text-align: center; padding: 40px 16px;
+      color: #555; font-size: 0.82rem;
+    }
+    #estado .ico { font-size: 2rem; margin-bottom: 8px; }
+    #estado .tit { color: #e57373; font-weight: 700; }
+    #estado .sub { color: #666; font-size: 0.72rem; margin-top: 4px; }
+
+    /* ── FOOTER ── */
+    #footer {
+      padding: 8px 12px 16px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0;
+    }
+    #btn-reload {
+      width: 100%; padding: 9px;
+      border-radius: 10px; font-size: 0.78rem; font-weight: 700;
+      cursor: pointer;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: #aaa;
+    }
+    #btn-reload:hover  { background: rgba(255,255,255,0.1); }
+    #btn-reload:active { transform: scale(0.97); }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+    @media (min-width: 768px) {
+      body { max-width: 620px; margin: 0 auto; }
+    }
+
+    /* ── REGLAS DE ORO: anti pull-to-refresh ── */
+    html, body { overscroll-behavior-y: contain; }
+
+    /* ── REGLAS DE ORO: badge de versión ── */
+    #version-badge {
+      font-size: 0.58rem; font-weight: 800;
+      background: rgba(255,255,255,0.18); color: #fff;
+      border-radius: 20px; padding: 1px 7px; margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    /* ── REGLAS DE ORO: modal de confirmación de salida (centrado) ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100; padding: 20px;
+    }
+    .modal-box {
+      background: #1a1a2e;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px; padding: 20px;
+      max-width: 300px; width: 100%; text-align: center;
+    }
+    .modal-tit { font-size: 0.9rem; font-weight: 800; color: #fff; margin-bottom: 6px; }
+    .modal-sub { font-size: 0.72rem; color: #999; margin-bottom: 16px; }
+    .modal-btns { display: flex; gap: 8px; }
+    .modal-btn { flex: 1; padding: 9px; border-radius: 8px; font-size: 0.78rem; font-weight: 700; cursor: pointer; border: 1px solid; }
+    .modal-btn-cancel { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); color: #aaa; }
+    .modal-btn-ok { background: rgba(192,57,43,0.18); border-color: rgba(192,57,43,0.45); color: #f0908a; }
+  </style>
+</head>
+<body>
+<div style="background:#ff9800;color:#000;text-align:center;font-weight:900;font-size:.75rem;padding:4px">🧪 STAGING — datos de prueba</div>
+
+  <div id="header">
+    <div id="header-left">
+      <span style="font-size:1.3rem;">🧰</span>
+      <div>
+        <h1>Herramientas Copihue <span id="version-badge"></span></h1>
+        <div id="header-sub">Cargando...</div>
+      </div>
+    </div>
+    <button id="btn-back" title="Volver al panel" onclick="pedirSalida(POS_URL)">←</button>
+  </div>
+
+  <div id="search-wrap">
+    <input type="search" id="searchInput" placeholder="Buscar herramienta..." autocomplete="off">
+  </div>
+
+  <div id="content">
+    <div id="estado">
+      <div class="ico">⏳</div>
+      <div>Cargando desde planilla...</div>
+    </div>
+  </div>
+
+  <div id="footer">
+    <button id="btn-reload" onclick="cargar(true)">🔄 Recargar</button>
+  </div>
+
+  <!-- REGLAS DE ORO: modal de confirmación de salida -->
+  <div id="modal-salida" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-tit">¿Salir de Herramientas?</div>
+      <div class="modal-sub">Vas a volver al panel principal.</div>
+      <div class="modal-btns">
+        <button class="modal-btn modal-btn-cancel" onclick="cancelarSalida()">Cancelar</button>
+        <button class="modal-btn modal-btn-ok" onclick="confirmarSalidaBtn()">Salir</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ══ copihue-herramientas.html ════════════════════════════════════════════
+// APP_VERSION es la única fuente de verdad (declarada en el <head>)
+// v15 — lee la hoja HERRAMIENTAS de la planilla del POS de ESTE ambiente (antes leía otro Apps Script: …KebR3)
+const API_URL  = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
+const POS_URL  = 'seba21-staging.html';
+const CACHE_KEY = 'copihue_herramientas_cache_v' + APP_VERSION;
+const CACHE_TTL = 10 * 60 * 1000;
+
+document.title = `🧪 STAGING · Herramientas · Copihue v${APP_VERSION}`;
+document.getElementById('version-badge').textContent = 'v' + APP_VERSION;
+
+// ── REGLAS DE ORO #3: confirmación antes de abandonar la página ───────────
+// Cubre: botón atrás propio, atrás del navegador/teléfono, gesto de swipe
+// (todos disparan 'popstate'), y cualquier link que use pedirSalida().
+let _destinoPendiente = null;
+history.pushState({ app: true }, '', location.href);
+window.addEventListener('popstate', function() {
+  history.pushState({ app: true }, '', location.href); // neutraliza el back real
+  pedirSalida(POS_URL);
+});
+function pedirSalida(destino) {
+  _destinoPendiente = destino;
+  document.getElementById('modal-salida').style.display = 'flex';
+}
+function cancelarSalida() {
+  document.getElementById('modal-salida').style.display = 'none';
+  _destinoPendiente = null;
+}
+function confirmarSalidaBtn() {
+  const destino = _destinoPendiente;
+  document.getElementById('modal-salida').style.display = 'none';
+  if (destino) window.location.href = destino;
+}
+
+let _todas  = [];
+let _filtro = '';
+
+// ── ESTADO POR ORDEN ──────────────────────────────────────────────────────
+const ESTADO_ORDER = ['CORRECTO','TRABAJANDO','ESPERAR','PENDIENTE','INACTIVA','DESCARTADA',''];
+
+function estadoSort(a, b) {
+  const ia = ESTADO_ORDER.indexOf((a.estado||'').toUpperCase());
+  const ib = ESTADO_ORDER.indexOf((b.estado||'').toUpperCase());
+  return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+}
+
+// Prioridad: 1º apps "copihue-xxxx.html", 2º cualquier app alojada en
+// almacen-copihue.vercel.app (el resto de las apps del almacén), 3º todo lo demás
+function prioridadLista(h) {
+  const nombre = (h.nombre || '').trim();
+  const url = (h.url || '').trim();
+  if (/^copihue-/i.test(nombre)) return 0;
+  if (/almacen-copihue\.vercel\.app/i.test(url)) return 1;
+  return 2;
+}
+function ordenLista(a, b) {
+  const pa = prioridadLista(a), pb = prioridadLista(b);
+  if (pa !== pb) return pa - pb;
+  return estadoSort(a, b);
+}
+
+// ── CACHE ─────────────────────────────────────────────────────────────────
+function cargarCache() {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return false;
+    const c = JSON.parse(raw);
+    if (Date.now() - c.ts > CACHE_TTL) return false;
+    _todas = c.herramientas;
+    const mins = Math.round((Date.now() - c.ts) / 60000);
+    setSub(_todas.length + ' herramientas · hace ' + (mins===0?'<1':mins) + 'min');
+    renderizar();
+    return true;
+  } catch(e) { return false; }
+}
+
+async function cargar(forzar=false) {
+  if (!forzar && cargarCache()) return;
+  setSub('Conectando...');
+  setEstado('⏳', 'Cargando desde planilla...');
+  try {
+    const r = await fetch(API_URL + '?action=getHerramientas&t=' + Date.now(), { cache: 'no-store' });
+    const d = await r.json();
+    if ((d.status === 'ok' || d.ok === true) && Array.isArray(d.herramientas) && d.herramientas.length > 0) {
+      // v15 — el Code del POS manda {nombre, url, icono, descripcion, activo}: ACTIVO = SI → «CORRECTO» (lista); NO → «INACTIVA»
+      _todas = d.herramientas.map(h => ({ ...h, estado: h.estado || (h.activo === false ? 'INACTIVA' : 'CORRECTO') }));
+      try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ts: Date.now(), herramientas: _todas})); } catch(e){}
+      renderizar();
+    } else {
+      setEstado('⚠️', 'Sin herramientas en planilla', 'Verificar hoja HERRAMIENTAS');
+      setSub('Error al cargar');
+    }
+  } catch(e) {
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if (raw) { _todas = JSON.parse(raw).herramientas; renderizar(); setSub('Sin conexión · datos anteriores'); return; }
+    } catch(e2){}
+    setEstado('📵', 'Sin conexión', 'Revisá conexión y tocá Recargar');
+    setSub('Sin conexión');
+  }
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────
+function renderizar() {
+  const q = _filtro.toLowerCase().trim();
+  const lista = (q
+    ? _todas.filter(h =>
+        (h.nombre||'').toLowerCase().includes(q) ||
+        (h.descripcion||'').toLowerCase().includes(q) ||
+        (h.estado||'').toLowerCase().includes(q) ||
+        (h.observaciones||'').toLowerCase().includes(q))
+    : _todas).slice().sort(ordenLista);
+
+  if (!lista.length) {
+    document.getElementById('content').innerHTML =
+      estadoHtml('🔍', q ? 'Sin resultados para "' + q + '"' : 'Sin herramientas cargadas.');
+    setSub('0 herramientas');
+    return;
+  }
+
+  const correctas  = lista.filter(h => (h.estado||'').toUpperCase() === 'CORRECTO');
+  const otras      = lista.filter(h => (h.estado||'').toUpperCase() !== 'CORRECTO');
+
+  setSub(lista.length + ' herramientas · ' + correctas.length + ' listas');
+
+  let html = '';
+
+  _cardCounter = 0;
+
+  if (correctas.length) {
+    html += `<div class="sec-title">✅ LISTAS <span class="sec-count">${correctas.length}</span></div>`;
+    html += `<div class="col-lista">`;
+    for (const h of correctas) html += cardHTML(h);
+    html += `</div>`;
+  }
+
+  if (otras.length) {
+    html += `<div class="sec-title">🔧 EN TRABAJO / PENDIENTES <span class="sec-count">${otras.length}</span></div>`;
+    html += `<div class="col-lista">`;
+    for (const h of otras) html += cardHTML(h);
+    html += `</div>`;
+  }
+
+  document.getElementById('content').innerHTML = html;
+}
+
+// ── CARD ÚNICA (aplica a todas) ───────────────────────────────────────────
+let _cardCounter = 0;
+
+function toggleCard(id) {
+  const det = document.getElementById(id);
+  const ico = document.getElementById(id + '-ico');
+  if (!det) return;
+  const abierta = det.classList.toggle('show');
+  if (ico) ico.textContent = abierta ? '▴' : '▾';
+  // al expandir, asegurar que la tarjeta completa quede visible en pantalla
+  if (abierta) {
+    requestAnimationFrame(() => {
+      const card = det.closest('.h-card');
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }
+}
+
+function cardHTML(h) {
+  const url    = (h.url || '').trim();
+  const esLink = /^https?:\/\//i.test(url);
+  const estado = (h.estado || '').toUpperCase();
+  const cardId = 'det-' + (_cardCounter++);
+
+  const claseEstado = {
+    'CORRECTO':   'est-correcto',
+    'TRABAJANDO': 'est-trabajando',
+    'ESPERAR':    'est-esperar',
+    'PENDIENTE':  'est-pendiente',
+    'DESCARTADA': 'est-descartada',
+    'INACTIVA':   'est-descartada',
+  }[estado] || 'est-otro';
+
+  const claseTag = {
+    'CORRECTO':   'tag-ok',
+    'TRABAJANDO': 'tag-trabajando',
+    'ESPERAR':    'tag-esperar',
+    'PENDIENTE':  'tag-pendiente',
+    'DESCARTADA': 'tag-descartada',
+    'INACTIVA':   'tag-descartada',
+  }[estado] || 'tag-otro';
+
+  // La tarjeta ya NO es un <a> completo: es un contenedor tocable que
+  // expande/colapsa detalle. El link real para ir a la app es aparte
+  // (btnAbrir), con stopPropagation para no pisar el toggle.
+  const ultimaObs    = ultimaObservacion(h.observaciones);
+  const tieneDetalle = !!(h.descripcion || ultimaObs || h.cuenta);
+  const cls = `h-card ${claseEstado}${esLink ? '' : ' sin-link'}${tieneDetalle ? ' expandible' : ''}`;
+
+  const btnAbrir = esLink ? `
+    <a href="${escHtml(url)}" target="_blank" rel="noopener" class="h-open" onclick="event.stopPropagation()">
+      <span class="h-open-icon">🌐</span>
+      <span class="h-open-text">
+        <span class="h-open-label">Abrir aplicación</span>
+        <span class="h-open-url">${escHtml(url.replace(/^https?:\/\//,'').replace(/\/$/,''))}</span>
+      </span>
+      <span class="h-open-arrow">↗</span>
+    </a>` : '';
+
+  const toggleAttr = tieneDetalle ? ` onclick="toggleCard('${cardId}')"` : '';
+  const toggleIco  = tieneDetalle ? `<span class="h-toggle-ico" id="${cardId}-ico">▾</span>` : '';
+
+  return `<div class="${cls}"${toggleAttr}>
+    <div class="h-top">
+      <div class="h-nombre">${escHtml(h.nombre || '—')}</div>
+      <div class="h-tags">
+        ${h.version ? `<span class="tag tag-ver">v${escHtml(h.version)}</span>` : ''}
+        ${toggleIco}
+      </div>
+    </div>
+    <div class="h-estado-row">
+      ${h.icono ? `<span class="tag tag-icono">${escHtml(h.icono)}</span>` : ''}
+      <span class="tag ${claseTag}">${escHtml(estado || 'SIN ESTADO')}</span>
+    </div>
+    ${btnAbrir}
+    ${tieneDetalle ? `<div class="h-details" id="${cardId}">
+      ${h.descripcion ? `<div class="h-desc">${escHtml(h.descripcion)}</div>` : ''}
+      ${ultimaObs ? `<div class="h-obs">${escHtml(ultimaObs)}</div>` : ''}
+      ${h.cuenta   ? `<div class="h-meta">✉ ${escHtml(h.cuenta)}</div>` : ''}
+    </div>` : ''}
+  </div>`;
+}
+
+function ultimaObservacion(obs) {
+  if (!obs) return '';
+  const partes = obs.split(' · ').map(p => p.trim()).filter(Boolean);
+  return partes.length ? partes[partes.length - 1] : '';
+}
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function setSub(txt) { document.getElementById('header-sub').textContent = txt; }
+
+function setEstado(ico, tit, sub) {
+  document.getElementById('content').innerHTML =
+    `<div id="estado"><div class="ico">${ico}</div><div class="tit">${tit}</div>${sub?`<div class="sub">${sub}</div>`:''}</div>`;
+}
+function estadoHtml(ico, tit) {
+  return `<div id="estado"><div class="ico">${ico}</div><div class="tit" style="color:#888;">${tit}</div></div>`;
+}
+
+let _searchTimer;
+document.getElementById('searchInput').addEventListener('input', function() {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(() => { _filtro = this.value; if (_todas.length) renderizar(); }, 180);
+});
+
+cargar();
+// ══ FIN ══════════════════════════════════════════════════════════════════
+</script>
+<!-- STAGING-ETIQUETA — solo en STAGING: etiqueta chica fija abajo a la izquierda con parpadeo del borde a intervalos al azar (para que la vista no se acostumbre). No recibe toques (pointer-events:none). -->
+<style>
+#stgPill{position:fixed;left:6px;bottom:6px;z-index:2147483000;pointer-events:none;background:#ff9800;color:#000;font:900 11px/1 system-ui,-apple-system,sans-serif;padding:4px 8px;border-radius:999px;border:2px solid #000;box-shadow:0 1px 4px rgba(0,0,0,.35);opacity:.92;letter-spacing:.3px;white-space:nowrap}
+#stgPill.stg-pulso{animation:stgPulso 1.4s ease-in-out 2}
+@keyframes stgPulso{0%,100%{border-color:#000;box-shadow:0 1px 4px rgba(0,0,0,.35)}50%{border-color:#ff1744;box-shadow:0 0 0 5px rgba(255,23,68,.55),0 0 14px rgba(255,23,68,.8)}}
+</style>
+<div id="stgPill" aria-hidden="true">🧪 STAGING</div>
+<script>
+(function(){try{var p=document.getElementById('stgPill');if(!p)return;
+function tic(){p.classList.remove('stg-pulso');void p.offsetWidth;p.classList.add('stg-pulso');setTimeout(tic,7000+Math.random()*18000);}
+setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
+</script>
+
+</body>
+</html>
