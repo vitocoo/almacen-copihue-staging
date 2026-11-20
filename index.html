@@ -538,6 +538,13 @@
         .rv-wa { background: #25d366; color: #fff; display: flex; align-items: center; justify-content: center; }
         .rv-flecha { position: absolute; top: min(26vw, 150px); z-index: 3; width: 38px; height: 38px; border-radius: 50%; border: none; background: rgba(0,0,0,.45); color: #fff; font-size: 1.6rem; line-height: 1; cursor: pointer; }
         .rv-flecha.izq { left: 2px; } .rv-flecha.der { right: 2px; }
+        /* v220 — PC con mouse: flechas grandes, se iluminan con el color del tema, se apagan en la primera/última página. El celular queda igual. */
+        @media (hover: hover) and (pointer: fine) {
+            .rv-flecha { width: 56px; height: 56px; top: 140px; font-size: 2.4rem; font-weight: 700; background: rgba(0,0,0,.62); box-shadow: 0 3px 10px rgba(0,0,0,.35); border: 2px solid rgba(255,255,255,.85); transition: transform .15s, background .15s, opacity .2s; }
+            .rv-flecha.izq { left: 4px; } .rv-flecha.der { right: 4px; }
+            .rv-flecha:hover { background: var(--rv-b1, #c62828); transform: scale(1.12); }
+            .rv-flecha.off { opacity: .22; pointer-events: none; }
+        }
         .rv-pie { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 8px 12px 4px; flex-wrap: wrap; }
         .rv-dots { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; }
         .rv-dots span { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.4); cursor: pointer; }
@@ -3057,7 +3064,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v219';
+const APP_VERSION = 'copihue-index-v220';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -8695,7 +8702,24 @@ function _rvMarcar(i) {
     const n = document.querySelectorAll('#revista-grid .rv-pag').length;
     document.querySelectorAll('#rvDots span').forEach((d, k) => d.classList.toggle('on', k === i));
     const c = document.getElementById('rvCont'); if (c) c.textContent = n ? (i + 1) + ' / ' + n : '';
+    const fi = document.querySelector('#ofertasRevista .rv-flecha.izq'), fd = document.querySelector('#ofertasRevista .rv-flecha.der');   // v220
+    if (fi) fi.classList.toggle('off', i <= 0); if (fd) fd.classList.toggle('off', i >= n - 1);
 }
+// v220 — teclado en la PC: ← → pasan de página, Inicio/Fin van a la primera/última.
+// Solo si la revista está abierta y a la vista, y nunca mientras se escribe en un campo.
+function _rvIrA(i) { const g = document.getElementById('revista-grid'); if (!g) return; const n = g.children.length; if (!n) return; i = Math.max(0, Math.min(n - 1, i)); g.scrollTo({ left: i * g.clientWidth, behavior: 'smooth' }); }
+document.addEventListener('keydown', e => {
+    try {
+        if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+        const a = document.activeElement; if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return;
+        const cont = document.getElementById('ofertasRevista'), g = document.getElementById('revista-grid');
+        if (!cont || !g || cont.classList.contains('cls-oculto') || !g.children.length || !g.offsetParent) return;
+        const r = g.getBoundingClientRect(); if (r.height === 0 || r.bottom < 60 || r.top > window.innerHeight - 60) return;
+        e.preventDefault();
+        if (e.key === 'ArrowLeft') _rvIr(-1); else if (e.key === 'ArrowRight') _rvIr(1); else if (e.key === 'Home') _rvIrA(0); else _rvIrA(g.children.length - 1);
+    } catch (er) {}
+});
 window._rvIr = function (paso) { const g = document.getElementById('revista-grid'); if (!g) return; const n = g.children.length; const i = Math.max(0, Math.min(n - 1, _rvActual() + paso)); g.scrollTo({ left: i * g.clientWidth, behavior: 'smooth' }); };
 document.addEventListener('DOMContentLoaded', () => {
     const g = document.getElementById('revista-grid'); if (!g) return;
