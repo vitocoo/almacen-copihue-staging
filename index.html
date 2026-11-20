@@ -2386,7 +2386,7 @@ body.vista-inicio .info-bar{margin-top:18px;font-size:.85rem;opacity:.9}
 /* v203 — 🏠 flotante (abajo a la derecha, a mano del pulgar): siempre dentro de una sección → vuelve a la portada; en la portada se esconde (salvo buscando) */
 body.vista-seccion #floatingHome{display:flex!important}
 body.vista-inicio #floatingHome{display:none!important}
-body.vista-inicio.pt-buscando #floatingHome{display:flex!important}
+body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floatingHome{display:flex!important}
 .vm-caja{grid-column:1/-1;text-align:center;margin:14px 0 6px}
 .vm-caja button{border:2px solid #2e7d32;background:#fff;color:#2e7d32;font-weight:800;font-size:.95rem;padding:11px 22px;border-radius:14px;cursor:pointer;font-family:inherit}
 .vm-tope{font-size:.85rem;color:#555}
@@ -2910,7 +2910,7 @@ body.vista-inicio.pt-buscando #floatingHome{display:flex!important}
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v203';
+const APP_VERSION = 'copihue-index-v204';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -3849,11 +3849,11 @@ function renderizarContenedorOfertas(tipo, productos) {
                     // Oferta de porcentaje: mostrar precio con descuento
                     const precioDesc = Math.round(product.price * (1 - oferta.descuento / 100));
                     precioHTML = `
-                        <div style="margin:6px 0 4px;display:flex;align-items:baseline;gap:6px;">
-                            <span style="text-decoration:line-through;color:#aaa;font-size:0.8rem;">$${product.price}</span>
-                            <span style="font-size:1.15rem;font-weight:800;color:#ff6f00;">$${precioDesc}</span>
+                        <div style="margin:6px 0 4px;display:flex;align-items:baseline;flex-wrap:wrap;column-gap:6px;row-gap:0;">
+                            <span style="text-decoration:line-through;color:#aaa;font-size:0.8rem;">$${Number(product.price).toLocaleString('es-AR')}</span>
+                            <span style="font-size:1.15rem;font-weight:800;color:#ff6f00;">$${Number(precioDesc).toLocaleString('es-AR')}</span>
                         </div>
-                        <div style="font-size:0.72rem;color:#4caf50;font-weight:700;margin-bottom:4px;">✅ Ahorrás $${product.price - precioDesc}/u</div>
+                        <div style="font-size:0.72rem;color:#4caf50;font-weight:700;margin-bottom:4px;">✅ Ahorrás $${(product.price - precioDesc).toLocaleString('es-AR')}/u</div>
                     `;
                 } else {
                     // Oferta NxM: mostrar precio unitario y ahorro por ciclo
@@ -3872,11 +3872,11 @@ function renderizarContenedorOfertas(tipo, productos) {
             badgeTexto = `🔥 ${descuento}% OFF`;
             
             precioHTML = `
-                <div style="margin:6px 0 4px;display:flex;align-items:baseline;gap:6px;">
-                    <span style="text-decoration:line-through;color:#aaa;font-size:0.8rem;">$${product.price}</span>
-                    <span style="font-size:1.15rem;font-weight:800;color:#ff6f00;">$${precioConDescuento}</span>
+                <div style="margin:6px 0 4px;display:flex;align-items:baseline;flex-wrap:wrap;column-gap:6px;row-gap:0;">
+                    <span style="text-decoration:line-through;color:#aaa;font-size:0.8rem;">$${Number(product.price).toLocaleString('es-AR')}</span>
+                    <span style="font-size:1.15rem;font-weight:800;color:#ff6f00;">$${Number(precioConDescuento).toLocaleString('es-AR')}</span>
                 </div>
-                <div style="font-size:0.72rem;color:#4caf50;font-weight:700;margin-bottom:4px;">✅ Ahorrás $${product.price - precioConDescuento}</div>
+                <div style="font-size:0.72rem;color:#4caf50;font-weight:700;margin-bottom:4px;">✅ Ahorrás $${(product.price - precioConDescuento).toLocaleString('es-AR')}</div>
             `;
         }
 
@@ -3886,11 +3886,11 @@ function renderizarContenedorOfertas(tipo, productos) {
             badgeTexto = `⭐ ESPECIAL -10%`;
             
             precioHTML = `
-                <div style="margin:6px 0 4px;display:flex;align-items:baseline;gap:6px;">
-                    <span style="text-decoration:line-through;color:#aaa;font-size:0.8rem;">$${product.price}</span>
-                    <span style="font-size:1.15rem;font-weight:800;color:#2196f3;">$${precioConDescuento}</span>
+                <div style="margin:6px 0 4px;display:flex;align-items:baseline;flex-wrap:wrap;column-gap:6px;row-gap:0;">
+                    <span style="text-decoration:line-through;color:#aaa;font-size:0.8rem;">$${Number(product.price).toLocaleString('es-AR')}</span>
+                    <span style="font-size:1.15rem;font-weight:800;color:#2196f3;">$${Number(precioConDescuento).toLocaleString('es-AR')}</span>
                 </div>
-                <div style="font-size:0.72rem;color:#4caf50;font-weight:700;margin-bottom:4px;">✅ Ahorrás $${product.price - precioConDescuento}</div>
+                <div style="font-size:0.72rem;color:#4caf50;font-weight:700;margin-bottom:4px;">✅ Ahorrás $${(product.price - precioConDescuento).toLocaleString('es-AR')}</div>
             `;
         }
 
@@ -3905,11 +3905,11 @@ function renderizarContenedorOfertas(tipo, productos) {
                 : '';
 
             precioHTML = `
-                <div style="margin:6px 0 4px;display:flex;align-items:baseline;gap:6px;">
-                    <span style="text-decoration:line-through;color:#aaa;font-size:0.8rem;">$${product.price}</span>
-                    <span style="font-size:1.15rem;font-weight:800;color:#c62828;">$${precioDesc}</span>
+                <div style="margin:6px 0 4px;display:flex;align-items:baseline;flex-wrap:wrap;column-gap:6px;row-gap:0;">
+                    <span style="text-decoration:line-through;color:#aaa;font-size:0.8rem;">$${Number(product.price).toLocaleString('es-AR')}</span>
+                    <span style="font-size:1.15rem;font-weight:800;color:#c62828;">$${Number(precioDesc).toLocaleString('es-AR')}</span>
                 </div>
-                <div style="font-size:0.72rem;color:#b71c1c;font-weight:700;margin-bottom:4px;">✅ Ahorrás $${product.price - precioDesc}${diasLabel ? ' · ' + diasLabel : ''}</div>
+                <div style="font-size:0.72rem;color:#b71c1c;font-weight:700;margin-bottom:4px;">✅ Ahorrás $${(product.price - precioDesc).toLocaleString('es-AR')}${diasLabel ? ' · ' + diasLabel : ''}</div>
             `;
         }
 
@@ -7616,6 +7616,8 @@ function iniciar() {
     new MutationObserver(ms => { if (ms.every(m => port && port.contains(m.target))) return; clearTimeout(tm); tm = setTimeout(() => { _ptActualizar(); if (_ptSec) _vmAplicar(); }, 250); })
         .observe(document.querySelector('.container'), { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style'] });
     setInterval(_ptActualizar, 60000);   // por si una oferta vence mientras el cliente mira
+    // v204 — en la portada, si bajaste mucho aparece el 🏠 (sube al principio)
+    window.addEventListener('scroll', () => { document.body.classList.toggle('pt-abajo', window.scrollY > 400); }, { passive: true });
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();
 })();
@@ -8079,6 +8081,19 @@ document.getElementById('raspBtnReveal').addEventListener('click',()=>{
     </div>
   </div>
 </div>
+
+<!-- STAGING-ETIQUETA — solo en STAGING: etiqueta chica fija abajo a la izquierda con parpadeo del borde a intervalos al azar (para que la vista no se acostumbre). No recibe toques (pointer-events:none). -->
+<style>
+#stgPill{position:fixed;left:6px;bottom:6px;z-index:2147483000;pointer-events:none;background:#ff9800;color:#000;font:900 11px/1 system-ui,-apple-system,sans-serif;padding:4px 8px;border-radius:999px;border:2px solid #000;box-shadow:0 1px 4px rgba(0,0,0,.35);opacity:.92;letter-spacing:.3px;white-space:nowrap}
+#stgPill.stg-pulso{animation:stgPulso 1.4s ease-in-out 2}
+@keyframes stgPulso{0%,100%{border-color:#000;box-shadow:0 1px 4px rgba(0,0,0,.35)}50%{border-color:#ff1744;box-shadow:0 0 0 5px rgba(255,23,68,.55),0 0 14px rgba(255,23,68,.8)}}
+</style>
+<div id="stgPill" aria-hidden="true">🧪 STAGING</div>
+<script>
+(function(){try{var p=document.getElementById('stgPill');if(!p)return;
+function tic(){p.classList.remove('stg-pulso');void p.offsetWidth;p.classList.add('stg-pulso');setTimeout(tic,7000+Math.random()*18000);}
+setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
+</script>
 
 </body>
 </html>
