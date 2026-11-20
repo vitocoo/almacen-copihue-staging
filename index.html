@@ -2357,13 +2357,42 @@
     .rasp-btn-ghost{background:rgba(0,0,0,.06);color:#555;border:1px solid #ddd}
     .rasp-footer{background:linear-gradient(135deg,#c0392b,#922b21);height:8px}
     .rasp-condiciones{font-size:.62rem;color:#888;text-align:center;margin-top:8px;line-height:1.6;padding:0 4px}
+/* ═══ v202 — PORTADA CON TARJETAS ═══ */
+#portada,#barraSeccion{display:none}
+body.vista-inicio #portada{display:block}
+body.vista-seccion #barraSeccion{display:flex}
+body.vista-inicio .container > *:not(#portada):not(.info-bar):not(#divisasPrincipal):not(#adminNotification):not(script):not(link){display:none!important}
+body.vista-seccion .container > *:not(#barraSeccion):not(.seccion-activa):not(#adminNotification):not(script):not(link){display:none!important}
+body.vista-seccion .seccion-activa.cls-oculto{display:block!important}
+body.vista-inicio .info-bar{margin-top:18px;font-size:.85rem;opacity:.9}
+.pt-buscar{position:sticky;top:0;z-index:50;display:flex;gap:6px;align-items:center;background:#f1f8f1;padding:12px 0 10px}
+.pt-buscar input{flex:1;min-width:0;padding:15px 16px;font-size:1.05rem;border:2px solid #2e7d32;border-radius:16px;outline:none;background:#fff;font-family:inherit}
+.pt-buscar button{flex:none;width:48px;height:52px;border:none;border-radius:14px;background:#e0e0e0;color:#555;font-size:1.1rem;cursor:pointer;display:none}
+.pt-aviso{font-size:.75rem;color:#2e7d32;text-align:center;margin:-4px 0 8px}
+.pt-tarjetas{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0 4px}
+@media(min-width:768px){.pt-tarjetas{grid-template-columns:repeat(4,1fr)}}
+.pt-esperando{grid-column:1/-1;text-align:center;color:#888;padding:20px;font-size:.9rem}
+.pt-t{position:relative;border:none;border-radius:18px;padding:14px 12px 12px;min-height:118px;color:#fff;text-align:left;cursor:pointer;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.14);font-family:inherit;display:flex;flex-direction:column;justify-content:flex-end}
+.pt-t:active{transform:scale(.97)}
+.pt-t img{position:absolute;right:-6px;top:-6px;width:74px;height:74px;object-fit:contain;background:#fff;border-radius:14px;padding:4px;opacity:.95;transform:rotate(6deg)}
+.pt-ico{font-size:1.7rem;line-height:1}
+.pt-nom{font-size:1rem;font-weight:900;margin-top:6px;line-height:1.15;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.pt-sub{font-size:.72rem;opacity:.9;margin-top:2px}
+#barraSeccion{position:sticky;top:0;z-index:50;align-items:center;gap:10px;background:#f1f8f1;padding:10px 0}
+#barraSeccion button{border:none;background:#2e7d32;color:#fff;font-weight:800;font-size:.95rem;padding:10px 16px;border-radius:12px;cursor:pointer;font-family:inherit}
+#barraTitulo{font-weight:900;color:#1b5e20;font-size:1rem}
+.vm-oculto{display:none!important}
+.vm-caja{grid-column:1/-1;text-align:center;margin:14px 0 6px}
+.vm-caja button{border:2px solid #2e7d32;background:#fff;color:#2e7d32;font-weight:800;font-size:.95rem;padding:11px 22px;border-radius:14px;cursor:pointer;font-family:inherit}
+.vm-tope{font-size:.85rem;color:#555}
+.vm-tope a{color:#2e7d32;font-weight:800}
+.pt-res-t{font-size:.8rem;color:#555;margin:2px 0 8px}
+.pt-res-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(min-width:768px){.pt-res-grid{grid-template-columns:repeat(4,1fr)}}
 </style>
 </head>
 <body>
-    <div style="position:fixed;top:0;left:0;right:0;z-index:99999;background:repeating-linear-gradient(45deg,#000,#000 10px,#ffcc00 10px,#ffcc00 20px);color:#000;text-align:center;font-weight:900;font-size:0.85rem;padding:6px 8px;">
-        🚧 STAGING / MANTENIMIENTO — NO ES EL SITIO REAL 🚧
-    </div>
-    <div style="height:32px;"></div>
+<div style="background:#ff9800;color:#000;text-align:center;font-weight:900;font-size:.75rem;padding:4px">🧪 STAGING — catálogo de prueba</div>
 <header>
     <div class="header-content">
         <div class="logo">
@@ -2388,6 +2417,14 @@
 </header>
 
 <div class="container">
+    <!-- v202 — PORTADA: buscador + tarjetas -->
+    <div id="portada">
+      <div class="pt-buscar"><input id="pBuscar" type="text" inputmode="search" placeholder="🔍 ¿Qué estás buscando?" autocomplete="off" enterkeyhint="search"><button id="pBuscarX" type="button" aria-label="Borrar">✕</button></div>
+      <div id="pAviso" class="pt-aviso" style="display:none"></div>
+      <div id="pResultados"></div>
+      <div id="pTarjetas" class="pt-tarjetas"><div class="pt-esperando">Cargando ofertas…</div></div>
+    </div>
+    <div id="barraSeccion"><button type="button" onclick="_ptVolver()">← Volver</button><span id="barraTitulo"></span></div>
     <div id="adminNotification" class="admin-notification" style="display: none;">
         <strong>🔐 MODO ADMIN</strong> · 
         <button onclick="abrirListaCompras()" style="background:white;color:#1b5e20;border:none;border-radius:8px;padding:4px 12px;font-weight:700;cursor:pointer;font-size:0.85rem;">
@@ -2418,6 +2455,8 @@
     </div>
 
           
+    <div id="seccionJuegos" class="ofertas-container" style="background:transparent;box-shadow:none;border:none;">
+    <div style="text-align:center;font-weight:900;color:#2e7d32;font-size:1.1rem;margin:4px 0 12px;">🎮 Juegos Copihue</div>
     <!-- ══════════ MÓDULO RASPADITA ══════════ -->
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
     <div id="rasp-modulo">
@@ -2477,6 +2516,7 @@
       <div class="rasp-condiciones">🎁 1 por día · 🏪 Solo retiro presencial · ⏰ Válido hasta el cierre · 📦 Sujeto a stock · 🚫 No acumulable</div>
     </div>
     <!-- ══════════ FIN RASPADITA ══════════ -->
+    </div>
     <!-- ========== JUEVES CERVECERO — siempre visible, teaser el resto de la semana ========== -->
     <div class="ofertas-container cervecero cervecero-teaser" id="ofertasCervecero" style="margin-bottom:2rem;">
         <div class="ofertas-header">
@@ -2865,7 +2905,7 @@
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v201';
+const APP_VERSION = 'copihue-index-v202';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -2990,7 +3030,7 @@ let cart = [];
 
 // ========== PAGINACIÓN ==========
 let paginaActual = 1;
-const PRODUCTOS_POR_PAGINA = 50;
+const PRODUCTOS_POR_PAGINA = 12;   // v202: antes 50 (la gente usa el buscador)
 let currentCategory = "ALMACEN";
 let isSearching = false;
 let esAdmin = false;
@@ -4881,12 +4921,7 @@ function processAPIData(apiData) {
     // ── DIAGNÓSTICO PROMOS — ver datos CRUDOS que mandó el GAS ──
     // Busca productos con category=PROMOS o categoriaOferta=promo activa
     // ── RASPADITA EN LOADING — mover al slot del overlay para que se juegue mientras carga ──
-    const _raspModulo = document.getElementById('rasp-modulo');
-    const _raspSlot   = document.getElementById('loadingRaspSlot');
-    if (_raspModulo && _raspSlot) {
-        _raspSlot.appendChild(_raspModulo);
-        _raspModulo.style.display = 'block';
-    }
+    // v202 — la raspadita ya NO se mueve a la pantalla de carga: vive en la tarjeta «🎮 Juegos Copihue».
 
     // Mostrar botón "Ver catálogo" después de 8s (eliminado — botón siempre visible)
 
@@ -4896,6 +4931,8 @@ function processAPIData(apiData) {
     _setLoadingProgress(2);
     if (window._loadingTimeout)  { clearTimeout(window._loadingTimeout);  window._loadingTimeout  = null; }
     if (window._loadingTimeout2) { clearTimeout(window._loadingTimeout2); window._loadingTimeout2 = null; }
+    ocultarLoadingOverlay();   // v202: entra solo, sin tocar «Ver catálogo»
+    try { _ptActualizar(); } catch (e) {}
 }
 
 // Función global para ocultar el overlay (usada por botón "Ver catálogo" y por auto-dismiss)
@@ -6525,7 +6562,7 @@ function generarTarjetaBusqueda(product) {
 
 function filterProducts(searchTerm) {
     const productsGrid = document.getElementById('productsGrid');
-    const results = products.filter(p => p.name.toLowerCase().includes(searchTerm) && p.stockNumber > 0);
+    const results = _ibBuscar(searchTerm);   // v202: motor del POS (antes: texto exacto)
 
     requestAnimationFrame(() => {
         if (results.length === 0) {
@@ -6551,7 +6588,7 @@ function filterProducts(searchTerm) {
 
 function filterMobileProducts(searchTerm) {
     const resultsContainer = document.getElementById('mobileSearchResults');
-    const results = products.filter(p => p.name.toLowerCase().includes(searchTerm) && p.stockNumber > 0);
+    const results = _ibBuscar(searchTerm);   // v202
 
     if (results.length === 0) {
         resultsContainer.innerHTML = `
@@ -6590,6 +6627,8 @@ function closeCartModal() {
 }
 
 function openSearchModal() {
+    // v202 — la lupa lleva al buscador de la portada
+    try { _ptMostrarPortada(); const b = document.getElementById('pBuscar'); if (b) { window.scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => b.focus(), 250); } return; } catch (e) {}
     document.getElementById('searchModal').style.display = "flex";
     document.getElementById('mobileSearch').focus();
     history.pushState({ modalSearch: true }, '');
@@ -6602,6 +6641,7 @@ function closeSearchModal() {
 
 // ========== BOTÓN HOME ==========
 function goToHome() {
+    try { _ptMostrarPortada(); } catch (e) {}   // v202
     // Restaurar categoría inicial
     currentCategory = "ALMACEN";
     
@@ -7297,6 +7337,21 @@ function init() {
     });
     
     // Cargar config_sistema PRIMERO para que los horarios estén listos antes de renderizar ofertas
+    // v202 — si hay catálogo guardado en este teléfono, se muestra AL INSTANTE y después se actualiza por detrás
+    if (_idxHayCache()) {
+        window._idxModoCache = true;
+        Promise.resolve().then(() => cargarConfigSistema()).then(() => loadProductsFromAPI())
+          .catch(() => {})
+          .then(() => {
+              window._idxModoCache = false;
+              ocultarLoadingOverlay();
+              _idxAviso('🔄 Actualizando precios y ofertas…');
+              return cargarConfigSistema();
+          })
+          .then(() => loadProductsFromAPI())
+          .catch(() => {})
+          .then(() => _idxAviso(''));
+    } else
     cargarConfigSistema().then(function() {
         _setLoadingProgress(1);
         // Actualizar textos del overlay desde planilla (si ya se cargaron)
@@ -7313,7 +7368,7 @@ function init() {
         if (_overlayCheck && !_overlayCheck.classList.contains('fade-out')) {
             const txtDiv = document.getElementById('loadingTexto');
             if (txtDiv && txtDiv.textContent.indexOf('listo') === -1)
-                txtDiv.textContent = '¡Jugá mientras cargamos todo!';
+                txtDiv.textContent = '¡Ya casi!';   // v202 (la raspadita está en 🎮 Juegos)
         }
     }, 6000);
     // A los 20s: recién ahí mostrar botón reintentar
@@ -7381,6 +7436,178 @@ console.log(`\n🏪 ════════════════════
    ALMACÉN COPIHUE — ${APP_VERSION}
    Sistema iniciado correctamente
 ═══════════════════════════════════`);
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// v202 — PORTADA CON TARJETAS · BUSCADOR DEL POS · CATÁLOGO GUARDADO EN EL TELÉFONO
+// Solo presentación: la lógica de qué oferta está activa NO cambia (cada sección se
+// sigue prendiendo/apagando sola como en v201); las tarjetas solo miran si su sección está visible.
+// ════════════════════════════════════════════════════════════════════════════
+(function () {
+// ---- catálogo guardado (lo que llega de la planilla se guarda; la próxima vez se ve al instante) ----
+const _IDX_LS = { catalogo: 'idx_cache_catalogo', config: 'idx_cache_config', ofertas: 'idx_cache_ofertas' };
+const _IDX_MAX = { catalogo: 24 * 3600e3, config: 24 * 3600e3, ofertas: 15 * 60e3 };
+function _idxClave(u) {
+    u = String(u || '');
+    if (u.indexOf('/macros/s/') === -1) return null;
+    if (/[?&]action=getOfertas/.test(u)) return 'ofertas';
+    if (/[?&]action=getConfig/.test(u)) return 'config';
+    if (/[?&]cache=/.test(u) && !/[?&]action=/.test(u)) return 'catalogo';
+    return null;
+}
+function _idxLeer(k) {
+    try { const x = JSON.parse(localStorage.getItem(_IDX_LS[k]) || 'null'); if (x && x.t && Date.now() - x.ts < _IDX_MAX[k]) return x; } catch (e) {}
+    return null;
+}
+window._idxHayCache = function () { return !!(_idxLeer('catalogo') && _idxLeer('config')); };
+window._idxModoCache = false;
+const _fetchOrig = window.fetch.bind(window);
+window.fetch = async function (u, o) {
+    const k = _idxClave(typeof u === 'string' ? u : (u && u.url));
+    if (!k) return _fetchOrig(u, o);
+    if (window._idxModoCache) {
+        const c = _idxLeer(k);
+        if (c) return new Response(c.t, { status: 200, headers: { 'Content-Type': 'application/json' } });
+        throw new Error('sin datos guardados');
+    }
+    const r = await _fetchOrig(u, o);
+    try { if (r.ok) { const t = await r.clone().text(); JSON.parse(t); localStorage.setItem(_IDX_LS[k], JSON.stringify({ ts: Date.now(), t: t })); } } catch (e) { /* lleno o inválido: no se guarda */ }
+    return r;
+};
+window._idxAviso = function (txt) { const a = document.getElementById('pAviso'); if (!a) return; a.textContent = txt || ''; a.style.display = txt ? 'block' : 'none'; };
+
+// ---- buscador: el mismo motor que el POS seba21 (sin tildes, por partes, sinónimos, errores de tipeo) ----
+const SIN = { leche:['leche','lech'], vino:['vino','vinos'], cerveza:['cerveza','birra','birras','cerv','cervezas'], gaseosa:['gaseosa','coca','pepsi','sprite','7up','fanta','gaseosas'], agua:['agua','aguas'], jugo:['jugo','jugos'], aceite:['aceite','aceites'], fideos:['fideos','pasta','pastas','tallarines','espagueti','spaghetti'], azucar:['azucar','azúcar'], harina:['harina','harinas'], pan:['pan','panes','marraqueta'], queso:['queso','quesos'], jamon:['jamon','jamón','fiambre','fiambres'], pollo:['pollo','pollos','pechuga','suprema'], carne:['carne','carnes','bife','asado','costilla'], yogur:['yogur','yogurt','yogures'], manteca:['manteca','mantequilla'], cafe:['cafe','café','nescafe','nescafé'], te:['te','té','tisana'], yerba:['yerba','yerbas','mate'], tomate:['tomate','tomates'], papa:['papa','papas','patata','patatas'], cebolla:['cebolla','cebollas'], atun:['atun','atún','tuna'], mayonesa:['mayonesa','mayo'], ketchup:['ketchup','catsup'], mermelada:['mermelada','mermeladas','dulce'], chocolate:['chocolate','chocolates','cacao'], galletita:['galletita','galletitas','galleta','galletas','cookie'], papel:['papel','rollo','rollos','higienico','higiénico'], jabon:['jabon','jabón','detergente','lavandina','cloro','shampoo'], panal:['pañal','pañales','panal','panales'], gato:['gato','gatos','gatarina','whiskas','felino'], perro:['perro','perros','dog','dogarina','pedigree'], kg:['kg','kilo','kilos','gramo','gramos'], lt:['lt','litro','litros'], x6:['x6','pack','six'] };
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+const SINN = Object.values(SIN).map(g => g.map(norm));
+function expandir(w) { const e = new Set([w]); SINN.forEach(g => { if (g.some(s => s === w || s.startsWith(w) || w.startsWith(s))) g.forEach(s => e.add(s)); }); return [...e]; }
+function score(n, ts) { let sc = 0; const ws = n.split(' '); ts.forEach(t => { if (n === t) sc += 100; else if (n.startsWith(t)) sc += 60; else if (ws.some(p => p === t)) sc += 50; else if (ws.some(p => p.startsWith(t))) sc += 35; else if (n.includes(t)) sc += 20; }); return sc; }
+function lev(a, b, max) { if (Math.abs(a.length - b.length) > max) return max + 1; let prev = Array.from({ length: b.length + 1 }, (_, j) => j); for (let i = 1; i <= a.length; i++) { const cur = [i]; let mn = i; for (let j = 1; j <= b.length; j++) { cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); if (cur[j] < mn) mn = cur[j]; } if (mn > max) return max + 1; prev = cur; } return prev[b.length]; }
+function parecida(t, ws) { if (t.length < 4) return ws.some(p => p.startsWith(t)); const max = t.length >= 8 ? 2 : 1; return ws.some(p => { if (p.includes(t)) return true; if (lev(t, p, max) <= max) return true; for (const L of [t.length - 1, t.length, t.length + 1]) { if (L >= 4 && L <= p.length && lev(t, p.slice(0, L), max) <= max) return true; } return false; }); }
+window._ibBuscar = function (term, limite) {
+    const lista = (typeof products !== 'undefined' ? products : []).filter(p => (p.stockNumber || 0) > 0);
+    const grupos = norm(term).split(' ').filter(Boolean).map(expandir);
+    if (!grupos.length) return [];
+    let r = lista.map(p => { const n = norm(p.name); const ps = grupos.map(g => score(n, g)); return { p, sc: ps.every(x => x > 0) ? ps.reduce((a, b) => a + b, 0) : 0 }; })
+        .filter(x => x.sc > 0).sort((a, b) => b.sc - a.sc).map(x => x.p);
+    if (!r.length) {   // nada exacto → parecidos (errores de tipeo)
+        const ts = norm(term).split(' ').filter(Boolean);
+        if (ts.some(w => w.length >= 4)) r = lista.filter(p => { const ws = norm(p.name).split(' '); return ts.every(t => parecida(t, ws)); });
+    }
+    return r.slice(0, limite || 40);
+};
+
+// ---- portada ----
+const SECC = [
+    { id: 'ofertasCervecero', ico: '🍺', nom: 'Jueves Cervecero', grid: 'cervecero-grid', col: '#f9a825,#ef6c00', anuncio: true },
+    { id: 'ofertasPromos', ico: '🎯', nom: 'Promos', grid: 'promos-grid', col: '#ad1457,#e91e63' },
+    { id: 'ofertasCombos', ico: '📦', nom: 'Combos', grid: 'combos-grid', col: '#bf360c,#e65100' },
+    { id: 'ofertasRelampago', ico: '⚡', nom: 'Relámpago', grid: 'relampago-grid', col: '#f57f17,#fbc02d' },
+    { id: 'ofertasDestacadas', ico: '🔥', nom: 'Destacadas', grid: 'destacadas-grid', col: '#c62828,#ef5350' },
+    { id: 'ofertasEspeciales', ico: '🌙', nom: 'Especiales', grid: 'especiales-grid', col: '#283593,#5c6bc0' },
+    { id: 'ofertasUltimas', ico: '🏷️', nom: 'Últimas unidades', grid: 'ultimas-grid', col: '#4e342e,#8d6e63' },
+    { id: 'ofertasRecienLlegados', ico: '🆕', nom: 'Recién llegados', grid: 'recien-grid', col: '#00695c,#26a69a' },
+    { id: 'ofertasMulticompra', ico: '🛍️', nom: 'Llevando más, pagás menos', grid: 'multicompra-grid', col: '#4527a0,#7e57c2' },
+    { id: 'categorias', ico: '📂', nom: 'Todos los productos', sub: 'por categoría', col: '#1b5e20,#43a047', els: ['categories', 'productsGrid'] },
+    { id: 'juegos', ico: '🎮', nom: 'Juegos Copihue', sub: 'raspá y ganá', col: '#6a1b9a,#ab47bc', els: ['seccionJuegos'] }
+];
+const VM_INI = 4, VM_PASO = 8, VM_TOPE = 24;
+let _ptSec = null, _vmLimite = VM_INI, _raspArrancada = false;
+const tarjetasDe = g => g ? [...g.children].filter(c => c.nodeType === 1 && !c.classList.contains('vm-caja') && !/loading|skeleton|empty|error/i.test(c.className)) : [];
+function esJuevesAR() { try { return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' })).getDay() === 4; } catch (e) { return false; } }
+function visible(sc) {
+    if (sc.els) return sc.id === 'juegos' || (typeof products !== 'undefined' && products.length > 0);
+    if (sc.anuncio && !esJuevesAR()) return false;   // el Cervecero solo los jueves (igual que renderizarCervecero)
+    const el = document.getElementById(sc.id); if (!el) return false;
+    if (el.classList.contains('cls-oculto') || el.style.display === 'none') return false;
+    return sc.anuncio || tarjetasDe(document.getElementById(sc.grid)).length > 0;
+}
+window._ptActualizar = function () {
+    const cont = document.getElementById('pTarjetas'); if (!cont) return;
+    if (typeof products === 'undefined' || !products.length) return;   // hasta tener productos queda «Cargando ofertas…»
+    const vis = SECC.filter(visible);
+    const html = vis.map(sc => {
+        let sub = sc.sub || '', img = '';
+        if (!sc.els) {
+            const t = tarjetasDe(document.getElementById(sc.grid));
+            sub = t.length ? t.length + ' producto' + (t.length > 1 ? 's' : '') : (sc.anuncio ? 'hoy desde la tarde' : '');
+            const im = t.map(x => x.querySelector('img')).find(i => i && i.getAttribute('src') && !/data:|logo/.test(i.getAttribute('src')));
+            if (im) img = '<img loading="lazy" alt="" src="' + im.getAttribute('src').replace(/"/g, '&quot;') + '" onerror="this.remove()">';
+        }
+        return '<button type="button" class="pt-t" style="background:linear-gradient(135deg,' + sc.col + ')" onclick="_ptAbrir(\'' + sc.id + '\')">' + img +
+            '<span class="pt-ico">' + sc.ico + '</span><span class="pt-nom">' + sc.nom + '</span>' + (sub ? '<span class="pt-sub">' + sub + '</span>' : '') + '</button>';
+    }).join('');
+    if (cont.innerHTML !== html) cont.innerHTML = html;
+    if (_ptSec && !document.body.classList.contains('vista-inicio')) { const sc = SECC.find(x => x.id === _ptSec); if (sc && !visible(sc)) _ptMostrarPortada(); }
+};
+function marcar(sc, on) { (sc.els || [sc.id]).forEach(id => { const el = document.getElementById(id); if (el) el.classList.toggle('seccion-activa', on); }); }
+window._ptAbrir = function (id, sinHistorial) {
+    const sc = SECC.find(x => x.id === id); if (!sc) return;
+    SECC.forEach(x => marcar(x, false)); marcar(sc, true);
+    _ptSec = id; _vmLimite = VM_INI;
+    document.body.classList.remove('vista-inicio'); document.body.classList.add('vista-seccion');
+    document.getElementById('barraTitulo').textContent = sc.ico + ' ' + sc.nom;
+    if (!sinHistorial) try { history.pushState({ ptSeccion: id }, ''); } catch (e) {}
+    if (id === 'juegos' && !_raspArrancada && typeof window.raspIniciar === 'function') { _raspArrancada = true; setTimeout(window.raspIniciar, 50); }
+    _vmAplicar();
+    window.scrollTo({ top: 0 });
+};
+window._ptMostrarPortada = function () {
+    SECC.forEach(x => marcar(x, false)); _ptSec = null;
+    document.body.classList.remove('vista-seccion'); document.body.classList.add('vista-inicio');
+    _vmLimpiar(); _ptActualizar();
+};
+window._ptVolver = function () { if (history.state && history.state.ptSeccion) history.back(); else _ptMostrarPortada(); };
+window.addEventListener('popstate', () => { if (document.body.classList.contains('vista-seccion')) _ptMostrarPortada(); });
+
+// ---- «Ver más»: 4 de entrada, +8 por toque, tope 24 (después, el buscador) ----
+function _vmLimpiar() { document.querySelectorAll('.vm-oculto').forEach(e => e.classList.remove('vm-oculto')); document.querySelectorAll('.vm-caja').forEach(e => e.remove()); }
+window._vmAplicar = function () {
+    const sc = SECC.find(x => x.id === _ptSec);
+    if (!sc || sc.els) return;   // categorías ya pagina sola (12 por página) · juegos no aplica
+    const g = document.getElementById(sc.grid); if (!g) return;
+    const t = tarjetasDe(g);
+    t.forEach((c, i) => c.classList.toggle('vm-oculto', i >= _vmLimite));
+    let caja = g.querySelector(':scope > .vm-caja');
+    if (t.length <= _vmLimite && _vmLimite < VM_TOPE) { if (caja) caja.remove(); return; }
+    if (!caja) { caja = document.createElement('div'); caja.className = 'vm-caja'; }
+    if (t.length > _vmLimite && _vmLimite < VM_TOPE) caja.innerHTML = '<button type="button" onclick="_vmMas()">Ver más (' + (t.length - _vmLimite) + ')</button>';
+    else if (t.length > _vmLimite) caja.innerHTML = '<div class="vm-tope">¿Buscás algo en especial? <a href="#" onclick="openSearchModal();return false">🔍 Usá el buscador</a></div>';
+    else { caja.remove(); return; }
+    if (caja.parentNode !== g || g.lastElementChild !== caja) g.appendChild(caja);
+};
+window._vmMas = function () { _vmLimite = Math.min(VM_TOPE, _vmLimite + VM_PASO); _vmAplicar(); };
+
+// ---- buscador de la portada ----
+let _tb = null;
+function buscar() {
+    const inp = document.getElementById('pBuscar'), res = document.getElementById('pResultados'), tar = document.getElementById('pTarjetas'), x = document.getElementById('pBuscarX');
+    const q = (inp.value || '').trim();
+    x.style.display = q ? 'block' : 'none';
+    if (q.length < 2) { res.innerHTML = ''; tar.style.display = ''; return; }
+    const r = _ibBuscar(q, 40);
+    tar.style.display = 'none';
+    const esc = String(q).replace(/[<>&"]/g, '');
+    res.innerHTML = r.length
+        ? '<div class="pt-res-t">' + r.length + (r.length >= 40 ? '+' : '') + ' resultado' + (r.length > 1 ? 's' : '') + ' para «' + esc + '»</div><div class="pt-res-grid">' + r.map(p => generarTarjetaBusqueda(p)).join('') + '</div>'
+        : '<div style="text-align:center;padding:2rem 1rem;color:#666;">🔍 No encontramos «' + esc + '».<br><span style="font-size:.85rem">Probá con otra palabra o escribinos por WhatsApp.</span></div>';
+}
+function iniciar() {
+    document.body.classList.add('vista-inicio');
+    const inp = document.getElementById('pBuscar');
+    if (inp) {
+        inp.addEventListener('input', () => { clearTimeout(_tb); _tb = setTimeout(buscar, 200); });
+        inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(_tb); buscar(); inp.blur(); } });
+        document.getElementById('pBuscarX').addEventListener('click', () => { inp.value = ''; buscar(); inp.focus(); });
+    }
+    // las tarjetas se actualizan solas cuando una sección se prende/apaga o se llena
+    let tm = null;
+    new MutationObserver(() => { clearTimeout(tm); tm = setTimeout(() => { _ptActualizar(); if (_ptSec) _vmAplicar(); }, 250); })
+        .observe(document.querySelector('.container'), { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style'] });
+    setInterval(_ptActualizar, 60000);   // por si una oferta vence mientras el cliente mira
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();
+})();
 
 // Interceptar botón "atrás" para cerrar modal búsqueda
 window.addEventListener('popstate', function(e) {
@@ -7811,11 +8038,7 @@ document.getElementById('raspBtnReveal').addEventListener('click',()=>{
 });
 
 // Iniciar cuando el DOM esté listo
-if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded', raspIniciar);
-} else {
-  setTimeout(raspIniciar, 100);
-}
+// v202 — ya no arranca sola al abrir la página: arranca al abrir la tarjeta «🎮 Juegos Copihue» (_ptAbrir('juegos')).
 })();
 
 </script>
