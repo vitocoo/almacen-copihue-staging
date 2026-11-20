@@ -2385,6 +2385,17 @@ body.vista-inicio .info-bar{margin-top:18px;font-size:.85rem;opacity:.9}
 .pt-buscar input{flex:1;min-width:0;padding:15px 16px;font-size:1.05rem;border:2px solid #2e7d32;border-radius:16px;outline:none;background:#fff;font-family:inherit}
 .pt-buscar button{flex:none;width:48px;height:52px;border:none;border-radius:14px;background:#e0e0e0;color:#555;font-size:1.1rem;cursor:pointer;display:none}
 .pt-aviso{font-size:.75rem;color:#2e7d32;text-align:center;margin:-4px 0 8px}
+/* v208 — compartir ofertas de hoy */
+#pCompartir{display:none;width:100%;margin:10px 0 6px;padding:14px;border:none;border-radius:16px;background:#25d366;color:#fff;font-weight:900;font-size:1.02rem;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.15);font-family:inherit}
+body.pt-listo #pCompartir{display:block}
+body.pt-buscando #pCompartir{display:none!important}
+#cmpOverlay{display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.75);overflow:auto;padding:16px}
+#cmpOverlay.open{display:block}
+.cmp-caja{max-width:440px;margin:0 auto}
+.cmp-btns{position:sticky;bottom:0;display:flex;gap:10px;padding:12px 0}
+.cmp-btns button{flex:1;padding:14px;border:none;border-radius:14px;font-weight:900;font-size:1rem;cursor:pointer;font-family:inherit;background:#eee;color:#333}
+.cmp-btns #cmpEnviar{background:#25d366;color:#fff}
+.cmp-btns #cmpEnviar:disabled{opacity:.5}
 .pt-tarjetas{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0 4px}
 @media(min-width:768px){.pt-tarjetas{grid-template-columns:repeat(4,1fr)}}
 .pt-esperando{grid-column:1/-1;text-align:center;color:#888;padding:20px;font-size:.9rem}
@@ -2443,6 +2454,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
       <div id="pAviso" class="pt-aviso" style="display:none"></div>
       <div id="pResultados"></div>
       <div id="pTarjetas" class="pt-tarjetas"><div class="pt-esperando">⏳ Cargando productos y ofertas…</div></div>
+      <button type="button" id="pCompartir" onclick="abrirCompartirOfertas()">📲 Compartir ofertas de hoy</button>
     </div>
     <div id="barraSeccion"><button type="button" onclick="_ptVolver()">← Volver</button><span id="barraTitulo"></span></div>
     <div id="adminNotification" class="admin-notification" style="display: none;">
@@ -2939,7 +2951,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v207';
+const APP_VERSION = 'copihue-index-v208';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -7594,6 +7606,7 @@ function visible(sc) {
     if (el.classList.contains('cls-oculto') || el.style.display === 'none') return false;
     return sc.anuncio || tarjetasDe(document.getElementById(sc.grid)).length > 0;
 }
+window._ptInfo = { SECC, visible, tarjetasDe };   // v208 — para «Compartir ofertas de hoy»
 window._ptActualizar = function () {
     const cont = document.getElementById('pTarjetas'); if (!cont) return;
     if (typeof products === 'undefined' || !products.length) return;   // hasta tener productos queda «Cargando ofertas…»
@@ -7610,6 +7623,7 @@ window._ptActualizar = function () {
             '<span class="pt-ico">' + sc.ico + '</span><span class="pt-nom">' + sc.nom + '</span>' + (sub ? '<span class="pt-sub">' + sub + '</span>' : '') + '</button>';
     }).join('');
     if (cont.innerHTML !== html) cont.innerHTML = html;
+    document.body.classList.add('pt-listo');   // v208 — ya hay productos: se puede compartir
     if (_ptSec && !document.body.classList.contains('vista-inicio')) { const sc = SECC.find(x => x.id === _ptSec); if (sc && !visible(sc)) _ptMostrarPortada(); }
 };
 function marcar(sc, on) { (sc.els || [sc.id]).forEach(id => { const el = document.getElementById(id); if (el) el.classList.toggle('seccion-activa', on); }); }
@@ -8117,6 +8131,166 @@ document.getElementById('raspBtnReveal').addEventListener('click',()=>{
 // v202 — ya no arranca sola al abrir la página: arranca al abrir la tarjeta «🎮 Juegos Copihue» (_ptAbrir('juegos')).
 })();
 
+
+// ═══ v208 — «📲 Compartir ofertas de hoy» ═══
+// Arma una imagen (vertical, se manda como FOTO → puede ser alta) y un texto
+// SOLO con las secciones que la portada muestra en este momento. Sin ofertas
+// activas → imagen y texto genéricos. No toca planilla ni Code: usa lo ya cargado.
+(function () {
+    const SEC_OFERTA = ['ofertasCervecero', 'ofertasRelampago', 'ofertasDestacadas', 'ofertasEspeciales', 'ofertasPromos', 'ofertasCombos', 'ofertasUltimas', 'ofertasMulticompra', 'ofertasRecienLlegados', 'ofertasMasVendidos'];
+    const CIERRE = { ofertasRelampago: 'relampago', ofertasDestacadas: 'destacadas', ofertasEspeciales: 'especiales', ofertasUltimas: 'ultimas' };
+    let _cmpFile = null, _cmpTexto = '';
+    const nombreTienda = () => (window._EMPRESA && window._EMPRESA.nombre) ? window._EMPRESA.nombre : 'Almacén Copihue';
+    const urlTienda = () => location.origin + '/';
+    const fmt$ = v => { const n = parseInt(String(v).replace(/[^\d]/g, ''), 10); return isNaN(n) ? String(v) : '$' + n.toLocaleString('es-AR'); };
+    function horaCierre(id) {
+        try {
+            const k = CIERRE[id]; if (!k || typeof _horariosOferta === 'undefined') return '';
+            const h = _horariosOferta[k]; const d = _parsearHoraCd(h && h.cierre);
+            if (d == null || d >= 24 || d <= 0) return '';
+            const hh = Math.floor(d), mm = Math.round((d - hh) * 60);
+            return 'hasta las ' + hh + (mm ? ':' + String(mm).padStart(2, '0') : '') + ' h';
+        } catch (e) { return ''; }
+    }
+    // Lee de la tarjeta lo que ve el cliente: nombre, foto, precio grande y precio tachado
+    function datosTarjeta(card) {
+        const nom = (card.querySelector('.product-name') || {}).textContent || '';
+        const img = card.querySelector('img');
+        const imgOk = img && img.complete && img.naturalWidth > 0 ? img : null;
+        const src = img ? (img.currentSrc || img.getAttribute('src') || '') : '';
+        let precio = '', antes = '', tam = 0;
+        card.querySelectorAll('span,div').forEach(el => {
+            if (el.children.length) return;
+            const crudo = (el.textContent || '').replace(/\s+/g, ' ').trim();
+            const m = crudo.match(/^(ANTES|AHORA)?\s*(\$\s?[\d.]+)(\.-)?$/i);
+            if (!m) return;
+            const t = m[2].replace(/\s/g, '');
+            const cs = getComputedStyle(el);
+            if (/^ANTES$/i.test(m[1] || '') || cs.textDecorationLine.includes('line-through')) { if (!antes) antes = t; return; }
+            const f = parseFloat(cs.fontSize) || 0;
+            if (f > tam) { tam = f; precio = t; }
+        });
+        if (!precio) { const m = (card.textContent || '').match(/\$\s?[\d.]{3,}/); if (m) precio = m[0]; }
+        const mc = card.querySelector('.mc-price-burst-text');   // multicompra: «2u. $ 9.000»
+        if (mc) { antes = precio ? fmt$(precio) + ' c/u' : ''; precio = mc.innerHTML.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/\.-/g, '').replace(/\$\s?([\d.]+)/, (x, n) => fmt$(n)).replace(/\s+/g, ' ').trim(); return { nom: nom.trim(), src, img: imgOk, precio, antes }; }
+        return { nom: nom.trim(), src, img: imgOk, precio: precio ? fmt$(precio) : '', antes: antes ? fmt$(antes) : '' };
+    }
+    function secciones() {
+        const out = [];
+        const { SECC, visible, tarjetasDe } = window._ptInfo || {};
+        if (!SECC) return out;
+        SECC.filter(sc => SEC_OFERTA.includes(sc.id) && visible(sc)).forEach(sc => {
+            const cards = tarjetasDe(document.getElementById(sc.grid));
+            if (!cards.length && !sc.anuncio) return;
+            out.push({ sc, total: cards.length, prods: cards.slice(0, 3).map(datosTarjeta).filter(p => p.nom), cierre: horaCierre(sc.id) });
+        });
+        return out;
+    }
+    function armarTexto(secs) {
+        const n = nombreTienda();
+        if (!secs.length) return `🏪 *${n}*\nCatálogo y precios al día. Buscá lo que necesites y pedí por WhatsApp.\n\n📍 Retiro en Copihue 457\n🛒 ${urlTienda()}`;
+        const lineas = secs.map(s => `${s.sc.ico} *${s.sc.nom}*` + (s.cierre ? ` · ${s.cierre}` : '') + (s.total ? ` · ${s.total} producto${s.total > 1 ? 's' : ''}` : ''));
+        return `🏪 *${n}* — ofertas de hoy\n\n${lineas.join('\n')}\n\n📍 Retiro en Copihue 457\n🛒 Mirá todo acá: ${urlTienda()}`;
+    }
+    function cargarImg(src) { return new Promise(r => { if (!src) return r(null); const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = src; setTimeout(() => r(null), 4000); }); }
+    function cortar(ctx, txt, max, lineas) {
+        const ws = txt.split(/\s+/); const out = []; let l = '';
+        for (const w of ws) { const p = l ? l + ' ' + w : w; if (ctx.measureText(p).width <= max) l = p; else { if (l) out.push(l); l = w; } }
+        if (l) out.push(l);
+        if (out.length > lineas) { out.length = lineas; let u = out[lineas - 1]; while (u && ctx.measureText(u + '…').width > max) u = u.slice(0, -1); out[lineas - 1] = u + '…'; }
+        return out;
+    }
+    async function armarImagen(secs) {
+        const W = 1080, P = 48, HEAD = 250, PIE = 150, SEC_H = 92, ROW = 150, GAP = 26;
+        const MASH = 40, TOPE = 2600;
+        const alto = () => { let h = HEAD + PIE + 30; secs.forEach(s => { h += SEC_H + s.prods.length * ROW + (s.total > s.prods.length ? MASH : 0) + GAP; }); if (!secs.length) h += 420; return h; };
+        for (const n of [2, 1]) { if (alto() <= TOPE) break; secs.forEach(s => { s.prods = s.prods.slice(0, n); }); }   // muchas secciones → menos productos por sección
+        let H = Math.max(alto(), 1080);
+        const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+        const c = cv.getContext('2d');
+        const fondo = c.createLinearGradient(0, 0, 0, H); fondo.addColorStop(0, '#1b5e20'); fondo.addColorStop(1, '#2e7d32');
+        c.fillStyle = fondo; c.fillRect(0, 0, W, H);
+        // cabecera: logo + título
+        const logo = await cargarImg('logo-copihue.png');
+        c.fillStyle = '#fdf0c4'; c.beginPath(); c.roundRect(P, 40, 300, 170, 26); c.fill();
+        if (logo) { const r = Math.min(270 / logo.width, 140 / logo.height); c.drawImage(logo, P + 150 - logo.width * r / 2, 125 - logo.height * r / 2, logo.width * r, logo.height * r); }
+        c.fillStyle = '#fff'; c.font = '900 54px sans-serif'; c.textBaseline = 'alphabetic';
+        c.fillText(secs.length ? 'Ofertas de hoy' : 'Catálogo y', P + 330, 112);
+        c.fillText(secs.length ? '' : 'precios al día', P + 330, 172);
+        c.fillStyle = '#c8e6c9'; c.font = '700 30px sans-serif';
+        const hoy = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Argentina/Buenos_Aires' });
+        if (secs.length) c.fillText(hoy.charAt(0).toUpperCase() + hoy.slice(1), P + 330, 165);
+        let y = HEAD;
+        if (!secs.length) {
+            c.fillStyle = 'rgba(255,255,255,.12)'; c.beginPath(); c.roundRect(P, y, W - 2 * P, 380, 30); c.fill();
+            c.fillStyle = '#fff'; c.font = '800 44px sans-serif'; c.textAlign = 'center';
+            ['🔍 Buscá productos y precios', '🛒 Armá tu pedido', '📲 Pedilo por WhatsApp'].forEach((t, i) => c.fillText(t, W / 2, y + 110 + i * 100));
+            c.textAlign = 'left'; y += 420;
+        }
+        for (const s of secs) {
+            const col = s.sc.col.split(',');
+            const g = c.createLinearGradient(P, 0, W - P, 0); g.addColorStop(0, col[0]); g.addColorStop(1, col[1] || col[0]);
+            c.fillStyle = g; c.beginPath(); c.roundRect(P, y, W - 2 * P, SEC_H - 14, 22); c.fill();
+            c.fillStyle = '#fff'; c.font = '900 40px sans-serif'; c.fillText(s.sc.ico + ' ' + s.sc.nom, P + 26, y + 54);
+            if (s.cierre) { c.font = '700 28px sans-serif'; c.textAlign = 'right'; c.fillText('⏰ ' + s.cierre, W - P - 24, y + 52); c.textAlign = 'left'; }
+            y += SEC_H;
+            for (const p of s.prods) {
+                c.fillStyle = 'rgba(255,255,255,.96)'; c.beginPath(); c.roundRect(P, y, W - 2 * P, ROW - 14, 20); c.fill();
+                const im = p.img || await cargarImg(p.src);
+                if (im) { try { const r = Math.min(116 / im.width, 116 / im.height); c.drawImage(im, P + 12 + (116 - im.width * r) / 2, y + 10 + (116 - im.height * r) / 2, im.width * r, im.height * r); } catch (e) {} }
+                else { c.font = '60px sans-serif'; c.fillText('🛒', P + 34, y + 90); }
+                c.fillStyle = '#1b1b1b'; c.font = '800 32px sans-serif';
+                cortar(c, p.nom, 560, 2).forEach((l, i) => c.fillText(l, P + 150, y + 54 + i * 40));
+                c.textAlign = 'right';
+                if (p.precio) { c.fillStyle = '#d84315'; c.font = '900 44px sans-serif'; c.fillText(p.precio, W - P - 22, y + (p.antes ? 66 : 82)); }
+                if (p.antes) {
+                    c.fillStyle = '#9e9e9e'; c.font = '600 28px sans-serif'; c.fillText(p.antes, W - P - 22, y + 106);
+                    const tw = c.measureText(p.antes).width; c.strokeStyle = '#9e9e9e'; c.lineWidth = 3; c.beginPath(); c.moveTo(W - P - 22 - tw, y + 96); c.lineTo(W - P - 22, y + 96); c.stroke();
+                }
+                c.textAlign = 'left';
+                y += ROW;
+            }
+            if (s.total > s.prods.length) { c.fillStyle = '#e8f5e9'; c.font = '700 28px sans-serif'; c.fillText('…y ' + (s.total - s.prods.length) + ' más en el catálogo', P + 12, y + 14); y += MASH; }
+            y += GAP;
+        }
+        // pie
+        const py = H - PIE + 10;
+        c.fillStyle = '#25d366'; c.beginPath(); c.roundRect(P, py, 470, 86, 43); c.fill();
+        c.fillStyle = '#fff'; c.font = '900 36px sans-serif'; c.fillText('📲 Pedí por WhatsApp', P + 28, py + 56);
+        c.font = '800 34px sans-serif'; c.textAlign = 'right'; c.fillText('📍 Copihue 457', W - P, py + 40);
+        c.font = '600 26px sans-serif'; c.fillStyle = '#c8e6c9'; c.fillText(location.hostname, W - P, py + 78); c.textAlign = 'left';
+        return cv;
+    }
+    window.abrirCompartirOfertas = async function () {
+        const ov = document.getElementById('cmpOverlay'), wrap = document.getElementById('cmpWrap'), btn = document.getElementById('cmpEnviar');
+        ov.classList.add('open'); wrap.innerHTML = '<div style="color:#fff;padding:40px;text-align:center">⏳ Armando la imagen…</div>'; btn.disabled = true; _cmpFile = null;
+        try {
+            const secs = secciones();
+            _cmpTexto = armarTexto(secs);
+            const cv = await armarImagen(secs);
+            cv.style.cssText = 'width:100%;height:auto;border-radius:12px;display:block';
+            wrap.innerHTML = ''; wrap.appendChild(cv);
+            const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.9));
+            _cmpFile = new File([blob], 'ofertas-copihue.jpg', { type: 'image/jpeg' });
+            btn.disabled = false;
+        } catch (e) { console.warn('compartir ofertas:', e); wrap.innerHTML = '<div style="color:#fff;padding:30px;text-align:center">No se pudo armar la imagen. Probá de nuevo.</div>'; }
+    };
+    window.cerrarCompartirOfertas = function () { document.getElementById('cmpOverlay').classList.remove('open'); };
+    window.enviarCompartirOfertas = async function () {
+        if (!_cmpFile) return;
+        try {
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [_cmpFile] })) {
+                await navigator.share({ files: [_cmpFile], text: _cmpTexto, title: nombreTienda() });
+                return;
+            }
+        } catch (e) { if (e && e.name === 'AbortError') return; }
+        // sin «compartir archivo» (PC): descarga la imagen y abre WhatsApp con el texto
+        try { const a = document.createElement('a'); a.download = 'ofertas-copihue.jpg'; a.href = URL.createObjectURL(_cmpFile); a.click(); } catch (e) {}
+        setTimeout(() => window.open('https://wa.me/?text=' + encodeURIComponent(_cmpTexto), '_blank'), 600);
+    };
+    window._cmpDebug = () => ({ secciones: secciones().map(s => ({ nom: s.sc.nom, total: s.total, cierre: s.cierre, prods: s.prods.map(p => [p.nom, p.precio, p.antes]) })), texto: armarTexto(secciones()) });
+})();
+
 </script>
 
 <!-- ===== LOADING OVERLAY HERMOSO ===== -->
@@ -8145,6 +8319,13 @@ document.getElementById('raspBtnReveal').addEventListener('click',()=>{
   </div>
 </div>
 
+<!-- v208 — vista previa de «Compartir ofertas de hoy» -->
+    <div id="cmpOverlay" onclick="if(event.target===this)cerrarCompartirOfertas()">
+      <div class="cmp-caja">
+        <div id="cmpWrap"></div>
+        <div class="cmp-btns"><button type="button" onclick="cerrarCompartirOfertas()">✕ Cerrar</button><button type="button" id="cmpEnviar" onclick="enviarCompartirOfertas()" disabled>📲 Compartir</button></div>
+      </div>
+    </div>
 <!-- STAGING-ETIQUETA — solo en STAGING: etiqueta chica fija abajo a la izquierda con parpadeo del borde a intervalos al azar (para que la vista no se acostumbre). No recibe toques (pointer-events:none). -->
 <style>
 #stgPill{position:fixed;left:6px;bottom:6px;z-index:2147483000;pointer-events:none;background:#ff9800;color:#000;font:900 11px/1 system-ui,-apple-system,sans-serif;padding:4px 8px;border-radius:999px;border:2px solid #000;box-shadow:0 1px 4px rgba(0,0,0,.35);opacity:.92;letter-spacing:.3px;white-space:nowrap}
