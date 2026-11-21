@@ -3083,7 +3083,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v223';
+const APP_VERSION = 'copihue-index-v224';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -8629,18 +8629,48 @@ function _rvVigencia(largo) {
 }
 function _rvAhora() { const d = new Date(); return d.getDate() + '/' + (d.getMonth() + 1) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
 // v215 — distintivo de oferta (configurable desde copihue-revista.html)
-function _rvEst() { const e = (_poolRevista && _poolRevista.estallido) || {}; return { mov: e.mov || 'LATIDO', texto: e.texto || 'PORCENTAJE', color: e.color || 'ROJO', forma: e.forma || 'ESTALLIDO' }; }
+function _rvEst() { const e = (_poolRevista && _poolRevista.estallido) || {}; return { mov: e.mov || 'LATIDO', texto: e.texto || 'PORCENTAJE', color: e.color || 'ROJO', forma: e.forma || 'ESTALLIDO', pct: e.pct === 'NO' ? 'NO' : 'SI' }; }
 function _rvDistTextos(normal, oferta, e) {
     const pct = Math.floor((1 - oferta / normal) * 100 + 1e-9);   // v216 — siempre hacia abajo: nunca anunciar más descuento del real
     if (e.texto === 'PORCENTAJE') return { b: '-' + pct + '%', s: 'OFF' };
-    if (e.texto === 'OFERTA') return { b: 'OFERTA', s: '-' + pct + '%' };
-    return { b: e.texto, s: '-' + pct + '%' };
+    if (e.texto === 'OFERTA') return { b: 'OFERTA', s: e.pct === 'NO' ? '' : '-' + pct + '%' };
+    return { b: e.texto, s: e.pct === 'NO' ? '' : '-' + pct + '%' };   // v224 — % opcional
 }
 function _rvDistHTML(normal, oferta) {
     const e = _rvEst(); if (e.mov === 'NO' || !(oferta > 0)) return '';
     const t = _rvDistTextos(normal, oferta, e);
-    return `<div class="rv-dist f-${e.forma} c-${e.color} m-${e.mov}${t.b.length > 5 ? ' t-largo' : ''}"><b>${_rvEsc(t.b)}</b><small>${_rvEsc(t.s)}</small></div>`;
+    return _distArmar(t.b, t.s, e, window.innerWidth >= 768, _rvEsc);
 }
+// v224 — distintivo que se acomoda al texto: 2 líneas si tiene espacio, letra calculada para que nunca se salga; más grande en PC
+function _distLineas(b, forma) {
+    b = String(b || '');
+    if ((forma === 'ESTALLIDO' || forma === 'CIRCULO') && b.length > 7 && b.indexOf(' ') > 0) {
+        let mejor = -1, m = b.length / 2;
+        for (let i = 0; i < b.length; i++) if (b[i] === ' ' && (mejor < 0 || Math.abs(i - m) < Math.abs(mejor - m))) mejor = i;
+        if (mejor > 0) return [b.slice(0, mejor), b.slice(mejor + 1)];
+    }
+    return [b];
+}
+function _distArmar(b, s, e, pc, escF) {   // HTML del distintivo (catálogo y vista previa del editor)
+    const k = pc ? 1.35 : 1, lin = _distLineas(b, e.forma), maxL = Math.max.apply(null, lin.map(x => x.length)) || 1;
+    let st = '', fs, fsS = 9.3 * k;
+    if (e.forma === 'ESTALLIDO' || e.forma === 'CIRCULO') {
+        const D = (e.forma === 'CIRCULO' ? 78 : 92) * k, ancho = D * (e.forma === 'CIRCULO' ? 0.74 : 0.58);
+        fs = Math.min(21.6 * k, ancho / (0.68 * maxL));
+        if (lin.length > 1) fs = Math.min(fs, D * (s ? 0.2 : 0.26));
+        st = 'width:' + D + 'px;height:' + D + 'px;';
+    } else if (e.forma === 'CINTA') {
+        const n = b.length + (s ? s.length + 1 : 0), W = (n > 12 ? 200 : 150) * k;
+        fs = Math.min(16 * k, (W * 0.62) / (0.66 * Math.max(n, 4))); fsS = Math.min(fsS, fs * 0.75);
+        st = 'width:' + W + 'px;height:' + (34 * k) + 'px;right:' + (-W * 0.235) + 'px;top:' + (18 * k + (W / k - 150) * 0.1) + 'px;';
+    } else {   // ETIQUETA
+        fs = Math.min(16.8 * k, (150 * k) / (0.66 * Math.max(b.length, 4)));
+        st = 'height:' + (44 * k) + 'px;min-width:' + (82 * k) + 'px;';
+    }
+    const html = lin.map(escF).join('<br>');
+    return '<div class="rv-dist f-' + e.forma + ' c-' + e.color + ' m-' + e.mov + '" style="' + st + '"><b style="font-size:' + fs.toFixed(1) + 'px;line-height:1.05;letter-spacing:' + (maxL > 6 ? 0 : -.5) + 'px">' + html + '</b>' + (s ? '<small style="font-size:' + fsS.toFixed(1) + 'px">' + escF(s) + '</small>' : '') + '</div>';
+}
+
 const _RV_COL = { ROJO: ['#ff6f00', '#e53935', '#fff'], DORADO: ['#fff176', '#ff8f00', '#3e2723'], VERDE: ['#43a047', '#1b5e20', '#fff'] };
 function _rvDistCanvas(c, cx, cy, R, normal, oferta) {   // mismo distintivo, dibujado en las imágenes para compartir
     const e = _rvEst(); if (e.mov === 'NO' || !(oferta > 0)) return;
@@ -8652,8 +8682,16 @@ function _rvDistCanvas(c, cx, cy, R, normal, oferta) {   // mismo distintivo, di
     else if (e.forma === 'ETIQUETA') { const w = R * 2, h = R * 1.05, x = cx - w / 2, y = cy - h / 2, n = h * .35; c.beginPath(); c.moveTo(x + n, y); c.lineTo(x + w, y); c.lineTo(x + w, y + h); c.lineTo(x + n, y + h); c.lineTo(x, y + h / 2); c.closePath(); c.fill(); }
     else { c.beginPath(); for (let k = 0; k < 24; k++) { const a = -Math.PI / 2 + k * Math.PI / 12, r = k % 2 ? R * .62 : R; c.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } c.closePath(); c.fill(); }
     c.fillStyle = col[2]; c.textAlign = 'center'; c.textBaseline = 'middle';
-    if (e.forma === 'CINTA') { c.translate(cx, cy); c.rotate(Math.PI * 40 / 180); c.font = `900 ${R * .42}px sans-serif`; c.fillText(t.b + ' ' + t.s, 0, 0); }
-    else { const big = t.b.length > 5 ? R * .3 : R * .52; c.font = `900 ${big}px sans-serif`; c.fillText(t.b, cx, cy - R * .1); c.font = `800 ${R * .2}px sans-serif`; c.fillText(t.s, cx, cy + R * .3); }
+    // v224 — el texto se acomoda: 2 líneas si tiene espacio, tamaño según el largo; % opcional
+    if (e.forma === 'CINTA') { const tx = t.b + (t.s ? ' ' + t.s : ''); c.translate(cx, cy); c.rotate(Math.PI * 40 / 180); c.font = `900 ${Math.min(R * .42, (R * 3.4 * .78) / (.64 * Math.max(tx.length, 4)))}px sans-serif`; c.fillText(tx, 0, 0); }
+    else {
+        const lin = _distLineas(t.b, e.forma), maxL = Math.max.apply(null, lin.map(x => x.length)) || 1;
+        const ancho = e.forma === 'CIRCULO' ? R * 1.72 * .74 : e.forma === 'ESTALLIDO' ? R * 2 * .58 : R * 2 * .78;
+        let fs = Math.min(R * .52, ancho / (.66 * maxL)); if (lin.length > 1) fs = Math.min(fs, R * (t.s ? .36 : .46));
+        const alto = lin.length * fs * 1.05, y0 = cy - (t.s ? R * .12 : 0) - alto / 2 + fs * .52;
+        c.font = `900 ${fs}px sans-serif`; lin.forEach((l, i) => c.fillText(l, cx, y0 + i * fs * 1.05));
+        if (t.s) { c.font = `800 ${R * .2}px sans-serif`; c.fillText(t.s, cx, y0 + (lin.length - 1) * fs * 1.05 + fs * .55 + R * .16); }
+    }
     c.restore();
 }
 // v217 — título corto de revista: primeras palabras importantes (corta en medidas, colores, «CON», «MODELO»…)
@@ -8939,7 +8977,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='index',AV_VER='223';
+/*AV*/var AV_PAG='index',AV_VER='224';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {

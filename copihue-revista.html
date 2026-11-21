@@ -195,7 +195,7 @@ body.arrastrando{user-select:none;-webkit-user-select:none;cursor:grabbing}
 </div>
 
 <script>
-const APP_VERSION = 10;
+const APP_VERSION = 11;
 const API_URL = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 const POS_URL = 'seba21-staging.html';
 const SEG_SESION_KEY = 'copihue_sesion';   // la misma sesión que guarda el POS (seba21)
@@ -244,7 +244,7 @@ async function cargar() {
         $('app').innerHTML = '<div class="ldg">😕 No se pudo cargar la revista.<br><small>' + esc(e.message) + '</small><br><br><button class="chip" onclick="location.reload()">🔄 Reintentar</button></div>';
     }
 }
-let AUTO = { items: [] }, HOY = '', OCULTOS = [], EST = { mov: 'LATIDO', texto: 'PORCENTAJE', color: 'ROJO', forma: 'ESTALLIDO' };
+let AUTO = { items: [] }, HOY = '', OCULTOS = [], EST = { mov: 'LATIDO', texto: 'PORCENTAJE', color: 'ROJO', forma: 'ESTALLIDO', pct: 'SI' };
 const TEMAS = {
     NAVIDAD: { nom: 'Navidad', ico: '🎄', b1: '#8e0000', b2: '#1b5e20', precio: '#ffd54f', sombra: '#3e0000', f1: '#7f0000', f2: '#1b5e20', sub: '#ffe0b2' },
     OFERTA:  { nom: 'Oferta', ico: '🔥', b1: '#c62828', b2: '#ff6f00', precio: '#ffeb3b', sombra: '#b71c1c', f1: '#b71c1c', f2: '#e65100', sub: '#ffe0b2' },
@@ -254,7 +254,7 @@ const TEMAS = {
     VERANO:  { nom: 'Verano', ico: '☀️', b1: '#00897b', b2: '#29b6f6', precio: '#ffeb3b', sombra: '#00695c', f1: '#00796b', f2: '#0288d1', sub: '#e0f7fa' }
 };
 let TEMA = 'NAVIDAD', ESTILO = 'LIMPIO';
-const EST_FABRICA = { mov: 'LATIDO', texto: 'PORCENTAJE', color: 'ROJO', forma: 'ESTALLIDO' };
+const EST_FABRICA = { mov: 'LATIDO', texto: 'PORCENTAJE', color: 'ROJO', forma: 'ESTALLIDO', pct: 'SI' };
 function pintarTema() {
     const t = TEMAS[TEMA] || TEMAS.NAVIDAD, p = $('temaPrev'); if (!p) return;
     document.querySelectorAll('#oTema .chip').forEach(b => b.classList.toggle('on', b.dataset.v === TEMA));
@@ -276,16 +276,47 @@ function resetDiseno() {
 }
 function pintarEst() {
     const esPropio = !['PORCENTAJE', 'OFERTA'].includes(EST.texto);
-    [['oForma', EST.forma], ['oColor', EST.color], ['oMov', EST.mov], ['oTexto', esPropio ? 'PROPIO' : EST.texto]].forEach(([id, v]) => document.querySelectorAll('#' + id + ' .chip').forEach(b => b.classList.toggle('on', b.dataset.v === v)));
+    [['oForma', EST.forma], ['oColor', EST.color], ['oMov', EST.mov], ['oTexto', esPropio ? 'PROPIO' : EST.texto], ['oPct', EST.pct === 'NO' ? 'NO' : 'SI']].forEach(([id, v]) => document.querySelectorAll('#' + id + ' .chip').forEach(b => b.classList.toggle('on', b.dataset.v === v)));
     const tp = $('oTextoPropio'); if (tp) { tp.style.display = esPropio ? '' : 'none'; if (esPropio && document.activeElement !== tp) tp.value = EST.texto; }
+    const fp = $('filaPct'); if (fp) fp.style.display = EST.texto === 'PORCENTAJE' ? 'none' : '';   // v11 — el % solo es opcional con OFERTA o texto propio
     const pv = $('distPrev'); if (!pv) return;
     const vieja = pv.querySelector('.rv-dist'); if (vieja) vieja.remove();
     if (EST.mov === 'NO') return;
-    const b = EST.texto === 'PORCENTAJE' ? '-14%' : EST.texto, s2 = EST.texto === 'PORCENTAJE' ? 'OFF' : '-14%';
-    pv.insertAdjacentHTML('beforeend', `<div class="rv-dist f-${EST.forma} c-${EST.color} m-${EST.mov}${b.length > 5 ? ' t-largo' : ''}"><b>${esc(b)}</b><small>${esc(s2)}</small></div>`);
+    const b = EST.texto === 'PORCENTAJE' ? '-14%' : EST.texto, s2 = EST.texto === 'PORCENTAJE' ? 'OFF' : (EST.pct === 'NO' ? '' : '-14%');
+    pv.insertAdjacentHTML('beforeend', _distArmar(b, s2, EST, window.innerWidth >= 768, esc));   // v11 — igual que en el catálogo
 }
+// v224 — distintivo que se acomoda al texto: 2 líneas si tiene espacio, letra calculada para que nunca se salga; más grande en PC
+function _distLineas(b, forma) {
+    b = String(b || '');
+    if ((forma === 'ESTALLIDO' || forma === 'CIRCULO') && b.length > 7 && b.indexOf(' ') > 0) {
+        let mejor = -1, m = b.length / 2;
+        for (let i = 0; i < b.length; i++) if (b[i] === ' ' && (mejor < 0 || Math.abs(i - m) < Math.abs(mejor - m))) mejor = i;
+        if (mejor > 0) return [b.slice(0, mejor), b.slice(mejor + 1)];
+    }
+    return [b];
+}
+function _distArmar(b, s, e, pc, escF) {   // HTML del distintivo (catálogo y vista previa del editor)
+    const k = pc ? 1.35 : 1, lin = _distLineas(b, e.forma), maxL = Math.max.apply(null, lin.map(x => x.length)) || 1;
+    let st = '', fs, fsS = 9.3 * k;
+    if (e.forma === 'ESTALLIDO' || e.forma === 'CIRCULO') {
+        const D = (e.forma === 'CIRCULO' ? 78 : 92) * k, ancho = D * (e.forma === 'CIRCULO' ? 0.74 : 0.58);
+        fs = Math.min(21.6 * k, ancho / (0.68 * maxL));
+        if (lin.length > 1) fs = Math.min(fs, D * (s ? 0.2 : 0.26));
+        st = 'width:' + D + 'px;height:' + D + 'px;';
+    } else if (e.forma === 'CINTA') {
+        const n = b.length + (s ? s.length + 1 : 0), W = (n > 12 ? 200 : 150) * k;
+        fs = Math.min(16 * k, (W * 0.62) / (0.66 * Math.max(n, 4))); fsS = Math.min(fsS, fs * 0.75);
+        st = 'width:' + W + 'px;height:' + (34 * k) + 'px;right:' + (-W * 0.235) + 'px;top:' + (18 * k + (W / k - 150) * 0.1) + 'px;';
+    } else {   // ETIQUETA
+        fs = Math.min(16.8 * k, (150 * k) / (0.66 * Math.max(b.length, 4)));
+        st = 'height:' + (44 * k) + 'px;min-width:' + (82 * k) + 'px;';
+    }
+    const html = lin.map(escF).join('<br>');
+    return '<div class="rv-dist f-' + e.forma + ' c-' + e.color + ' m-' + e.mov + '" style="' + st + '"><b style="font-size:' + fs.toFixed(1) + 'px;line-height:1.05;letter-spacing:' + (maxL > 6 ? 0 : -.5) + 'px">' + html + '</b>' + (s ? '<small style="font-size:' + fsS.toFixed(1) + 'px">' + escF(s) + '</small>' : '') + '</div>';
+}
+
 function setEst(k, v) { EST[k] = v; marcarSucio(true); pintarEst(); }
-function setEstTexto(v) { if (v === 'PROPIO') { EST.texto = ($('oTextoPropio').value || 'REGALO').toUpperCase().slice(0, 10); } else EST.texto = v; marcarSucio(true); pintarEst(); if (v === 'PROPIO') $('oTextoPropio').focus(); }
+function setEstTexto(v) { if (v === 'PROPIO') { EST.texto = ($('oTextoPropio').value || 'REGALO').toUpperCase().replace(/\s+/g, ' ').slice(0, 16); } else EST.texto = v; marcarSucio(true); pintarEst(); if (v === 'PROPIO') $('oTextoPropio').focus(); }
 const DIAS_SEM = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 function sumarDias(iso, n) { const [y, m, d] = iso.split('-').map(Number); const f = new Date(Date.UTC(y, m - 1, d, 12)); f.setUTCDate(f.getUTCDate() + n); return f.toISOString().slice(0, 10); }
 function lindaFecha(iso) { const [y, m, d] = iso.split('-').map(Number); return DIAS_SEM[new Date(y, m - 1, d).getDay()] + ' ' + d + '/' + m; }
@@ -331,7 +362,9 @@ function dibujar() {
       <div class="ops" id="oColor">${[['ROJO','🔴 Rojo-amarillo'],['DORADO','🟡 Dorado'],['VERDE','🟢 Verde navideño']].map(([v,t]) => `<button type="button" class="chip" data-v="${v}" onclick="setEst('color','${v}')">${t}</button>`).join('')}</div>
       <div class="sel-lbl" style="font-size:.72rem;font-weight:900;color:var(--gris);margin:2px 0 6px">QUÉ DICE</div>
       <div class="ops" id="oTexto">${[['PORCENTAJE','-14% (automático)'],['OFERTA','OFERTA'],['PROPIO','✏️ Texto mío']].map(([v,t]) => `<button type="button" class="chip" data-v="${v}" onclick="setEstTexto('${v}')">${t}</button>`).join('')}</div>
-      <input class="txt-propio" id="oTextoPropio" maxlength="10" placeholder="Hasta 10 letras (ej: REGALO)" style="display:none" oninput="EST.texto=this.value.toUpperCase().slice(0,10)||'PORCENTAJE';marcarSucio(true);pintarEst()">
+      <input class="txt-propio" id="oTextoPropio" maxlength="16" placeholder="Hasta 16 letras (ej: FELIZ NAVIDAD)" style="display:none" oninput="EST.texto=this.value.toUpperCase().replace(/\s+/g,' ').slice(0,16)||'PORCENTAJE';marcarSucio(true);pintarEst()">
+      <div id="filaPct"><div class="sel-lbl" style="font-size:.72rem;font-weight:900;color:var(--gris);margin:2px 0 6px">MOSTRAR EL % DEBAJO</div>
+      <div class="ops" id="oPct">${[['SI','✅ Sí (-14%)'],['NO','🚫 No, solo mi texto']].map(([v,t]) => `<button type="button" class="chip" data-v="${v}" onclick="setEst('pct','${v}')">${t}</button>`).join('')}</div></div>
       <div class="sel-lbl" style="font-size:.72rem;font-weight:900;color:var(--gris);margin:2px 0 6px">MOVIMIENTO</div>
       <div class="ops" id="oMov">${[['LATIDO','💓 Latido'],['QUIETO','⏸ Quieto'],['NO','🚫 Sin distintivo']].map(([v,t]) => `<button type="button" class="chip" data-v="${v}" onclick="setEst('mov','${v}')">${t}</button>`).join('')}</div>
     </div></div>
@@ -579,7 +612,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='revista',AV_VER='10';
+/*AV*/var AV_PAG='revista',AV_VER='11';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {
