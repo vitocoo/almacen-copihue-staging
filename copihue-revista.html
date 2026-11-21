@@ -65,6 +65,19 @@ body.arrastrando{user-select:none;-webkit-user-select:none;cursor:grabbing}
 .gr-cab button:disabled,.it-acc button:disabled{opacity:.3}
 .au-star{position:absolute;top:2px;left:2px;width:28px;height:28px;border-radius:50%;border:1.5px solid #ffb300;background:#fff8e1;font-size:.85rem;cursor:pointer;line-height:1;padding:0;z-index:2}
 .au-star:hover{background:#ffb300}
+/* v9 — cada producto destacado se distingue: franja de color arriba, borde, sombra y zona de configuración con fondo suave; se alternan rojo/verde */
+#lista .it{border:2px solid #ef9a9a;background:#fff8f6;padding:0 0 10px;overflow:hidden;box-shadow:0 3px 10px rgba(0,0,0,.08);margin-bottom:14px}
+#lista .it>.it-top{background:linear-gradient(90deg,#ffebee,#fff3e0);border-bottom:2px solid #ef9a9a;padding:8px}
+#lista .it>:not(.it-top){margin-left:10px;margin-right:10px}
+#lista .it>input{width:calc(100% - 20px);box-sizing:border-box}
+#lista .it.alt{border-color:#a5d6a7;background:#f5fbf5}
+#lista .it.alt>.it-top{background:linear-gradient(90deg,#e8f5e9,#f1f8e9);border-bottom-color:#a5d6a7}
+#lista .it.alt .it-num{background:#2e7d32}
+#lista .it input,#lista .it select{background:#fff}
+#lista .it:hover{box-shadow:0 5px 16px rgba(0,0,0,.14)}
+#lista .it.malo{border-color:var(--rojo);background:var(--rl)}
+#lista.compacto .it{padding:0;margin-bottom:6px}
+#lista.compacto .it>.it-top{border-bottom:none}
 @media (max-width:480px){.it-top{gap:6px}.it-drag{width:24px}.it-num{width:22px;height:22px;font-size:.72rem}.it-top img{width:34px;height:34px}.it-acc{gap:3px}.it-acc button{width:30px;height:32px;font-size:.9rem}}
 .it-num{flex:none;width:26px;height:26px;border-radius:50%;background:var(--navidad);color:#fff;font-weight:900;font-size:.8rem;display:flex;align-items:center;justify-content:center}
 .it-acc{display:flex;gap:4px;flex:none}
@@ -182,7 +195,7 @@ body.arrastrando{user-select:none;-webkit-user-select:none;cursor:grabbing}
 </div>
 
 <script>
-const APP_VERSION = 8;
+const APP_VERSION = 9;
 const API_URL = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 const POS_URL = 'seba21-staging.html';
 const SEG_SESION_KEY = 'copihue_sesion';   // la misma sesión que guarda el POS (seba21)
@@ -378,7 +391,7 @@ function dibujarLista() {
         const b = bl.find(x => x.ini === i && x.g), k = b ? bl.indexOf(b) : -1;
         const cab = b ? `<div class="gr-cab" data-g="${esc(d.grupo)}"><span>${esc(d.grupo)} <small>· ${b.fin - b.ini + 1} producto${b.fin > b.ini ? 's' : ''}</small></span><button type="button" title="Subir el grupo entero" onclick="moverGrupo(${i},-1)" ${k === 0 ? 'disabled' : ''}>↑</button><button type="button" title="Bajar el grupo entero" onclick="moverGrupo(${i},1)" ${k === bl.length - 1 ? 'disabled' : ''}>↓</button></div>` : '';
         return cab + `
-      <div class="it ${d.existe && d.stock > 0 ? '' : 'malo'}" data-i="${i}">
+      <div class="it ${d.existe && d.stock > 0 ? '' : 'malo'} ${i % 2 ? 'alt' : ''}" data-i="${i}">
         <div class="it-top">
           <div class="it-drag" title="Mantené apretado y arrastrá para ordenar" onpointerdown="arrastrar(event,${i})">☰</div>
           <div class="it-num">${i + 1}</div>
