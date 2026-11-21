@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v588</title>
+    <title>🛒 POS · Copihue v589</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2485,7 +2485,7 @@
             border-radius: 14px;
             font-size: 0.72rem;
             font-weight: 600;
-            z-index: 2000;
+            z-index: 6000;   /* v589 — antes 2000: los carteles quedaban detrás de las ventanas (editor rápido 4500) */
             opacity: 0;
             transition: opacity 0.2s;
             white-space: nowrap;
@@ -11393,9 +11393,12 @@ function _ajustePromoValidar() {   // { ok, valor (null = no cambia), msg }
     const inp = document.getElementById('ajustePromoPrecio');
     const txt = String(inp ? inp.value : '').trim();
     if (!ajusteProducto || txt === '') return { ok: true, valor: null, msg: '' };
+    const cat = ajusteCategoriaSeleccionada || ajusteProducto.category;
+    // v589 — si el producto NO es PROMOS/COMBOS el campo está oculto: se ignora (no se toca la columna L) y el resto se guarda.
+    // Antes, un valor viejo en la columna L dejaba el campo oculto con dato y Guardar no hacía nada (cartel tapado por el editor).
+    if (!_ajusteEsPromoCat(cat)) return { ok: true, valor: null, msg: '' };
     const pp = Math.round(Number(txt));
     const normal = parseInt(document.getElementById('ajustePrecioNuevo').value) || ajusteProducto.price;
-    const cat = ajusteCategoriaSeleccionada || ajusteProducto.category;
     if (isNaN(pp) || pp < 0) return { ok: false, valor: null, msg: '⚠️ Precio promo inválido' };
     if (pp === 0) return { ok: true, valor: 0, msg: '🗑 Se quita la promo (queda a precio normal)' };
     if (!_ajusteEsPromoCat(cat)) return { ok: false, valor: null, msg: '⚠️ El precio promo es solo para PROMOS o COMBOS' };
