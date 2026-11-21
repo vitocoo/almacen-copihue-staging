@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v590</title>
+    <title>🛒 POS · Copihue v591</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2953,8 +2953,10 @@
 <!-- buscador oculto usado por T9 internamente -->
 <input type="text" id="buscador" style="display:none;" autocomplete="off" autocorrect="off" spellcheck="false" readonly>
 <!-- barra de búsqueda QWERTY — visible solo en modo QWERTY -->
-<div id="pos-barra-wrap" style="display:block;background:white;padding:4px 10px;border-bottom:1.5px solid #2e7d32;flex-shrink:0;">
-    <div style="position:relative;display:flex;align-items:center;">
+<div id="pos-barra-wrap" style="display:block;position:relative;background:white;padding:4px 10px;border-bottom:1.5px solid #2e7d32;flex-shrink:0;">
+    <button id="btnVitrina" type="button" onclick="abrirVitrina()" title="Mostrar al cliente (pantalla completa)"
+            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:40px;height:38px;border:none;border-radius:10px;background:#2e7d32;color:#fff;font-size:1.15rem;cursor:pointer;line-height:1;">📺</button>
+    <div style="position:relative;display:flex;align-items:center;margin-right:46px;">
         <input type="text" id="pos-barra-input" class="buscador-input"
                placeholder="🔍 Buscar producto..."
                autocomplete="off" autocorrect="off" autocapitalize="off"
@@ -4469,6 +4471,7 @@ window.addEventListener('popstate', function() {
     }
 
     // v588 — si hay una página abierta encima del POS, «atrás» la cierra
+    if (typeof _vitAbierta === 'function' && _vitAbierta()) { cerrarVitrina(); return; }   // v591
     if (typeof _ppAbierto === 'function' && _ppAbierto()) { cerrarPagina(); return; }
     // Cerrar cualquier modal abierto, en orden de prioridad — usar funciones de cierre correctas
     const cierres = [
@@ -12791,6 +12794,103 @@ if ('serviceWorker' in navigator) {
     });
 }
 
+// ========== v591 — 📺 MOSTRAR AL CLIENTE (vitrina a pantalla completa) ==========
+// Mantener apretado un producto del buscador (½ s) o el botón 📺: foto grande, nombre y precio enorme, para girar
+// el celular hacia el cliente. ‹ › o deslizar = siguiente producto de la MISMA búsqueda. No agrega nada al carrito.
+let _vitLista = [], _vitI = 0, _vitLP = false, _vitT = null, _vitX = 0, _vitY = 0;
+function _vitAbierta() { const v = document.getElementById('vitrina'); return !!(v && v.style.display !== 'none'); }
+function _vitIdsVisibles() { return [...document.querySelectorAll('#resultados .resultado-item[data-prod-id]')].map(el => parseInt(el.dataset.prodId)).filter(n => !isNaN(n)); }
+function abrirVitrina(idInicial) {
+    const ids = _vitIdsVisibles();
+    const lista = []; const vistos = {};
+    ids.forEach(id => { const p = productos.find(x => x.id === id); if (p && !vistos[id]) { vistos[id] = 1; lista.push(p); } });
+    if (!lista.length) { mostrarToast('🔍 Buscá un producto primero (ej: salchicha)', 'naranja'); return; }
+    _vitLista = lista; _vitI = Math.max(0, lista.findIndex(p => p.id === idInicial));
+    let v = document.getElementById('vitrina');
+    if (!v) {
+        v = document.createElement('div'); v.id = 'vitrina';
+        v.innerHTML = '<button type="button" class="vt-x" onclick="cerrarVitrina()" aria-label="Cerrar">✕</button>'
+            + '<button type="button" class="vt-fl vt-izq" onclick="_vitIr(-1)" aria-label="Anterior">‹</button>'
+            + '<div class="vt-card" id="vtCard"></div>'
+            + '<button type="button" class="vt-fl vt-der" onclick="_vitIr(1)" aria-label="Siguiente">›</button>'
+            + '<div class="vt-cont" id="vtCont"></div>';
+        v.addEventListener('click', e => { if (e.target === v) cerrarVitrina(); });
+        v.addEventListener('touchstart', e => { _vitX = e.touches[0].clientX; _vitY = e.touches[0].clientY; }, { passive: true });
+        v.addEventListener('touchend', e => {
+            const dx = e.changedTouches[0].clientX - _vitX, dy = e.changedTouches[0].clientY - _vitY;
+            if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) _vitIr(dx < 0 ? 1 : -1);
+        }, { passive: true });
+        document.body.appendChild(v);
+    }
+    v.style.display = 'flex'; _vitPintar();
+}
+function cerrarVitrina() { const v = document.getElementById('vitrina'); if (v) v.style.display = 'none'; }
+function _vitIr(paso) { if (!_vitLista.length) return; _vitI = (_vitI + paso + _vitLista.length) % _vitLista.length; _vitPintar(); }
+function _vitPintar() {
+    const p = _vitLista[_vitI]; if (!p) return;
+    const $m = n => '$' + Number(n || 0).toLocaleString('es-AR');
+    let o = null; try { o = calcularOfertaPOS(p, 1); } catch (e) {}
+    const precio = (o && o.precioUnitario) || p.price;
+    const antes = (o && o.tipoOferta === 'normal') ? p.normal : p.price;
+    const conOferta = !!(o && o.tieneOferta && precio < antes && !(o.tipoOferta === 'relampago' && precio === p.price));
+    const peso = (typeof esPorPeso === 'function') && esPorPeso(p);
+    const stock = p.stock <= 0 ? '<span class="vt-st no">Sin stock por ahora</span>' : p.stock <= 3 ? '<span class="vt-st poco">🔥 ¡Últimas unidades!</span>' : '<span class="vt-st si">✅ Hay stock</span>';
+    const esc = t => String(t || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    document.getElementById('vtCard').innerHTML =
+        '<div class="vt-foto"><img src="' + esc(p.image) + '" alt="" onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'vt-sinfoto\',textContent:\'🛒\'}))"></div>'
+        + '<div class="vt-nom">' + esc(p.name) + '</div>'
+        + (conOferta ? '<div class="vt-antes">' + $m(antes) + '</div>' : '')
+        + '<div class="vt-precio' + (conOferta ? ' of' : '') + '">' + $m(precio) + (peso ? '<small> el kg</small>' : '') + '</div>'
+        + (conOferta && o.etiqueta ? '<div class="vt-etq">' + esc(o.etiqueta) + '</div>' : '')
+        + stock
+        + '<div class="vt-marca">Almacén Copihue</div>';
+    document.getElementById('vtCont').textContent = _vitLista.length > 1 ? (_vitI + 1) + ' / ' + _vitLista.length : '';
+    document.querySelectorAll('#vitrina .vt-fl').forEach(b => b.style.visibility = _vitLista.length > 1 ? 'visible' : 'hidden');
+}
+document.addEventListener('keydown', e => {
+    if (!_vitAbierta()) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); _vitIr(1); } else if (e.key === 'ArrowLeft') { e.preventDefault(); _vitIr(-1); } else if (e.key === 'Escape') cerrarVitrina();
+});
+// toque largo sobre un producto del buscador (celular)
+(function () {
+    const c = document.getElementById('resultados'); if (!c) return;
+    const cancelar = () => { clearTimeout(_vitT); _vitT = null; };
+    c.addEventListener('touchstart', e => {
+        const card = e.target.closest && e.target.closest('.resultado-item[data-prod-id]');
+        _vitLP = false;   // un gesto nuevo: lo del toque largo anterior ya no aplica (Chrome a veces no manda click tras el toque largo)
+        if (!card || e.touches.length > 1) return;
+        _vitX = e.touches[0].clientX; _vitY = e.touches[0].clientY; cancelar();
+        _vitT = setTimeout(() => { _vitT = null; _vitLP = true; try { navigator.vibrate && navigator.vibrate(25); } catch (er) {} abrirVitrina(parseInt(card.dataset.prodId)); }, 500);
+    }, { passive: true });
+    c.addEventListener('touchmove', e => { if (_vitT && (Math.abs(e.touches[0].clientX - _vitX) > 10 || Math.abs(e.touches[0].clientY - _vitY) > 10)) cancelar(); }, { passive: true });
+    c.addEventListener('touchend', cancelar, { passive: true });
+    c.addEventListener('touchcancel', cancelar, { passive: true });
+    // el «tocar = agregar» que viene después de un toque largo se anula
+    c.addEventListener('click', e => { if (_vitLP) { _vitLP = false; e.preventDefault(); e.stopPropagation(); } }, true);
+    c.addEventListener('contextmenu', e => { if (MOBILE || _vitLP || _vitT) e.preventDefault(); });
+})();
+(function () {
+    const st = document.createElement('style');
+    st.textContent = '#vitrina{position:fixed;inset:0;z-index:5500;display:none;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 30%,#2e7d32,#0b2e0d);padding:16px;box-sizing:border-box}'
+        + '#vitrina .vt-card{background:#fff;border-radius:24px;width:min(560px,100%);max-height:100%;overflow:auto;padding:18px 18px 16px;box-sizing:border-box;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.45)}'
+        + '#vitrina .vt-foto{height:min(46vh,380px);display:flex;align-items:center;justify-content:center;background:#fafafa;border-radius:16px}'
+        + '#vitrina .vt-foto img{max-width:100%;max-height:100%;object-fit:contain}'
+        + '#vitrina .vt-sinfoto{font-size:7rem;opacity:.35}'
+        + '#vitrina .vt-nom{font:900 clamp(1.3rem,5.5vw,2rem)/1.15 system-ui,sans-serif;color:#1b1b1b;margin:14px 0 6px;text-transform:uppercase}'
+        + '#vitrina .vt-antes{font:800 1.3rem system-ui,sans-serif;color:#9e9e9e;text-decoration:line-through}'
+        + '#vitrina .vt-precio{font:900 clamp(3rem,15vw,5.2rem)/1 system-ui,sans-serif;color:#1b5e20;letter-spacing:-1px}'
+        + '#vitrina .vt-precio.of{color:#c62828}#vitrina .vt-precio small{font-size:1.3rem;letter-spacing:0;color:#555}'
+        + '#vitrina .vt-etq{display:inline-block;margin-top:8px;background:#ffeb3b;color:#3e2723;font-weight:900;padding:4px 12px;border-radius:14px}'
+        + '#vitrina .vt-st{display:block;margin-top:10px;font:800 1rem system-ui,sans-serif}#vitrina .vt-st.si{color:#2e7d32}#vitrina .vt-st.poco{color:#e65100}#vitrina .vt-st.no{color:#9e9e9e}'
+        + '#vitrina .vt-marca{margin-top:10px;font:700 .8rem system-ui,sans-serif;color:#9e9e9e;letter-spacing:.5px}'
+        + '#vitrina .vt-x{position:absolute;top:12px;right:12px;width:46px;height:46px;border-radius:50%;border:none;background:rgba(255,255,255,.2);color:#fff;font-size:1.3rem;cursor:pointer}'
+        + '#vitrina .vt-fl{position:absolute;top:50%;transform:translateY(-50%);width:50px;height:50px;border-radius:50%;border:2px solid rgba(255,255,255,.8);background:rgba(0,0,0,.4);color:#fff;font-size:2rem;line-height:1;cursor:pointer;z-index:2}'
+        + '#vitrina .vt-izq{left:8px}#vitrina .vt-der{right:8px}'
+        + '#vitrina .vt-cont{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);color:#fff;font:800 .9rem system-ui,sans-serif;opacity:.85}'
+        + '#resultados .resultado-item{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}';
+    document.head.appendChild(st);
+})();
+
 // ========== v588 — PÁGINAS ENCIMA DEL POS (sin salir ni recargar) ==========
 // Horario, Herramientas, Reportes, Fiados, Tickets, Finanzas y Retiros se abren en un panel de pantalla completa.
 // El POS queda abierto debajo (venta en curso, catálogo y ofertas intactos). El «Volver» de cada página
@@ -20851,7 +20951,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='seba21',AV_VER='590';
+/*AV*/var AV_PAG='seba21',AV_VER='591';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {
