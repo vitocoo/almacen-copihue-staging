@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v587</title>
+    <title>🛒 POS · Copihue v588</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2869,7 +2869,7 @@
         <!-- FILA 2a: Sistema (primera mitad) -->
         <div class="header-right" style="width:100%;justify-content:space-between;gap:4px;">
             <a href="copihue-horario.html?v=2" class="btn-resumen" title="Horario" style="background:rgba(0,188,212,0.3);border-color:rgba(0,188,212,0.6);flex:1;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;">🕐</a>
-            <button class="btn-resumen" onclick="location.href='copihue-herramientas.html'" title="Herramientas" style="background:rgba(255,193,7,0.3);border-color:rgba(255,193,7,0.6);flex:1;text-align:center;">🧰</button>
+            <button class="btn-resumen" onclick="abrirPagina('copihue-herramientas.html')" title="Herramientas" style="background:rgba(255,193,7,0.3);border-color:rgba(255,193,7,0.6);flex:1;text-align:center;">🧰</button>
             <button class="btn-resumen" onclick="abrirRaspadita()" title="Raspadita - Entregar premio" style="background:rgba(192,57,43,0.25);border-color:rgba(192,57,43,0.6);flex:1;text-align:center;">🃏</button>
             <button class="btn-resumen" onclick="abrirTragamonedas()" title="Tragamonedas - Generar código" style="background:rgba(245,197,24,0.2);border-color:rgba(245,197,24,0.6);flex:1;text-align:center;">🎰</button>
             <button class="btn-resumen" id="btnActualizar" onclick="forzarActualizacion()" title="Actualizar" style="background:rgba(105,240,174,0.2);border-color:rgba(105,240,174,0.5);flex:1;text-align:center;">🔄</button>
@@ -2887,7 +2887,7 @@
 
         <!-- FILA 2b: Sistema (segunda mitad) -->
         <div class="header-right" style="width:100%;justify-content:space-between;gap:4px;">
-            <button class="btn-resumen" onclick="window.location.href='copihue-fiado.html'" title="Ver fiados" id="btnFiadoPanel"
+            <button class="btn-resumen" onclick="abrirPagina('copihue-fiado.html')" title="Ver fiados" id="btnFiadoPanel"
                     style="background:rgba(230,81,0,0.3);border-color:rgba(230,81,0,0.6);flex:1;text-align:center;position:relative;display:flex;align-items:center;justify-content:center;">
                 🧾<span id="badgeFiados" style="display:none;position:absolute;top:-4px;right:-4px;background:#e65100;color:white;border-radius:50%;min-width:16px;height:16px;font-size:0.6rem;font-weight:900;align-items:center;justify-content:center;line-height:1;padding:0 2px;"></span>
             </button>
@@ -4468,6 +4468,8 @@ window.addEventListener('popstate', function() {
         document.activeElement.blur();
     }
 
+    // v588 — si hay una página abierta encima del POS, «atrás» la cierra
+    if (typeof _ppAbierto === 'function' && _ppAbierto()) { cerrarPagina(); return; }
     // Cerrar cualquier modal abierto, en orden de prioridad — usar funciones de cierre correctas
     const cierres = [
         { id: 'modalConfirm',         fn: () => cerrarConfirm() },
@@ -5628,11 +5630,7 @@ let _limpiandoVenta = false;
 // v521 — Abre la página de reportes de retiros de caja (copihue-retiros-de-caja.html).
 // Si hay una venta en curso, pregunta antes de salir para no perder el carrito.
 function abrirRetirosDeCaja() {
-    try {
-        if (Array.isArray(ventaActual) && ventaActual.length > 0 &&
-            !confirm('Tenés una venta en curso. Si salís ahora, el carrito se pierde.\n\n¿Salir igual?')) return;
-    } catch (e) {}
-    location.href = 'copihue-retiros-de-caja.html';
+    abrirPagina('copihue-retiros-de-caja.html');   // v588 — se abre encima del POS: el carrito no se pierde
 }
 
 function limpiarVenta() {
@@ -12787,6 +12785,89 @@ if ('serviceWorker' in navigator) {
     });
 }
 
+// ========== v588 — PÁGINAS ENCIMA DEL POS (sin salir ni recargar) ==========
+// Horario, Herramientas, Reportes, Fiados, Tickets, Finanzas y Retiros se abren en un panel de pantalla completa.
+// El POS queda abierto debajo (venta en curso, catálogo y ofertas intactos). El «Volver» de cada página
+// (que apunta a seba21…html o usa history.back) y el botón atrás del celular cierran el panel.
+const _PP_RE = /(^|\/)copihue-(horario|herramientas|reportes|fiado|tickets|finanzas|retiros-de-caja)\.html/i;
+const _PP_POS_RE = /(^|\/)seba21[^\/]*\.html/i;
+let _ppPagina = '';
+function _ppAbierto() { const p = document.getElementById('ppPanel'); return !!(p && p.style.display !== 'none'); }
+function abrirPagina(url) {
+    try {
+        let p = document.getElementById('ppPanel');
+        if (!p) {
+            p = document.createElement('div'); p.id = 'ppPanel';
+            p.innerHTML = '<div class="pp-barra"><button type="button" class="pp-volver" onclick="cerrarPagina()">← Volver al POS</button><span id="ppTitulo"></span><span class="pp-carga" id="ppCarga">⏳</span></div>';
+            document.body.appendChild(p);
+        }
+        const viejo = document.getElementById('ppFrame'); if (viejo) viejo.remove();
+        const f = document.createElement('iframe'); f.id = 'ppFrame'; f.setAttribute('title', 'Página');
+        f.addEventListener('load', _ppAlCargar);
+        p.appendChild(f);
+        _ppPagina = (String(url).match(_PP_RE) || [, , ''])[2].toLowerCase();
+        const nombres = { horario: '🕐 Horario', herramientas: '🧰 Herramientas', reportes: '📈 Reportes', fiado: '🧾 Fiados', tickets: '🎫 Tickets', finanzas: '💰 Finanzas', 'retiros-de-caja': '💸 Retiros de caja' };
+        document.getElementById('ppTitulo').textContent = nombres[_ppPagina] || '';
+        document.getElementById('ppCarga').style.display = '';
+        p.style.display = 'flex'; document.body.classList.add('pp-abierto');
+        f.src = url;
+    } catch (e) { location.href = url; }   // si algo falla, como antes
+}
+function _ppAlCargar() {
+    const f = document.getElementById('ppFrame'); if (!f) return;
+    const c = document.getElementById('ppCarga'); if (c) c.style.display = 'none';
+    let w = null; try { w = f.contentWindow; void w.location.href; } catch (e) { return; }   // otra web (no debería pasar)
+    if (_PP_POS_RE.test(w.location.pathname)) { cerrarPagina(); return; }   // respaldo: llegó a cargar el POS adentro
+    try {   // el «Volver» de la página: se cierra el panel en vez de abrir otro POS
+        w.document.addEventListener('click', ev => {
+            const a = ev.target && ev.target.closest && ev.target.closest('a[href]');
+            if (a && _PP_POS_RE.test(a.getAttribute('href') || '') && !a.target) { ev.preventDefault(); ev.stopPropagation(); cerrarPagina(); }
+        }, true);
+    } catch (e) {}
+    try {   // location.href = 'seba21…' hecho por código
+        if (w.navigation && w.navigation.addEventListener) w.navigation.addEventListener('navigate', ev => {
+            try { if (_PP_POS_RE.test(new URL(ev.destination.url).pathname)) { if (ev.cancelable) ev.preventDefault(); cerrarPagina(); } } catch (e) {}
+        });
+    } catch (e) {}
+}
+function cerrarPagina() {
+    const p = document.getElementById('ppPanel'); if (!p || p.style.display === 'none') return;
+    const pag = _ppPagina; _ppPagina = '';
+    p.style.display = 'none'; document.body.classList.remove('pp-abierto');
+    // Las páginas guardan pasos en el historial (para su propio «atrás»). Al cerrar, se retrocede esa misma
+    // cantidad para que el próximo «atrás» del celular no quede «muerto» (pasos de una página que ya no está).
+    let pasos = 0;
+    const f = document.getElementById('ppFrame');
+    try { const nv = f && f.contentWindow && f.contentWindow.navigation; if (nv && nv.currentEntry) pasos = Math.max(0, nv.currentEntry.index || 0); } catch (e) {}
+    if (f) { try { f.removeEventListener('load', _ppAlCargar); } catch (e) {} f.remove(); }   // libera memoria
+    if (pasos > 0 && pasos < 60) { try { history.go(-pasos); } catch (e) {} }
+    // refrescar en segundo plano SOLO lo que esa página pudo cambiar
+    setTimeout(() => {
+        try {
+            if (pag === 'fiado' || pag === 'tickets') _fiadosBadgeCargar();
+            if (pag === 'horario') { _configCache = null; _cargarHorarioSistema(); cargarEstadoToggles(); }
+            if (pag === 'herramientas') { _ultimaCargaTs = 0; _recargaSilenciosa(); }   // desde ahí se puede ingresar mercadería
+        } catch (e) {}
+    }, 300);
+}
+// enlaces <a href="copihue-…"> de la botonera y de otros cuadros
+document.addEventListener('click', ev => {
+    const a = ev.target && ev.target.closest && ev.target.closest('a[href]');
+    if (!a || a.target === '_blank') return;
+    const h = a.getAttribute('href') || '';
+    if (_PP_RE.test(h)) { ev.preventDefault(); try { if (typeof cerrarResumen === 'function') { const m = document.getElementById('modalResumen'); if (m && (m.classList.contains('open') || m.style.display === 'flex' || m.style.display === 'block')) cerrarResumen(); } } catch (e) {} abrirPagina(h); }
+}, true);
+(function () {
+    const st = document.createElement('style');
+    st.textContent = '#ppPanel{position:fixed;inset:0;z-index:2147482000;background:#fff;display:none;flex-direction:column}'
+        + '#ppPanel .pp-barra{flex:none;display:flex;align-items:center;gap:10px;padding:6px 10px;background:#1b5e20;color:#fff;font:800 14px/1.2 system-ui,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.25)}'
+        + '#ppPanel .pp-volver{border:none;border-radius:10px;padding:9px 14px;background:#fff;color:#1b5e20;font:900 14px system-ui,sans-serif;cursor:pointer}'
+        + '#ppPanel #ppTitulo{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+        + '#ppPanel iframe{flex:1;width:100%;border:0;background:#fff}'
+        + 'body.pp-abierto{overflow:hidden}';
+    document.head.appendChild(st);
+})();
+
 // ========== INIT ==========
 inicializarVendedor();
 cargarConfig();
@@ -17320,7 +17401,7 @@ function _enviarWACobranzaFiado(f) {
 }
 
 // Cargar badge al iniciar
-setTimeout(async () => {
+async function _fiadosBadgeCargar() {   // v588 — con nombre, para repetirlo al volver de Fiados/Tickets
     try {
         const data = await _apiFetch('listarFiados');
         if (data.ok && data.fiados) {
@@ -17333,7 +17414,8 @@ setTimeout(async () => {
             _renderPanelFiados(); // actualiza badge sin abrir el panel
         }
     } catch(e) {}
-}, 20000);   // v584: antes 8 s (arranque escalonado; además deja la lista de fiados en memoria para «traer deuda»)
+}
+setTimeout(_fiadosBadgeCargar, 20000);   // v584: antes 8 s (arranque escalonado; además deja la lista de fiados en memoria para «traer deuda»)
 // ============================================
 
 // ========== PAUSAR EN LISTA DE COMPRA ==========
