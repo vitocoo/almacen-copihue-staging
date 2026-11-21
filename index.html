@@ -248,6 +248,28 @@
             gap: 0.5rem;
         }
         
+        /* v222 — reloj del encabezado (ESTILO_ENCABEZADO 1/2/3) */
+        .hdr-reloj { margin-left: auto; cursor: pointer; color: #fff; user-select: none; flex: none; }
+        .hdr-reloj .hr-d { font: 800 .74rem/1 sans-serif; text-transform: uppercase; letter-spacing: .8px; opacity: .95; margin-bottom: 3px; }
+        .hdr-reloj .hr-h { font: 900 2.2rem/1 sans-serif; letter-spacing: -1px; text-shadow: 0 2px 4px rgba(0,0,0,.25); }
+        .hdr-reloj .hr-e { display: inline-block; margin-top: 5px; font: 800 .66rem/1.2 sans-serif; background: rgba(0,0,0,.2); padding: 3px 8px; border-radius: 10px; white-space: nowrap; }
+        .hdr-reloj.est-1, .hdr-reloj.est-3 { text-align: right; line-height: 1; }
+        .hdr-reloj.est-2 { display: flex; align-items: stretch; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.3); border-radius: 14px; overflow: hidden; }
+        .hdr-reloj.est-2 .hr-cal { background: #fff; color: #2e7d32; padding: 6px 9px; text-align: center; font-weight: 900; line-height: 1; display: flex; flex-direction: column; justify-content: center; }
+        .hdr-reloj.est-2 .hr-cal b { display: block; font-size: .68rem; letter-spacing: 1px; color: #c62828; }
+        .hdr-reloj.est-2 .hr-cal span { font-size: 1.55rem; }
+        .hdr-reloj.est-2 .hr-hh { padding: 6px 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
+        .hdr-reloj.est-2 .hr-hh div { font: 900 1.65rem/1 sans-serif; }
+        .hdr-reloj.est-2 .hr-hh small { font: 800 .6rem/1.2 sans-serif; opacity: .92; margin-top: 3px; white-space: nowrap; }
+        .logo-brillo { position: relative; display: inline-block; line-height: 0; overflow: hidden; border-radius: 3px; flex: none; }
+        body.enc-3 .logo-brillo::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.65), transparent); transform: skewX(-20deg); animation: encBrillo 5s ease-in-out infinite; pointer-events: none; }
+        @keyframes encBrillo { 0%, 80% { left: -60%; } 100% { left: 130%; } }
+        @media (prefers-reduced-motion: reduce) { body.enc-3 .logo-brillo::after { animation: none; display: none; } }
+        @media (max-width: 380px) {
+            header .logo-icon { height: 48px; } header .logo { gap: .3rem; } #htmlVersionTag, #versionTag { margin-left: 2px !important; padding: 2px 5px !important; font-size: .62rem !important; }
+            .hdr-reloj .hr-h { font-size: 1.85rem; } .hdr-reloj .hr-d { font-size: .66rem; } .hdr-reloj .hr-e { font-size: .6rem; padding: 3px 6px; }
+            .hdr-reloj.est-2 .hr-cal { padding: 5px 7px; } .hdr-reloj.est-2 .hr-cal span { font-size: 1.3rem; } .hdr-reloj.est-2 .hr-hh { padding: 5px 7px; } .hdr-reloj.est-2 .hr-hh div { font-size: 1.4rem; } .hdr-reloj.est-2 .hr-hh small { font-size: .55rem; }
+        }
         .logo-icon {
             height: 60px;
             width: auto;
@@ -2527,20 +2549,14 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 <header>
     <div class="header-content">
         <div class="logo">
-            <img src="logo-copihue.png" alt="Logo Almacén Copihue" class="logo-icon" height="60" id="headerLogoImg">
+            <span class="logo-brillo"><img src="logo-copihue.png" alt="Logo Almacén Copihue" class="logo-icon" height="60" id="headerLogoImg"></span>
 
             <span id="versionTag" style="font-size:0.72rem;font-weight:700;opacity:0.9;margin-left:8px;background:rgba(255,255,255,0.2);padding:2px 7px;border-radius:10px;color:white;letter-spacing:0.3px;vertical-align:middle;display:none;"></span>
             <span id="htmlVersionTag" style="font-size:0.72rem;font-weight:700;opacity:0.9;margin-left:4px;background:rgba(255,255,255,0.15);padding:2px 7px;border-radius:10px;color:white;letter-spacing:0.3px;vertical-align:middle;display:none;"></span>
             <span id="adminBadge" class="admin-badge" style="display: none;">ADMIN</span>
-            <span id="relojHeader" onclick="abrirModalHorario()"
-                  style="font-size:0.75rem;font-weight:600;color:rgba(255,255,255,0.7);
-                         background:rgba(255,255,255,0.1);border-radius:20px;
-                         padding:3px 10px;cursor:pointer;letter-spacing:0.5px;
-                         border:1px solid rgba(255,255,255,0.2);transition:all 0.2s;
-                         margin-left:4px;min-width:72px;text-align:center;display:inline-block;">
-                🕐 --:--
-            </span>
         </div>
+        <!-- v222 — reloj del encabezado: 3 estilos (config_sistema ESTILO_ENCABEZADO = 1, 2 o 3; por defecto 2) -->
+        <div id="relojHeader" class="hdr-reloj est-2" onclick="abrirModalHorario()" title="Ver horario">🕐 --:--</div>
         <div class="cart-icon" id="cartIcon">
             🛒 <span class="cart-count" id="cartCount">0</span>
         </div>
@@ -3067,7 +3083,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v221';
+const APP_VERSION = 'copihue-index-v222';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -3482,11 +3498,11 @@ async function cargarConfigSistema() {
         const rowCi = cfg['horario|Horario cierre local']   || cfg['Horario cierre local'];
         if (rowAp) {
             const parsed = _parsearValorHora(rowAp[diaIdx]);
-            if (parsed) { _horaAperturaLocal = parsed.h; _minsAperturaLocal = parsed.m; }
+            if (parsed) { _horaAperturaLocal = parsed.h; _minsAperturaLocal = parsed.m; window._hdrApOk = true; }
         }
         if (rowCi) {
             const parsed = _parsearValorHora(rowCi[diaIdx]);
-            if (parsed) { _horaCierreLocal = parsed.h; _minsCierreLocal = parsed.m; }
+            if (parsed) { _horaCierreLocal = parsed.h; _minsCierreLocal = parsed.m; window._hdrCiOk = true; }
         }
         // Actualizar HORA_CIERRE_MODAL para el modal de horario
         HORA_CIERRE_MODAL = _horaCierreLocal;
@@ -3518,6 +3534,13 @@ async function cargarConfigSistema() {
             ciudad:    _get('ciudad')                        || ''
         };
         window._EMPRESA = _emp;
+        // v222 — estilo del reloj del encabezado: fila libre en config_sistema «ESTILO_ENCABEZADO» = 1, 2 o 3 (por defecto 2)
+        try {
+            const kE = Object.keys(cfg).find(k => k.replace(/^[a-z]+\|/, '').trim().toUpperCase() === 'ESTILO_ENCABEZADO');
+            const vE = kE && cfg[kE] ? parseInt(String(cfg[kE][0] || '').trim()) : NaN;
+            window._hdrPend = [1, 2, 3].includes(vE) ? vE : 2;
+            if (typeof _hdrEstilo === 'function') { _hdrEstilo(window._hdrPend); actualizarRelojHeader(); }
+        } catch (e) {}
 
         // ── DIVISAS (USD / CLP) — leídas desde planilla ──
         // GAS puede devolver Date objects para celdas numéricas con formato fecha.
@@ -8004,15 +8027,42 @@ window.addEventListener('message', function(e) {
     }
 });
 
-// Reloj sutil en header
+// v222 — Reloj del encabezado en 3 estilos: 1 = reloj grande + día + abierto/cerrado · 2 = almanaque (por defecto)
+// · 3 = como el 1 + brillo que cruza el logo cada 5 s. Se elige en config_sistema ESTILO_ENCABEZADO.
+let _hdrEst = 2;
+try { const g = parseInt(localStorage.getItem('copihue_estilo_encabezado')); if ([1, 2, 3].includes(g)) _hdrEst = g; } catch (e) {}
+function _hdrEstilo(n) {
+    _hdrEst = n; try { localStorage.setItem('copihue_estilo_encabezado', String(n)); } catch (e) {}
+    document.body.classList.toggle('enc-3', n === 3);
+    const el = document.getElementById('relojHeader'); if (el) el.className = 'hdr-reloj est-' + n;
+}
+function _hdrEstado(now) {   // '' si no hay horario cargado para hoy
+    if (!window._hdrApOk || !window._hdrCiOk) return null;
+    const p = x => String(x).padStart(2, '0');
+    const m = now.getHours() * 60 + now.getMinutes(), ap = _horaAperturaLocal * 60 + (_minsAperturaLocal || 0), ci = _horaCierreLocal * 60 + (_minsCierreLocal || 0);
+    const abierto = ci > ap ? (m >= ap && m < ci) : (m >= ap || m < ci);   // también si cierra pasada la medianoche
+    const hCi = p(_horaCierreLocal) + ':' + p(_minsCierreLocal || 0), hAp = p(_horaAperturaLocal) + ':' + p(_minsAperturaLocal || 0);
+    if (abierto) return { ok: true, largo: '🟢 Abierto · cierra ' + hCi, corto: '🟢 abierto hasta ' + (_minsCierreLocal ? hCi : _horaCierreLocal) };
+    if (m < ap) return { ok: false, largo: '🔴 Cerrado · abre ' + hAp, corto: '🔴 abre ' + hAp };
+    return { ok: false, largo: '🔴 Cerrado · hasta mañana', corto: '🔴 cerrado' };
+}
 function actualizarRelojHeader() {
     const el = document.getElementById('relojHeader');
     if (!el) return;
     const now = new Date();
     const h = String(now.getHours()).padStart(2,'0');
     const m = String(now.getMinutes()).padStart(2,'0');
-    el.innerHTML = '🕐 ' + h + ':' + m;
+    const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const est = _hdrEstado(now);
+    if (_hdrEst === 2) {
+        el.innerHTML = '<div class="hr-cal"><b>' + dias[now.getDay()].slice(0, 3).toUpperCase().replace('MIÉ', 'MIÉ') + '</b><span>' + now.getDate() + '</span></div>'
+            + '<div class="hr-hh"><div>' + h + ':' + m + '</div>' + (est ? '<small>' + est.corto + '</small>' : '') + '</div>';
+    } else {
+        el.innerHTML = '<div class="hr-d">' + dias[now.getDay()] + ' ' + String(now.getDate()).padStart(2, '0') + '/' + String(now.getMonth() + 1).padStart(2, '0') + '</div>'
+            + '<div class="hr-h">' + h + ':' + m + '</div>' + (est ? '<div class="hr-e">' + est.largo + '</div>' : '');
+    }
 }
+_hdrEstilo(window._hdrPend || _hdrEst);
 actualizarRelojHeader();
 setInterval(actualizarRelojHeader, 10000);
 </script>
