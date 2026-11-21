@@ -1,0 +1,1475 @@
+<!--
+  copihue-horario-FIX.html — v17
+  CHANGELOG v17 (21/11/2026): STAGING — API de STAGING + aviso de versión (regla de oro).
+  CHANGELOG v16:
+  - Por pedido: se sacó el caso "Hoy abrimos a las X hs". Ahora, esté abierto
+    o cerrado, el texto de apertura siempre muestra el PRÓXIMO día que abre
+    ("Mañana abrimos a las X hs", o "El <día> abrimos a las X hs" si el
+    próximo día abierto no es mañana). Nunca más dice "Hoy abrimos".
+
+  CHANGELOG v15:
+  - Nueva sección "Ver horario completo": un botón chico y sutil (mismo estilo
+    de pill que el de compartir, pero discreto — fondo semitransparente, sin
+    animación de pulso) debajo de los chips de días. Al tocarlo despliega,
+    con una animación suave, la lista de los 7 días con su horario real
+    (ej. "Viernes  11:00 – 22:00" / "Domingo  Cerrado").
+  - Los datos de esa lista salen SIEMPRE de CFG.arrApertura / CFG.arrCierre,
+    es decir de la planilla — no hay ningún horario fijo en el código. Si un
+    día no tiene apertura o cierre cargados en la planilla, se muestra
+    "Sin dato" en vez de inventar un horario.
+  - El botón queda oculto mientras no haya datos reales cargados (mismo
+    criterio que el resto de la tarjeta: CFG.cargado === true), así nunca
+    se puede abrir un horario semanal con datos inventados.
+
+  CHANGELOG v14 (AUDITORÍA — planilla como única fuente de verdad):
+  - Se eliminó el horario hardcodeado que servía de "fallback" cuando el GAS
+    no respondía o la planilla no tenía apertura/cierre válidos para hoy
+    (antes: CFG = {aperturaH:11, aperturaM:30, cierreH:22, cierreM:0, ...}).
+    Ese fallback hacía que la tarjeta mostrara, por ejemplo, "Mañana abrimos
+    a las 11:30 hs" AUNQUE ese dato no viniera realmente de la planilla —
+    o sea, mentía si Sheets/GAS estaban caídos o la celda del día estaba vacía.
+  - Ahora CFG arranca con cargado:false y todos los valores en null. Solo se
+    pasa a cargado:true si el GAS respondió success:true Y la planilla trae
+    una hora de apertura Y una de cierre válidas para hoy (parseHora() las
+    pudo interpretar). Si falta cualquiera de esas dos cosas, se considera
+    que no hay horario real para mostrar.
+  - Nueva función mostrarErrorHorario(): si no se pudo leer la planilla,
+    la tarjeta muestra honestamente "Horario no disponible" / "No se pudo
+    leer el horario desde la planilla" (badge ámbar), oculta el countdown y
+    el botón "Aún llego", y NO dibuja ningún número de hora. El reloj en vivo
+    (hora real del dispositivo) sigue andando aparte, porque no depende de
+    la planilla.
+  - Auto-reintento: si falla la carga, cargarConfig() se vuelve a llamar solo
+    cada 20s (REINTENTO_MS) hasta lograr datos reales — sin recargar la
+    página. Apenas la planilla/GAS vuelven a responder, la tarjeta se
+    autocorrige con el horario real.
+  - compartirHorario(): si CFG.cargado es false, ya no genera ni comparte una
+    imagen con horarios inventados — avisa que todavía no hay datos reales y
+    corta ahí.
+  - Resumen: la planilla (vía GAS) es la ÚNICA fuente de verdad para
+    apertura/cierre/días. Si esa fuente no responde, la app lo dice en vez
+    de rellenar con un número fijo en el código.
+
+  CHANGELOG v13:
+  - FIX posible causa de "cambié la planilla y no se refleja": el fetch a
+    getConfig no tenía cache-busting, así que el navegador (sobre todo mobile
+    Chrome) podía servir una respuesta GET vieja en caché en vez de ir a
+    buscar el valor nuevo. Se agregó parámetro _=timestamp + cache:'no-store'
+    para forzar siempre una consulta fresca a la planilla.
+
+  CHANGELOG v12:
+  - FIX: "Abrimos a las X hs" siempre leía la apertura de HOY, aunque el local
+    ya estuviera abierto o ya hubiese cerrado por hoy (dato irrelevante en esos
+    casos). Ahora textoAperturaProxima() distingue:
+      · Todavía no abrió hoy → "Hoy abrimos a las X hs" (horario de hoy)
+      · Ya abrió / ya cerró / hoy no atiende → "Mañana abrimos a las X hs"
+        (horario de MAÑANA por default, vía proximaApertura())
+      · Si el próximo día abierto no es mañana → "El <día> abrimos a las X hs"
+    Aplicado en la tarjeta, el postMessage (uso como iframe) y la imagen que
+    se genera al compartir.
+
+  CHANGELOG v11:
+  - "hs" pasó de estar debajo de la hora (línea propia, centrado) a estar a la
+    derecha, alineado a la base de los números ("22:00 hs" como unidad, más
+    natural que flotando abajo).
+
+  CHANGELOG v10:
+  - El badge se superponía con la "N" de ALMACÉN porque .nombre es angosto
+    (se ajusta al ancho del texto). Se alejó más a la derecha (right:-58px) y
+    se subió apenas (top:2px) para que quede despegado, a la altura del título.
+
+  CHANGELOG v9:
+  - El badge de versión estaba con position:fixed, anclado a la ventana del
+    navegador — por eso se corría verticalmente según el tamaño de pantalla.
+    Ahora vive DENTRO del bloque ".nombre" (junto a "Almacén Copihue"), con
+    position:absolute anclado a ese bloque. Así siempre queda a la altura del
+    título, sin importar el tamaño de la página/dispositivo.
+
+  CHANGELOG v8:
+  - Badge de versión bajado una línea (top 8px → 28px) y corrido a 105px a la
+    derecha del centro (65px + 40px más).
+
+  CHANGELOG v7:
+  - Badge de versión corrido a 65px a la derecha del centro (35px + 30px más).
+
+  CHANGELOG v6:
+  - Badge de versión corrido a 35px a la derecha del centro (15px no alcanzaba).
+
+  CHANGELOG v5:
+  - Badge de versión corrido 15px a la derecha del centro.
+  - Revisado rendimiento general: nada de requestAnimationFrame en loop ni polling
+    pesado — solo un setInterval de 1s actualizando texto y 40 divs de estrellas
+    con animación CSS. No debería colgar ni ralentizar el equipo.
+
+  CHANGELOG v4:
+  - FIX visual: los 7 chips de días (DOM..SÁB) rompían a una segunda fila con
+    SÁB solo, colgado. Se achicaron (padding, font-size, gap) y se puso
+    flex-wrap: nowrap para que entren siempre los 7 en una sola línea.
+
+  CHANGELOG v3:
+  - Badge de versión simplificado: antes tenía un nombre descriptivo largo +
+    fecha ("v.FIX-normalizacion-horarios · 03-07-26") que no aportaba nada de
+    un vistazo. Ahora es solo un número que sube +1 en cada entrega (v3).
+  - Mensaje de compartir (estado abierto) ahora usa saludo dinámico según la
+    hora real de Bariloche (Buenos días / Buenas tardes / Buenas noches), en
+    vez de texto fijo. Ejemplo a la tarde:
+    "¡Buenas tardes, vecino! Estamos atendiendo hasta las 22:00 hs 🧡"
+  - Se achicó el contenedor principal un 10% (transform: scale(0.9)).
+
+  CHANGELOG (versiones previas):
+  - FIX parseHora: cuando la celda de la planilla queda con formato Fecha/Hora,
+    GAS la manda como ISO UTC con día base 1899-12-30 (ej "1899-12-30T22:16:00.000Z").
+    Antes se convertía con d.getHours()/d.getMinutes() (zona horaria del
+    dispositivo). Ahora se fuerza siempre America/Argentina/Buenos_Aires vía
+    Intl.DateTimeFormat, así el resultado no depende de la zona horaria del
+    teléfono/PC que abre la página.
+  - Normalización de horarios documentada y reforzada: acepta "2" → 02:00,
+    "22" → 22:00, "2:30" → 02:30, "22:00" → 22:00. Nunca marca error por un
+    número entero 0-23 (con o sin ':'). Todo se normaliza a {h,m} antes de
+    cualquier comparación; la UI siempre muestra HH:MM, nunca el texto crudo.
+    (La visualización HH:MM DENTRO de la planilla de Google Sheets es un tema
+    de formato de celda en Sheets, no de este HTML — no se puede forzar desde
+    acá.)
+  - Texto del mensaje al compartir horario, redacción exacta pedida:
+    · Abierto: "Almacén Copihue está atendiendo, los esperamos hasta las X hs"
+    · Cerrado: "Cerrado — abrimos mañana a las X hs" (o "el <día>" si el
+      próximo día abierto no es mañana, usando proximaApertura()).
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+<title>🕐 Horario · Copihue</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --verde: #1b5e20;
+    --verde-medio: #2e7d32;
+    --verde-claro: #4caf50;
+    --naranja: #e65100;
+    --naranja-claro: #ff6f00;
+    --naranja-brillante: #ff9800;
+    --crema: #fff8f0;
+  }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: var(--verde);
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Nunito', sans-serif;
+    min-height: 100vh;
+    position: relative;
+  }
+
+  /* Fondo con textura */
+  .fondo {
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse at 20% 20%, rgba(76,175,80,0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(230,81,0,0.2) 0%, transparent 50%),
+      linear-gradient(160deg, #1a4a1e 0%, #1b5e20 40%, #2d5a1b 100%);
+    z-index: 0;
+  }
+
+  /* Detalles decorativos */
+  .circulo-deco {
+    position: fixed;
+    border-radius: 50%;
+    opacity: 0.07;
+    z-index: 0;
+  }
+  .c1 { width: 300px; height: 300px; background: var(--naranja-brillante); top: -80px; right: -80px; }
+  .c2 { width: 200px; height: 200px; background: var(--verde-claro); bottom: -60px; left: -60px; }
+  .c3 { width: 150px; height: 150px; background: var(--naranja); bottom: 100px; right: -40px; opacity: 0.1; }
+
+  /* Contenedor principal */
+  .contenedor {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 390px;
+    padding: 24px 20px 32px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    transform: scale(0.9);
+  }
+
+  /* Nombre del almacén */
+  .nombre {
+    text-align: center;
+    position: relative;
+  }
+
+  .nombre-principal {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3.2rem;
+    color: white;
+    line-height: 1;
+    letter-spacing: 2px;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 2px 0 rgba(0,0,0,0.3);
+    animation: aparecer 0.8s ease-out forwards;
+  }
+
+  .nombre-sub {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--naranja-brillante);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    opacity: 0;
+    animation: aparecer 0.8s ease-out 0.3s forwards;
+  }
+
+  @keyframes aparecer {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Divisor */
+  .divisor {
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--naranja-brillante), transparent);
+    opacity: 0.6;
+  }
+
+  /* Tarjeta principal de estado */
+  .tarjeta-estado {
+    width: 100%;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 24px;
+    padding: 24px 16px;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+    animation: aparecer 0.8s ease-out 0.5s both;
+  }
+
+  .estado-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: linear-gradient(135deg, var(--naranja), var(--naranja-brillante));
+    color: white;
+    padding: 10px 24px;
+    border-radius: 50px;
+    font-weight: 900;
+    font-size: 1rem;
+    line-height: 1.3;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    box-shadow: 0 4px 16px rgba(230,81,0,0.5);
+    margin-bottom: 24px;
+    white-space: normal;
+    word-break: keep-all;
+    text-align: center;
+    animation: pulsar 2s ease-in-out infinite;
+  }
+
+  @keyframes pulsar {
+    0%, 100% { box-shadow: 0 4px 16px rgba(230,81,0,0.5); }
+    50% { box-shadow: 0 4px 32px rgba(255,152,0,0.8), 0 0 0 6px rgba(255,152,0,0.1); }
+  }
+
+  .punto-verde {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #69f0ae;
+    box-shadow: 0 0 8px #69f0ae;
+    animation: parpadear 1.5s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes parpadear {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .horario-texto {
+    color: rgba(255,255,255,0.7);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .horario-hora-wrap {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .horario-hora {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 4.2rem;
+    color: white;
+    line-height: 1;
+    letter-spacing: 4px;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+
+  .horario-hs {
+    font-size: 1.2rem;
+    color: var(--naranja-brillante);
+    font-weight: 900;
+    letter-spacing: 2px;
+  }
+
+  /* Días */
+  .dias {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    margin-top: 16px;
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+
+  .dia-chip {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.8);
+    padding: 4px 7px;
+    border-radius: 20px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    transition: all 0.3s;
+    white-space: nowrap;
+  }
+
+  .dia-chip.hoy {
+    background: linear-gradient(135deg, var(--naranja), var(--naranja-brillante));
+    border-color: transparent;
+    color: white;
+    box-shadow: 0 2px 8px rgba(230,81,0,0.4);
+  }
+
+  /* Reloj en vivo */
+  .reloj-vivo {
+    width: 100%;
+    text-align: center;
+    animation: aparecer 0.8s ease-out 0.8s both;
+  }
+
+  .reloj-label {
+    color: rgba(255,255,255,0.5);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .reloj-hora {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.2rem;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 4px;
+  }
+
+  /* Barra inferior decorativa */
+  .barra-inferior {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--verde-claro), var(--naranja-brillante), var(--verde-claro));
+    background-size: 200% 100%;
+    animation: mover-barra 3s linear infinite;
+    z-index: 10;
+  }
+
+  @keyframes mover-barra {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+  }
+
+  /* Estrellas decorativas */
+  .estrellas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .estrella {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background: white;
+    border-radius: 50%;
+    opacity: 0;
+    animation: brillar var(--dur) ease-in-out infinite var(--delay);
+  }
+
+  @keyframes brillar {
+    0%, 100% { opacity: 0; transform: scale(0.5); }
+    50% { opacity: 0.6; transform: scale(1.2); }
+  }
+
+  /* Botón Aún llego */
+  .btn-aun-llego {
+    display: none;
+    margin: 16px auto 0;
+    background: linear-gradient(135deg, #e65100, #ff6f00);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 14px 28px;
+    font-size: 1rem;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(230,81,0,0.5);
+    animation: pulseNaranja 2s infinite;
+    font-family: 'Nunito', sans-serif;
+    letter-spacing: 0.3px;
+  }
+  .btn-aun-llego.visible { 
+    display: block;
+    margin-top: 8px;
+    margin-bottom: 4px;
+  }
+
+  @keyframes pulseNaranja {
+    0%, 100% { box-shadow: 0 4px 20px rgba(230,81,0,0.4); transform: scale(1); }
+    50% { box-shadow: 0 6px 28px rgba(230,81,0,0.7); transform: scale(1.03); }
+  }
+
+  /* Estado cerrado */
+  .estado-badge.cerrado {
+    background: rgba(183,28,28,0.25);
+    border: 1px solid rgba(183,28,28,0.4);
+    color: #ffcdd2;
+  }
+  .estado-badge.cerrado .punto-verde {
+    background: #ef9a9a;
+    box-shadow: none;
+    animation: none;
+  }
+
+  /* Ver horario semanal — botón sutil */
+  .toggle-semana {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.55);
+    padding: 7px 16px;
+    border-radius: 50px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    font-family: 'Nunito', sans-serif;
+    cursor: pointer;
+    margin-top: 14px;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+  }
+  .toggle-semana:hover {
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.85);
+    border-color: rgba(255,255,255,0.2);
+  }
+  .toggle-semana svg.icono-cal { width: 13px; height: 13px; flex-shrink: 0; opacity: 0.8; }
+  .toggle-semana svg.chevron {
+    width: 11px; height: 11px; flex-shrink: 0;
+    transition: transform 0.3s ease;
+  }
+  .toggle-semana.abierto svg.chevron { transform: rotate(180deg); }
+
+  .panel-semana {
+    width: 100%;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.35s ease, opacity 0.25s ease, margin-top 0.35s ease;
+    margin-top: 0;
+  }
+  .panel-semana.abierto {
+    max-height: 320px;
+    opacity: 1;
+    margin-top: 12px;
+  }
+  .fila-semana {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 4px;
+    font-size: 0.78rem;
+    font-family: 'Nunito', sans-serif;
+    color: rgba(255,255,255,0.65);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .fila-semana:last-child { border-bottom: none; }
+  .fila-semana.hoy {
+    color: white;
+    font-weight: 800;
+  }
+  .fila-semana .nombre-dia { text-transform: capitalize; letter-spacing: 0.3px; }
+  .fila-semana.hoy .nombre-dia::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--naranja-brillante);
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .fila-semana .rango-horario { font-variant-numeric: tabular-nums; }
+  .fila-semana.dia-cerrado .rango-horario {
+    color: rgba(255,255,255,0.35);
+    font-style: italic;
+  }
+
+
+  .btn-compartir {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #25D366, #128C7E);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 14px 32px;
+    font-size: 1rem;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(37,211,102,0.4);
+    font-family: 'Nunito', sans-serif;
+    letter-spacing: 0.3px;
+    width: 100%;
+    margin-top: 8px;
+    margin-bottom: 0;
+    animation: aparecer 0.8s ease-out 1s both;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .btn-compartir:active { transform: scale(0.97); box-shadow: 0 2px 10px rgba(37,211,102,0.3); }
+  .btn-compartir svg { width: 22px; height: 22px; flex-shrink: 0; }
+
+  /* Canvas oculto para render */
+  #canvasShare { display: none; }
+
+  /* ── COUNTDOWN ── */
+  .countdown-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin: 12px auto 4px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 50px;
+    padding: 6px 18px;
+    transition: background 0.5s, border-color 0.5s;
+  }
+  .countdown-texto {
+    font-size: 0.92rem;
+    font-weight: 900;
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .countdown-wrap.oculto { display: none; }
+
+  /* Urgencia 4h */
+  .tarjeta-estado.urgencia-4 .countdown-wrap {
+    background: rgba(255,152,0,0.15);
+    border-color: rgba(255,152,0,0.4);
+  }
+  .tarjeta-estado.urgencia-4 .countdown-texto { color: #ffb74d; }
+  .tarjeta-estado.urgencia-4 .countdown-wrap span:first-child {
+    animation: parpadear 1.5s ease-in-out infinite;
+  }
+
+  /* Urgencia 2h */
+  .tarjeta-estado.urgencia-2 .countdown-wrap {
+    background: rgba(230,81,0,0.2);
+    border-color: rgba(230,81,0,0.5);
+  }
+  .tarjeta-estado.urgencia-2 .countdown-texto { color: #ff8a65; }
+
+  /* Urgencia 1h */
+  .tarjeta-estado.urgencia-1 .countdown-wrap {
+    background: rgba(183,28,28,0.25);
+    border-color: rgba(239,83,80,0.6);
+    animation: pulsar-urgente 1.2s ease-in-out infinite;
+  }
+  .tarjeta-estado.urgencia-1 .countdown-texto { color: #ef9a9a; font-size: 1rem; }
+  @keyframes pulsar-urgente {
+    0%, 100% { box-shadow: none; }
+    50% { box-shadow: 0 0 0 4px rgba(239,83,80,0.15); }
+  }
+
+  /* Apertura */
+  .apertura-texto {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.45);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-top: 6px;
+    margin-bottom: 2px;
+  }
+
+  /* Responsive extra small (320px) */
+  @media (max-width: 360px) {
+    .contenedor {
+      padding: 16px 16px 32px 16px;
+      gap: 16px;
+    }
+    
+    .estado-badge {
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      gap: 6px;
+    }
+    
+    .horario-hora {
+      font-size: 3.5rem;
+    }
+    
+    .btn-compartir, .btn-aun-llego.visible {
+      padding: 12px 24px;
+      font-size: 0.9rem;
+    }
+    
+    .dia-chip {
+      padding: 3px 5px;
+      font-size: 0.55rem;
+      letter-spacing: 0.1px;
+    }
+    .dias {
+      gap: 3px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="fondo"></div>
+<div class="circulo-deco c1"></div>
+<div class="circulo-deco c2"></div>
+<div class="circulo-deco c3"></div>
+<div class="barra-inferior"></div>
+
+<!-- Estrellas -->
+<div class="estrellas" id="estrellas"></div>
+
+<div class="contenedor">
+
+  <div class="nombre">
+    <div class="nombre-principal">Almacén<br>Copihue</div>
+    <div class="nombre-sub">Bariloche</div>
+    <div id="versionBadge" style="position:absolute; top:2px; right:-58px; z-index:999; background:rgba(0,0,0,0.55); color:#69f0ae; font-family:monospace; font-size:11px; padding:4px 10px; border-radius:8px; letter-spacing:0.5px; pointer-events:none;">
+      v17
+    </div>
+  </div>
+
+  <div class="divisor"></div>
+
+  <div class="tarjeta-estado" id="tarjetaEstado">
+    <div class="estado-badge" id="estadoBadge">
+      <div class="punto-verde" id="puntoBadge"></div>
+      <span id="estadoTexto">Abierto ahora</span>
+    </div>
+
+    <div class="horario-texto">Horario de cierre</div>
+    <div class="horario-hora-wrap">
+      <div class="horario-hora" id="horarioHora">--:--</div>
+      <div class="horario-hs">hs</div>
+    </div>
+
+    <div class="countdown-wrap" id="countdownWrap">
+      <span>⏳</span>
+      <span class="countdown-texto" id="countdownTexto">Cerramos en --h --m</span>
+    </div>
+
+    <div class="apertura-texto" id="aperturaTexto">Abrimos a las --:-- hs</div>
+
+    <div class="dias" id="dias"></div>
+
+    <button class="toggle-semana" id="toggleSemana" style="display:none;" onclick="toggleHorarioSemana()">
+      <svg class="icono-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+      <span>Ver horario completo</span>
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="panel-semana" id="panelSemana"></div>
+  </div>
+
+  <div class="reloj-vivo">
+    <div class="reloj-label">Hora actual</div>
+    <div class="reloj-hora" id="relojHora">--:--:--</div>
+  </div>
+
+  <button class="btn-aun-llego" id="btnAunLlego" onclick="avisarLlego()">
+    🏃 ¡Aún llego! Avisame
+  </button>
+
+  <!-- Canvas oculto para captura -->
+  <canvas id="canvasShare"></canvas>
+
+  <button class="btn-compartir" onclick="compartirHorario()">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.117.549 4.107 1.51 5.84L.057 23.25a.75.75 0 0 0 .916.919l5.487-1.44A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.885 0-3.65-.51-5.17-1.399l-.371-.219-3.844 1.008 1.026-3.748-.241-.386A9.96 9.96 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+    Compartir horario
+  </button>
+
+</div>
+
+<script>
+  // Estrellas
+  const contenedor = document.getElementById('estrellas');
+  for (let i = 0; i < 40; i++) {
+    const e = document.createElement('div');
+    e.className = 'estrella';
+    e.style.left = Math.random() * 100 + '%';
+    e.style.top = Math.random() * 100 + '%';
+    e.style.setProperty('--dur', (2 + Math.random() * 4) + 's');
+    e.style.setProperty('--delay', (Math.random() * 4) + 's');
+    contenedor.appendChild(e);
+  }
+
+  const API_URL = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
+  const WA_NUMBER = '542944907380';
+  const MINUTOS_AVISO = 30;
+  const REINTENTO_MS = 20000; // si falla la carga, reintenta cada 20s hasta lograrlo
+
+  // SIN fallback hardcodeado. La planilla es la única fuente de verdad:
+  // si no se pudo leer, CFG.cargado queda en false y la UI lo muestra
+  // honestamente ("Horario no disponible") en vez de inventar un horario.
+  let CFG = { cargado:false, aperturaH:null, aperturaM:null, cierreH:null, cierreM:null, diasAbierto:null, arrApertura:null, arrCierre:null };
+
+  // Planilla cols B-H = L M M J V S D → mapeo a día JS (0=Dom)
+  const PLAN_A_JS = [1,2,3,4,5,6,0];
+
+  // ─────────────────────────────────────────────────────────────
+  // NORMALIZACIÓN DE HORARIOS (tolerante en la entrada, prolija en la salida)
+  //   2      → 02:00      11    → 11:00      22    → 22:00
+  //   2:30   → 02:30      02:30 → 02:30      22:00 → 22:00
+  // Reglas:
+  //  1. Entero 0-23 solo  → hora exacta HH:00
+  //  2. Contiene ':'      → formato HH:MM
+  //  3. Compatible con el formato actual HH:MM (sin cambios de comportamiento)
+  //  4. Internamente todo se normaliza a {h,m} para todas las comparaciones
+  //  5. La UI siempre muestra HH:MM (padStart), nunca el texto crudo ingresado
+  //  6. Nunca se marca error por un número válido 0-23 (con o sin ':')
+  //  7. minutosParaCerrar()/proximaApertura() usan siempre el valor normalizado,
+  //     nunca el string original de la planilla
+  // Parsea un valor de celda (ISO UTC, "22:10" o "22") a {h, m}. Global para reusar fuera de cargarConfig.
+  const parseHora = v => {
+    if (v === null || v === undefined || v === '') return null;
+    const s = String(v).trim();
+    // ISO UTC que envía GAS cuando la celda quedó con formato Fecha/Hora en la
+    // planilla (ej: "1899-12-30T22:16:00.000Z"). Se convierte SIEMPRE a la hora
+    // local de Bariloche explícitamente (no la del dispositivo/navegador), para
+    // que el resultado no dependa de en qué zona horaria esté configurado el
+    // teléfono o PC que abre la página.
+    if (s.includes('T') && s.includes('Z')) {
+      try {
+        const d = new Date(s);
+        if (!isNaN(d)) {
+          const partes = new Intl.DateTimeFormat('es-AR', {
+            timeZone: 'America/Argentina/Buenos_Aires',
+            hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+          }).formatToParts(d);
+          return {
+            h: parseInt(partes.find(p => p.type === 'hour').value),
+            m: parseInt(partes.find(p => p.type === 'minute').value)
+          };
+        }
+      } catch(e) {}
+      return null;
+    }
+    // "22:10", "2:30" → HH:MM
+    if (s.includes(':')) {
+      const [h, m] = s.split(':');
+      const hh = parseInt(h), mm = parseInt(m || 0);
+      if (isNaN(hh)) return null;
+      return { h: hh, m: isNaN(mm) ? 0 : mm };
+    }
+    // "2", "11", "22" → hora exacta, nunca error por ser solo un número 0-23
+    const hh = parseInt(s);
+    if (isNaN(hh)) return null;
+    return { h: hh, m: 0 };
+  };
+
+  async function cargarConfig() {
+    try {
+      const r = await fetch(API_URL + '?action=getConfig&_=' + Date.now(), { signal: AbortSignal.timeout(6000), cache: 'no-store' });
+      const d = await r.json();
+      if (!d.success || !d.config) throw new Error('Respuesta del GAS sin success/config');
+      const c = d.config;
+
+      // Índice de la columna correspondiente al día de HOY (0=Lun...6=Dom en la planilla)
+      const hoyPlanIdx = PLAN_A_JS.indexOf(new Date().getDay());
+
+      // Toma el valor de la columna de hoy; si está vacía, cae al primer valor no vacío
+      // de la MISMA fila de la planilla (sigue siendo dato real, no un invento nuestro).
+      const valorDeHoy = (arr) => {
+        if (!arr) return null;
+        if (hoyPlanIdx !== -1 && arr[hoyPlanIdx] !== null && arr[hoyPlanIdx] !== '') return arr[hoyPlanIdx];
+        return arr.find(x => x !== null && x !== '');
+      };
+
+      const ap = c['Horario apertura local'] && parseHora(valorDeHoy(c['Horario apertura local']));
+      const ci = c['Horario cierre local']   && parseHora(valorDeHoy(c['Horario cierre local']));
+
+      // Si la planilla no trajo apertura o cierre reales, NO seguimos: no hay
+      // horario válido que mostrar. Mejor decirlo honestamente que inventar uno.
+      if (!ap || !ci) throw new Error('Planilla sin apertura/cierre válidos para hoy');
+
+      CFG.aperturaH = ap.h; CFG.aperturaM = ap.m;
+      CFG.cierreH   = ci.h; CFG.cierreM   = ci.m;
+
+      const diasRow = c['Horario apertura local'] || c['Horario cierre local'];
+      CFG.diasAbierto = diasRow.map(v => (v !== null && v !== '' && String(v) !== '0') ? 1 : 0);
+
+      // Guardamos los arrays crudos (por día de la semana) para poder calcular "próxima apertura"
+      CFG.arrApertura = c['Horario apertura local'] || null;
+      CFG.arrCierre   = c['Horario cierre local']   || null;
+
+      CFG.cargado = true;
+      inicializarUI();
+    } catch(e) {
+      console.warn('No se pudo leer el horario de la planilla:', e.message);
+      CFG.cargado = false;
+      mostrarErrorHorario();
+      // Reintenta solo: si vuelve la conexión con el GAS, se autocorrige sin recargar la página
+      setTimeout(cargarConfig, REINTENTO_MS);
+    }
+  }
+
+  // Busca el próximo día en que el local abre (empezando mañana) y su horario.
+  // Devuelve { h, m, esManana, nombreDia }
+  function proximaApertura() {
+    const DIAS_JS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    const hoyJsDay = new Date().getDay();
+    for (let offset = 1; offset <= 7; offset++) {
+      const jsDay = (hoyJsDay + offset) % 7;
+      const planIdx = PLAN_A_JS.indexOf(jsDay);
+      if (planIdx === -1) continue;
+      if (CFG.diasAbierto[planIdx] !== 1) continue; // día cerrado, seguir buscando
+      const raw = CFG.arrApertura && CFG.arrApertura[planIdx];
+      const parsed = parseHora(raw);
+      return {
+        h: parsed ? parsed.h : CFG.aperturaH,
+        m: parsed ? parsed.m : CFG.aperturaM,
+        esManana: offset === 1,
+        nombreDia: DIAS_JS[jsDay]
+      };
+    }
+    // Fallback: si por algún motivo no encontró ningún día abierto en 7 días, usa la apertura general
+    return { h: CFG.aperturaH, m: CFG.aperturaM, esManana: true, nombreDia: null };
+  }
+
+  function esDiaAbierto() {
+    const planIdx = PLAN_A_JS.indexOf(new Date().getDay());
+    return planIdx === -1 || CFG.diasAbierto[planIdx] === 1;
+  }
+
+  // Texto de "próxima apertura" — SIEMPRE el próximo día que abre, nunca "hoy":
+  //  1. Si el próximo día abierto es mañana                                 → "Mañana abrimos a las X hs"
+  //  2. Si el próximo día abierto no es mañana (ej. cerrado varios días)    → "El <día> abrimos a las X hs"
+  // Siempre muestra el PRÓXIMO día que abre (Mañana / El <día>), nunca "Hoy
+  // abrimos a las X" — aunque todavía no haya abierto hoy, se prioriza
+  // mostrar la apertura de mañana.
+  function textoAperturaProxima() {
+    const prox = proximaApertura();
+    const hProx = String(prox.h).padStart(2,'0') + ':' + String(prox.m).padStart(2,'0');
+    const cuando = prox.esManana ? 'Mañana' : (prox.nombreDia ? `El ${prox.nombreDia}` : 'Pronto');
+    return `${cuando} abrimos a las ${hProx} hs`;
+  }
+
+  // Saludo dinámico según la hora (zona horaria Bariloche, no la del dispositivo)
+  function saludoSegunHora() {
+    const hora = parseInt(new Intl.DateTimeFormat('es-AR', {
+      timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', hourCycle: 'h23'
+    }).format(new Date()));
+    if (hora < 12) return 'Buenos días';
+    if (hora < 19) return 'Buenas tardes';
+    return 'Buenas noches';
+  }
+
+  function minutosParaCerrar() {
+    const ahora = new Date(), h = ahora.getHours(), m = ahora.getMinutes();
+    if (h < CFG.aperturaH || (h === CFG.aperturaH && m < CFG.aperturaM)) return -1;
+    if (!esDiaAbierto()) return -1;
+    const cierre = new Date();
+    cierre.setHours(CFG.cierreH, CFG.cierreM, 0, 0);
+    return Math.round((cierre - ahora) / 60000);
+  }
+
+  function avisarLlego() {
+    const mins = minutosParaCerrar();
+    const hCierre = String(CFG.cierreH).padStart(2,'0') + ':' + String(CFG.cierreM).padStart(2,'0');
+    const texto = mins > 0
+      ? `Hola! Ya voy al almacén, llego en 5 minutos 🏃 ¿Me esperás? (Cerrás a las ${hCierre})`
+      : `Hola! ¿Podés esperarme unos minutos? Ya voy al almacén 🙏`;
+    window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(texto)}`, '_blank');
+  }
+
+  // Estado honesto cuando NO se pudo leer la planilla: no se muestra ningún
+  // horario inventado, se avisa claramente que falta el dato real.
+  function mostrarErrorHorario() {
+    const badge      = document.getElementById('estadoBadge');
+    const estadoTxt   = document.getElementById('estadoTexto');
+    const puntoBadge  = document.getElementById('puntoBadge');
+    const cdWrap      = document.getElementById('countdownWrap');
+    const btnLlego    = document.getElementById('btnAunLlego');
+    const tarjeta     = document.getElementById('tarjetaEstado');
+    const elHora      = document.getElementById('horarioHora');
+    const elAp        = document.getElementById('aperturaTexto');
+    const diasDiv     = document.getElementById('dias');
+    const toggleSemana= document.getElementById('toggleSemana');
+    const panelSemana = document.getElementById('panelSemana');
+
+    if (tarjeta) tarjeta.classList.remove('urgencia-4','urgencia-2','urgencia-1');
+    if (badge)   badge.classList.add('cerrado');
+    if (estadoTxt) estadoTxt.textContent = 'Horario no disponible';
+    if (puntoBadge){ puntoBadge.style.background='#ffb300'; puntoBadge.style.boxShadow='none'; puntoBadge.style.animation='none'; }
+    if (cdWrap) cdWrap.classList.add('oculto');
+    if (btnLlego) btnLlego.classList.remove('visible');
+    if (elHora) elHora.textContent = '--:--';
+    if (elAp) elAp.textContent = 'No se pudo leer el horario desde la planilla';
+    if (diasDiv) diasDiv.innerHTML = '';
+    if (toggleSemana) toggleSemana.style.display = 'none';
+    if (panelSemana) { panelSemana.classList.remove('abierto'); panelSemana.innerHTML = ''; }
+
+    // El reloj en vivo (hora real del dispositivo/servidor) sigue funcionando
+    // igual: no depende de la planilla, así que no hay motivo para ocultarlo.
+    actualizarRelojSolo();
+    if (!window.__relojIntervalId) {
+      window.__relojIntervalId = setInterval(actualizarRelojSolo, 1000);
+    }
+  }
+
+  // Solo actualiza el reloj visual, sin tocar nada que dependa de CFG (usado
+  // mientras no hay datos válidos de la planilla).
+  function actualizarRelojSolo() {
+    const ahora = new Date();
+    const h = String(ahora.getHours()).padStart(2,'0');
+    const m = String(ahora.getMinutes()).padStart(2,'0');
+    const s = String(ahora.getSeconds()).padStart(2,'0');
+    const el = document.getElementById('relojHora');
+    if (el) el.textContent = `${h}:${m}:${s}`;
+  }
+
+  function inicializarUI() {
+    if (!CFG.cargado) { mostrarErrorHorario(); return; }
+    if (window.__relojIntervalId) { clearInterval(window.__relojIntervalId); window.__relojIntervalId = null; }
+    const DIAS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    const hoyJsDay = new Date().getDay();
+    const diasDiv = document.getElementById('dias');
+    diasDiv.innerHTML = '';
+    DIAS.forEach((d, jsIdx) => {
+      const planIdx = PLAN_A_JS.indexOf(jsIdx);
+      const abierto = planIdx === -1 || CFG.diasAbierto[planIdx] === 1;
+      const chip = document.createElement('div');
+      chip.className = 'dia-chip' + (jsIdx === hoyJsDay ? ' hoy' : '');
+      chip.textContent = d;
+      if (!abierto) chip.style.opacity = '0.35';
+      diasDiv.appendChild(chip);
+    });
+    // Hora cierre y apertura desde CFG — sin hardcodear
+    const hCierre   = String(CFG.cierreH).padStart(2,'0') + ':' + String(CFG.cierreM).padStart(2,'0');
+    const hApertura = String(CFG.aperturaH).padStart(2,'0') + ':' + String(CFG.aperturaM).padStart(2,'0');
+    const elHora = document.getElementById('horarioHora');
+    if (elHora) elHora.textContent = hCierre;
+    const elAp = document.getElementById('aperturaTexto');
+    if (elAp) elAp.textContent = textoAperturaProxima();
+    actualizarReloj();
+    setInterval(actualizarReloj, 1000);
+
+    const toggleSemana = document.getElementById('toggleSemana');
+    if (toggleSemana) toggleSemana.style.display = '';
+    renderHorarioSemana();
+  }
+
+  // Arma la lista de LUN..DOM con la apertura/cierre reales de la planilla
+  // (CFG.arrApertura / CFG.arrCierre), tal cual están cargados — ningún
+  // horario se inventa acá, si un día no tiene datos se muestra "Cerrado".
+  function renderHorarioSemana() {
+    const panel = document.getElementById('panelSemana');
+    if (!panel || !CFG.cargado) return;
+    const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const hoyJsDay = new Date().getDay();
+    panel.innerHTML = '';
+    DIAS.forEach((nombre, jsIdx) => {
+      const planIdx = PLAN_A_JS.indexOf(jsIdx);
+      const abierto = planIdx !== -1 && CFG.diasAbierto[planIdx] === 1;
+      const fila = document.createElement('div');
+      fila.className = 'fila-semana' + (jsIdx === hoyJsDay ? ' hoy' : '') + (!abierto ? ' dia-cerrado' : '');
+
+      const spanNombre = document.createElement('span');
+      spanNombre.className = 'nombre-dia';
+      spanNombre.textContent = nombre;
+
+      const spanRango = document.createElement('span');
+      spanRango.className = 'rango-horario';
+      if (abierto) {
+        const apRaw = CFG.arrApertura && parseHora(CFG.arrApertura[planIdx]);
+        const ciRaw = CFG.arrCierre   && parseHora(CFG.arrCierre[planIdx]);
+        if (apRaw && ciRaw) {
+          const hAp = String(apRaw.h).padStart(2,'0') + ':' + String(apRaw.m).padStart(2,'0');
+          const hCi = String(ciRaw.h).padStart(2,'0') + ':' + String(ciRaw.m).padStart(2,'0');
+          spanRango.textContent = `${hAp} – ${hCi}`;
+        } else {
+          spanRango.textContent = 'Sin dato';
+        }
+      } else {
+        spanRango.textContent = 'Cerrado';
+      }
+
+      fila.appendChild(spanNombre);
+      fila.appendChild(spanRango);
+      panel.appendChild(fila);
+    });
+  }
+
+  function toggleHorarioSemana() {
+    const btn   = document.getElementById('toggleSemana');
+    const panel = document.getElementById('panelSemana');
+    if (!btn || !panel) return;
+    const abrir = !panel.classList.contains('abierto');
+    panel.classList.toggle('abierto', abrir);
+    btn.classList.toggle('abierto', abrir);
+    btn.querySelector('span').textContent = abrir ? 'Ocultar horario completo' : 'Ver horario completo';
+  }
+
+  // Reloj en vivo (usado solo cuando CFG.cargado === true; el interval que
+  // llama a esta función se arranca en inicializarUI(), que ya filtra ese caso)
+  function actualizarReloj() {
+    if (!CFG.cargado) { mostrarErrorHorario(); return; }
+    const ahora = new Date();
+    const h = String(ahora.getHours()).padStart(2,'0');
+    const m = String(ahora.getMinutes()).padStart(2,'0');
+    const s = String(ahora.getSeconds()).padStart(2,'0');
+    document.getElementById('relojHora').textContent = `${h}:${m}:${s}`;
+
+    const mins      = minutosParaCerrar(); // fuente de verdad — no se duplica
+    const badge     = document.getElementById('estadoBadge');
+    const estadoTxt = document.getElementById('estadoTexto');
+    const puntoBadge= document.getElementById('puntoBadge');
+    const btnLlego  = document.getElementById('btnAunLlego');
+    const tarjeta   = document.getElementById('tarjetaEstado');
+    const cdWrap    = document.getElementById('countdownWrap');
+    const cdTexto   = document.getElementById('countdownTexto');
+    const apTexto   = document.getElementById('aperturaTexto');
+    const hApertura = String(CFG.aperturaH).padStart(2,'0') + ':' + String(CFG.aperturaM).padStart(2,'0');
+
+    if (tarjeta) tarjeta.classList.remove('urgencia-4','urgencia-2','urgencia-1');
+
+    if (mins <= 0) {
+      // ── CERRADO ──
+      if (badge)    badge.classList.add('cerrado');
+      if (estadoTxt) estadoTxt.textContent = 'Cerrado';
+      if (puntoBadge){ puntoBadge.style.background='#ef9a9a'; puntoBadge.style.boxShadow='none'; puntoBadge.style.animation='none'; }
+      if (cdWrap)   cdWrap.classList.add('oculto');
+      if (btnLlego) btnLlego.classList.remove('visible');
+      if (apTexto)  apTexto.textContent = textoAperturaProxima();
+    } else {
+      // ── ABIERTO ──
+      if (badge)    badge.classList.remove('cerrado');
+      if (puntoBadge){ puntoBadge.style.background='#69f0ae'; puntoBadge.style.boxShadow='0 0 8px #69f0ae'; puntoBadge.style.animation=''; }
+      if (cdWrap)   cdWrap.classList.remove('oculto');
+      if (apTexto)  apTexto.textContent = textoAperturaProxima();
+
+      // Countdown
+      const horas  = Math.floor(mins / 60);
+      const minRest = mins % 60;
+      let cdStr = horas > 0
+        ? 'Cerramos en ' + horas + 'h ' + String(minRest).padStart(2,'0') + 'm'
+        : 'Cerramos en ' + mins + ' min';
+
+      // Niveles de urgencia basados en minutosParaCerrar()
+      if (mins <= 60) {
+        if (tarjeta)   tarjeta.classList.add('urgencia-1');
+        if (estadoTxt) estadoTxt.textContent = '⚠️ Últimas horas';
+        cdStr = '⏰ Cerramos en ' + mins + ' min';
+      } else if (mins <= 120) {
+        if (tarjeta)   tarjeta.classList.add('urgencia-2');
+        if (estadoTxt) estadoTxt.textContent = '⚠️ Últimas horas';
+      } else if (mins <= 240) {
+        if (tarjeta)   tarjeta.classList.add('urgencia-4');
+        if (estadoTxt) estadoTxt.textContent = 'Abierto ahora';
+      } else {
+        if (estadoTxt) estadoTxt.textContent = 'Abierto ahora';
+      }
+
+      if (cdTexto) cdTexto.textContent = cdStr;
+
+      if (btnLlego) {
+        if (mins <= MINUTOS_AVISO) {
+          btnLlego.classList.add('visible');
+          btnLlego.textContent = `🏃 ¡Aún llego! (cierra en ${mins} min)`;
+        } else {
+          btnLlego.classList.remove('visible');
+        }
+      }
+    }
+
+    // postMessage al padre cuando se usa como iframe
+    const hCierre = String(CFG.cierreH).padStart(2,'0') + ':' + String(CFG.cierreM).padStart(2,'0');
+    let estadoMsg = mins <= 0
+      ? `🔴 Cerrado. ${textoAperturaProxima()}`
+      : mins <= MINUTOS_AVISO
+        ? `⚠️ Cerramos en ${mins} min (${hCierre} hs)`
+        : `✅ Abierto. Cerramos a las ${hCierre} hs`;
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ tipo: 'horario_estado', texto: estadoMsg }, '*');
+    }
+  }
+
+async function compartirHorario() {
+  const btn = document.querySelector('.btn-compartir');
+
+  if (!CFG.cargado) {
+    alert('Todavía no se pudo leer el horario desde la planilla. Esperá unos segundos e intentá de nuevo.');
+    return;
+  }
+
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '⏳ Generando imagen...';
+  btn.style.pointerEvents = 'none';
+
+  try {
+    // Esperar que las fuentes estén listas antes de dibujar
+    await document.fonts.ready;
+
+    // Forzar que Bebas Neue y Nunito estén activas
+    const testCanvas = document.createElement('canvas');
+    const testCtx = testCanvas.getContext('2d');
+    testCtx.font = 'bold 12px Bebas Neue, sans-serif'; testCtx.fillText('A', 0, 0);
+    testCtx.font = 'bold 12px Nunito, sans-serif'; testCtx.fillText('A', 0, 0);
+
+    const canvas = document.getElementById('canvasShare');
+    const W = 800, H = 900;
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // Fondo degradado verde
+    const grad = ctx.createLinearGradient(0, 0, W * 0.4, H);
+    grad.addColorStop(0, '#1a4a1e');
+    grad.addColorStop(0.4, '#1b5e20');
+    grad.addColorStop(1, '#2d5a1b');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Círculos decorativos
+    const drawCircle = (x, y, r, color, alpha) => {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    };
+    drawCircle(W + 80, -80, 300, '#ff9800', 0.07);
+    drawCircle(-60, H + 60, 200, '#4caf50', 0.07);
+
+    // Nombre almacén
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 72px Bebas Neue, Arial Black, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 20;
+    ctx.fillText('Almacén', W / 2, 120);
+    ctx.fillText('Copihue', W / 2, 195);
+    ctx.shadowBlur = 0;
+
+    // Subtítulo
+    ctx.fillStyle = '#ff9800';
+    ctx.font = 'bold 28px Nunito, Arial, sans-serif';
+    ctx.fillText('BARILOCHE', W / 2, 240);
+
+    // Línea divisora
+    const lineGrad = ctx.createLinearGradient(0, 0, W, 0);
+    lineGrad.addColorStop(0, 'transparent');
+    lineGrad.addColorStop(0.5, '#ff9800');
+    lineGrad.addColorStop(1, 'transparent');
+    ctx.strokeStyle = lineGrad;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    ctx.moveTo(60, 270);
+    ctx.lineTo(W - 60, 270);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Tarjeta estado
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1.5;
+    const rx = 60, ry = 300, rw = W - 120, rh = 340;
+    const rad = 30;
+    ctx.beginPath();
+    ctx.moveTo(rx + rad, ry);
+    ctx.lineTo(rx + rw - rad, ry);
+    ctx.arcTo(rx + rw, ry, rx + rw, ry + rad, rad);
+    ctx.lineTo(rx + rw, ry + rh - rad);
+    ctx.arcTo(rx + rw, ry + rh, rx + rw - rad, ry + rh, rad);
+    ctx.lineTo(rx + rad, ry + rh);
+    ctx.arcTo(rx, ry + rh, rx, ry + rh - rad, rad);
+    ctx.lineTo(rx, ry + rad);
+    ctx.arcTo(rx, ry, rx + rad, ry, rad);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    // Badge estado
+    const mins = minutosParaCerrar();
+    const estaAbierto = mins > 0;
+    const badgeTexto = estaAbierto ? 'Abierto ahora' : 'Cerrado';
+
+    ctx.save();
+    ctx.font = 'bold 26px Nunito, Arial, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+
+    const puntoRadio = 8;
+    const gapIconoTexto = 14;
+    const padX = 26;
+    const badgeH = 56;
+    const badgeY = 330;
+
+    const textMetrics = ctx.measureText(badgeTexto);
+    const textW = Math.ceil(textMetrics.width);
+    const badgeW = padX + (puntoRadio * 2) + gapIconoTexto + textW + padX;
+    const badgeX = Math.round((W - badgeW) / 2);
+    const badgeCy = badgeY + badgeH / 2;
+
+    const badgeGrad = ctx.createLinearGradient(badgeX, badgeY, badgeX + badgeW, badgeY);
+    badgeGrad.addColorStop(0, estaAbierto ? '#e65100' : '#7f0000');
+    badgeGrad.addColorStop(1, estaAbierto ? '#ff6f00' : '#b71c1c');
+
+    ctx.fillStyle = badgeGrad;
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, badgeH / 2);
+    ctx.fill();
+
+    // brillo suave
+    ctx.shadowColor = estaAbierto ? 'rgba(255,152,0,0.45)' : 'rgba(183,28,28,0.35)';
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, badgeH / 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // punto
+    const puntoCx = badgeX + padX + puntoRadio;
+    ctx.fillStyle = estaAbierto ? '#69f0ae' : '#ef9a9a';
+    ctx.beginPath();
+    ctx.arc(puntoCx, badgeCy, puntoRadio, 0, Math.PI * 2);
+    ctx.fill();
+
+    // texto
+    const textoX = puntoCx + puntoRadio + gapIconoTexto;
+    ctx.fillStyle = 'white';
+    ctx.fillText(badgeTexto, textoX, badgeCy + 1);
+    ctx.restore();
+
+    // Horario cierre
+    const hCierre = String(CFG.cierreH).padStart(2, '0') + ':' + String(CFG.cierreM).padStart(2, '0');
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = 'bold 22px Nunito, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('HORARIO DE CIERRE', W / 2, 430);
+
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 120px Bebas Neue, Arial Black, sans-serif';
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 16;
+    ctx.fillText(hCierre, W / 2, 555);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#ff9800';
+    ctx.font = 'bold 30px Nunito, Arial, sans-serif';
+    ctx.fillText('hs', W / 2, 590);
+
+    // Apertura
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = 'bold 22px Nunito, Arial, sans-serif';
+    ctx.fillText(textoAperturaProxima(), W / 2, 635);
+
+    // Días de la semana
+    const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const hoyJsDay = new Date().getDay();
+    const chipW = 84, chipH = 36, chipGap = 12;
+    const totalW = DIAS.length * chipW + (DIAS.length - 1) * chipGap;
+    let cx = (W - totalW) / 2;
+
+    DIAS.forEach((d, jsIdx) => {
+      const planIdx = PLAN_A_JS.indexOf(jsIdx);
+      const abierto = planIdx === -1 || CFG.diasAbierto[planIdx] === 1;
+      const esHoy = jsIdx === hoyJsDay;
+
+      ctx.save();
+      ctx.globalAlpha = abierto ? 1 : 0.35;
+
+      if (esHoy) {
+        const dg = ctx.createLinearGradient(cx, 0, cx + chipW, 0);
+        dg.addColorStop(0, '#e65100');
+        dg.addColorStop(1, '#ff9800');
+        ctx.fillStyle = dg;
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      }
+
+      ctx.beginPath();
+      ctx.roundRect(cx, 658, chipW, chipH, 18);
+      ctx.fill();
+
+      ctx.fillStyle = esHoy ? 'white' : 'rgba(255,255,255,0.8)';
+      ctx.font = 'bold 18px Nunito, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(d, cx + chipW / 2, 682);
+
+      ctx.restore();
+      cx += chipW + chipGap;
+    });
+
+    // Pie
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '20px Nunito, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('almacen-copihue.vercel.app', W / 2, H - 40);
+
+    // Convertir a blob y compartir
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob((b) => {
+        if (b) resolve(b);
+        else reject(new Error('No se pudo crear el blob del canvas'));
+      }, 'image/png');
+    });
+
+    const nombreArchivo = `horario-copihue-${Date.now()}.png`;
+    const file = new File([blob], nombreArchivo, { type: 'image/png' });
+
+    // Texto de compartir: si está abierto, muestra hora de cierre. Si está cerrado,
+    // muestra cuándo vuelve a abrir (mañana, o el día que corresponda).
+    let textoCompartir;
+    if (estaAbierto) {
+      textoCompartir = `🏪 Almacén Copihue • Bariloche\n¡${saludoSegunHora()}, vecino! Estamos atendiendo hasta las ${hCierre} hs 🧡`;
+    } else {
+      const prox = proximaApertura();
+      const hProx = String(prox.h).padStart(2, '0') + ':' + String(prox.m).padStart(2, '0');
+      const cuando = prox.esManana ? 'mañana' : (prox.nombreDia ? `el ${prox.nombreDia}` : 'pronto');
+      textoCompartir = `🏪 Almacén Copihue • Bariloche\nCerrado — abrimos ${cuando} a las ${hProx} hs`;
+    }
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: 'Almacén Copihue — Horario',
+          text: textoCompartir
+        });
+      } catch (e) {
+        if (e.name !== 'AbortError') descargarImagen(canvas);
+      }
+    } else {
+      descargarImagen(canvas);
+    }
+
+    btn.innerHTML = originalText;
+    btn.style.pointerEvents = '';
+
+  } catch (e) {
+    console.error(e);
+    btn.innerHTML = originalText;
+    btn.style.pointerEvents = '';
+    alert('No se pudo generar la imagen.');
+  }
+}
+
+  function descargarImagen(canvas) {
+    const a = document.createElement('a');
+    a.download = 'horario-copihue.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  }
+
+  // Cargar config desde planilla y arrancar
+  cargarConfig();
+</script>
+
+<!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
+<script>
+/*AV*/var AV_PAG='horario',AV_VER='17';
+(function () {
+  var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
+  function cartel(txt, color, alTocar, ms) {
+    try {
+      if (aviso) aviso.remove();
+      var d = document.createElement('div'); aviso = d;
+      d.setAttribute('role', 'status');
+      d.style.cssText = 'position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:2147483600;max-width:92vw;padding:10px 16px;border-radius:14px;'
+        + 'font:800 14px/1.3 system-ui,-apple-system,sans-serif;color:#fff;background:' + color + ';box-shadow:0 6px 20px rgba(0,0,0,.3);cursor:pointer;text-align:center';
+      d.textContent = txt;
+      d.onclick = function () { d.remove(); aviso = null; if (alTocar) alTocar(); };
+      (document.body || document.documentElement).appendChild(d);
+      if (ms) setTimeout(function () { if (aviso === d) { d.remove(); aviso = null; } }, ms);
+    } catch (e) {}
+  }
+  // 1) al abrir: ¿cambió la versión desde la última vez en este aparato?
+  try {
+    var antes = localStorage.getItem(CLAVE);
+    localStorage.setItem(CLAVE, AV_VER);
+    if (antes && antes !== AV_VER) setTimeout(function () { cartel('✅ Se actualizó a v' + AV_VER, '#2e7d32', null, 6000); }, 900);
+  } catch (e) {}
+  // 2) recargar de verdad (también la app instalada): memoria vieja afuera + página nueva desde internet
+  function actualizar() {
+    cartel('⏳ Actualizando…', '#1565c0');
+    var tareas = [];
+    try { if ('caches' in window) tareas.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); })); } catch (e) {}
+    try { if (navigator.serviceWorker) tareas.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.update().catch(function () {}); })); })); } catch (e) {}
+    try { tareas.push(fetch(location.pathname + location.search, { cache: 'reload' }).catch(function () {})); } catch (e) {}
+    Promise.all(tareas).catch(function () {}).then(function () { location.reload(); });
+  }
+  window.copihueActualizar = actualizar;
+  // 3) ¿hay una versión más nueva publicada? (liviano: solo la misma página, no la planilla)
+  function revisar() {
+    if (document.visibilityState === 'hidden' || !navigator.onLine) return;
+    var ahora = Date.now(); if (ahora - ult < 60000) return; ult = ahora;
+    fetch(location.pathname + '?avchk=' + ahora, { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
+      var m = /\/\*AV\*\/var AV_PAG='([^']*)',AV_VER='([^']*)'/.exec(t || '');
+      if (m && m[1] === AV_PAG && m[2] !== AV_VER) cartel('🔄 Hay versión nueva (v' + m[2] + ') — tocá para actualizar', '#e65100', actualizar);
+    }).catch(function () {});
+  }
+  setTimeout(revisar, 20000);
+  setInterval(revisar, 10 * 60 * 1000);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') revisar(); });
+})();
+</script>
+</body>
+</html>

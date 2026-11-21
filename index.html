@@ -3083,7 +3083,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v222';
+const APP_VERSION = 'copihue-index-v223';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -8937,5 +8937,53 @@ function tic(){p.classList.remove('stg-pulso');void p.offsetWidth;p.classList.ad
 setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 </script>
 
+<!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
+<script>
+/*AV*/var AV_PAG='index',AV_VER='223';
+(function () {
+  var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
+  function cartel(txt, color, alTocar, ms) {
+    try {
+      if (aviso) aviso.remove();
+      var d = document.createElement('div'); aviso = d;
+      d.setAttribute('role', 'status');
+      d.style.cssText = 'position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:2147483600;max-width:92vw;padding:10px 16px;border-radius:14px;'
+        + 'font:800 14px/1.3 system-ui,-apple-system,sans-serif;color:#fff;background:' + color + ';box-shadow:0 6px 20px rgba(0,0,0,.3);cursor:pointer;text-align:center';
+      d.textContent = txt;
+      d.onclick = function () { d.remove(); aviso = null; if (alTocar) alTocar(); };
+      (document.body || document.documentElement).appendChild(d);
+      if (ms) setTimeout(function () { if (aviso === d) { d.remove(); aviso = null; } }, ms);
+    } catch (e) {}
+  }
+  // 1) al abrir: ¿cambió la versión desde la última vez en este aparato?
+  try {
+    var antes = localStorage.getItem(CLAVE);
+    localStorage.setItem(CLAVE, AV_VER);
+    if (antes && antes !== AV_VER) setTimeout(function () { cartel('✅ Se actualizó a v' + AV_VER, '#2e7d32', null, 6000); }, 900);
+  } catch (e) {}
+  // 2) recargar de verdad (también la app instalada): memoria vieja afuera + página nueva desde internet
+  function actualizar() {
+    cartel('⏳ Actualizando…', '#1565c0');
+    var tareas = [];
+    try { if ('caches' in window) tareas.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); })); } catch (e) {}
+    try { if (navigator.serviceWorker) tareas.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.update().catch(function () {}); })); })); } catch (e) {}
+    try { tareas.push(fetch(location.pathname + location.search, { cache: 'reload' }).catch(function () {})); } catch (e) {}
+    Promise.all(tareas).catch(function () {}).then(function () { location.reload(); });
+  }
+  window.copihueActualizar = actualizar;
+  // 3) ¿hay una versión más nueva publicada? (liviano: solo la misma página, no la planilla)
+  function revisar() {
+    if (document.visibilityState === 'hidden' || !navigator.onLine) return;
+    var ahora = Date.now(); if (ahora - ult < 60000) return; ult = ahora;
+    fetch(location.pathname + '?avchk=' + ahora, { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
+      var m = /\/\*AV\*\/var AV_PAG='([^']*)',AV_VER='([^']*)'/.exec(t || '');
+      if (m && m[1] === AV_PAG && m[2] !== AV_VER) cartel('🔄 Hay versión nueva (v' + m[2] + ') — tocá para actualizar', '#e65100', actualizar);
+    }).catch(function () {});
+  }
+  setTimeout(revisar, 20000);
+  setInterval(revisar, 10 * 60 * 1000);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') revisar(); });
+})();
+</script>
 </body>
 </html>
