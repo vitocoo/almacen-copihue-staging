@@ -508,6 +508,9 @@
         .rv-banda .rv-ahorro { color: #fff; font-weight: 800; margin-top: 4px; }
         .rv-banda .rv-texto { color: #fff; font-style: normal; font-weight: 800; font-size: .95rem; margin-top: 8px; }
         .rv-pie2 { padding: 10px 14px 14px; text-align: center; }
+        /* v221 — etiqueta del GRUPO (copihue-revista.html) */
+        .rv-grupo { display: inline-block; font-size: .72rem; font-weight: 900; letter-spacing: .3px; padding: 3px 11px; border-radius: 12px; background: var(--rv-b1, #c62828); color: #fff; margin-bottom: 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rv-banda .rv-grupo { background: rgba(255,255,255,.22); border: 1px solid rgba(255,255,255,.5); margin-bottom: 8px; }
         .rv-pie2 .rv-stock { margin-bottom: 2px; }
         /* v213 — 🎄 Revista */
         .ofertas-container.revista { border-color: var(--rv-f1, #b71c1c); background: linear-gradient(160deg, var(--rv-f1, #7f0000), var(--rv-f2, #1b5e20)); padding-bottom: 14px; }
@@ -3064,7 +3067,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v220';
+const APP_VERSION = 'copihue-index-v221';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -8634,7 +8637,7 @@ function _rvAplicarTema() {
 }
 function _rvLista() {
     if (!_poolRevista || !_poolRevista.activa) return [];
-    return (_poolRevista.items || []).map(it => { const p = products.find(x => x.id === Number(it.id)); return p && p.stockNumber > 0 ? { ...p, rvTexto: it.texto || '', rvDestacado: !!it.destacado, rvPrecio: _rvPrecioVigente(p.id), rvOtra: _rvOtraOferta(p) } : null; }).filter(Boolean);
+    return (_poolRevista.items || []).map(it => { const p = products.find(x => x.id === Number(it.id)); return p && p.stockNumber > 0 ? { ...p, rvTexto: it.texto || '', rvGrupo: String(it.grupo || '').trim(), rvDestacado: !!it.destacado, rvPrecio: _rvPrecioVigente(p.id), rvOtra: _rvOtraOferta(p) } : null; }).filter(Boolean);
 }
 function _rvTel() { return (window._EMPRESA && window._EMPRESA.telefono) ? window._EMPRESA.telefono.replace(/\D/g, '') : '5492944907380'; }
 function _rvEsc(t) { return String(t || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -8645,6 +8648,7 @@ function _rvHtmlLimpio(lista, titulo) {
                 ${p.rvPrecio && _rvEst().mov === 'NO' ? '<div class="rv-sello rv-sello-precio">🎄 Precio revista</div>' : (p.rvDestacado ? '<div class="rv-sello">⭐ Recomendado</div>' : '')}
                 <div class="rv-foto">${p.rvPrecio ? _rvDistHTML(p.price, p.rvPrecio) : ''}<img src="${p.image}" loading="lazy" alt="${_rvEsc(p.name)}" onerror="handleImageError(this, '${p.name.replace(/'/g, "\\'")}')"></div>
                 <div class="rv-info">
+                    ${p.rvGrupo ? `<div class="rv-grupo">${_rvEsc(p.rvGrupo)}</div>` : ''}
                     <div class="product-name rv-nombre">${_rvEsc(p.name)}</div>
                     ${p.rvTexto ? `<div class="rv-texto">“${_rvEsc(p.rvTexto)}”</div>` : ''}
                     ${p.rvPrecio ? `<div class="rv-antes">$${Number(p.price).toLocaleString('es-AR')}</div><div class="rv-precio">$${Number(p.rvPrecio).toLocaleString('es-AR')}</div><div class="rv-ahorro">✅ Ahorrás $${(p.price - p.rvPrecio).toLocaleString('es-AR')}</div>` : `<div class="rv-precio">$${Number(p.price).toLocaleString('es-AR')}</div>`}
@@ -8675,6 +8679,7 @@ function renderizarRevista() {
                 ${p.rvPrecio && _rvEst().mov === 'NO' ? '<div class="rv-sello rv-sello-precio">🎄 Precio revista</div>' : (p.rvDestacado ? '<div class="rv-sello">⭐ Recomendado</div>' : '')}
                 <div class="rv-foto">${p.rvPrecio ? _rvDistHTML(p.price, p.rvPrecio) : ''}<img src="${p.image}" loading="lazy" alt="${_rvEsc(p.name)}" onerror="handleImageError(this, '${p.name.replace(/'/g, "\\'")}')"></div>
                 <div class="rv-banda">
+                    ${p.rvGrupo ? `<div class="rv-grupo">${_rvEsc(p.rvGrupo)}</div>` : ''}
                     <div class="rv-tit">${_rvEsc(_rvTituloCorto(p.name))}</div>
                     <div class="product-name rv-nombre">${_rvEsc(p.name)}</div>
                     ${p.rvPrecio ? `<div class="rv-antes">$${Number(p.price).toLocaleString('es-AR')}</div><div class="rv-precio">$${Number(p.rvPrecio).toLocaleString('es-AR')}</div><div class="rv-ahorro">✅ Ahorrás $${(p.price - p.rvPrecio).toLocaleString('es-AR')}</div>` : `<div class="rv-precio">$${Number(p.price).toLocaleString('es-AR')}</div>`}
@@ -8747,6 +8752,12 @@ function _rvCortar(c, txt, max, lineas) {
     if (out.length > lineas) { out.length = lineas; let u = out[lineas - 1]; while (u && c.measureText(u + '…').width > max) u = u.slice(0, -1); out[lineas - 1] = u + '…'; }
     return out;
 }
+function _rvGrupoCanvas(c, p, x, y) {   // v221 — etiqueta del grupo en la imagen
+    if (!p.rvGrupo) return; const t = _rvTema(); c.save(); c.textAlign = 'left'; c.font = '900 30px sans-serif';
+    const tx = _rvCortar(c, p.rvGrupo, 560, 1)[0], w = c.measureText(tx).width + 44;
+    c.fillStyle = t.b1; c.beginPath(); c.roundRect(x, y, w, 58, 29); c.fill(); c.fillStyle = '#fff'; c.fillText(tx, x + 22, y + 40); c.restore();
+}
+function _rvGruposDe(lista) { const v = new Map(); lista.forEach(p => { if (p.rvGrupo && !v.has(p.rvGrupo.toUpperCase())) v.set(p.rvGrupo.toUpperCase(), p.rvGrupo); }); return [...v.values()]; }
 function _rvFondo(c, W, H) {
     const t = _rvTema(), g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, t.f1); g.addColorStop(1, t.f2); c.fillStyle = g; c.fillRect(0, 0, W, H);
     c.fillStyle = 'rgba(255,255,255,' + (t.nieve ? .18 : .07) + ')'; for (let k = 0; k < 40; k++) { c.beginPath(); c.arc((k * 97) % W, (k * 211) % H, 3 + (k % 4), 0, Math.PI * 2); c.fill(); }   // nieve
@@ -8758,7 +8769,10 @@ async function _rvTapa(lista, titulo) {
     const logo = await _rvImg('logo-copihue.png');
     c.fillStyle = '#fdf0c4'; c.beginPath(); c.roundRect(W / 2 - 170, 50, 340, 190, 28); c.fill(); _rvImgEn(c, logo, W / 2 - 150, 65, 300, 160);
     c.fillStyle = '#fff'; c.textAlign = 'center'; c.font = '900 76px sans-serif'; _rvCortar(c, _rvTema().ico + ' ' + titulo, 1000, 2).forEach((l, i) => c.fillText(l, W / 2, 340 + i * 86));
-    c.font = '700 36px sans-serif'; c.fillStyle = '#ffe082'; c.fillText('Ideas para regalar · ' + lista.length + ' productos', W / 2, 470);
+    c.font = '700 36px sans-serif'; c.fillStyle = '#ffe082';
+    const grs = _rvGruposDe(lista);   // v221 — si hay grupos, la tapa los nombra
+    if (grs.length) { c.font = '800 34px sans-serif'; c.fillText(_rvCortar(c, grs.join(' · '), 1000, 1)[0], W / 2, 470); }
+    else c.fillText('Ideas para regalar · ' + lista.length + ' productos', W / 2, 470);
     const cel = lista.slice(0, 6), cols = 3, cw = 300, ch = 300, x0 = (W - cols * cw - 2 * 24) / 2;
     for (let k = 0; k < cel.length; k++) {
         const x = x0 + (k % cols) * (cw + 24), y = 520 + Math.floor(k / cols) * (ch + 24);
@@ -8782,6 +8796,7 @@ async function _rvPaginaLimpia(p, n, total, titulo) {   // v219 — estilo LIMPI
     c.fillStyle = '#fff'; c.beginPath(); c.roundRect(60, 120, W - 120, 1080, 40); c.fill();
     _rvImgEn(c, await _rvImg(p.image), 120, 160, W - 240, 560);
     if (p.rvDestacado) { c.fillStyle = '#ffb300'; c.beginPath(); c.roundRect(90, 150, 300, 64, 32); c.fill(); c.fillStyle = '#3e2723'; c.font = '900 32px sans-serif'; c.fillText('⭐ Recomendado', 112, 194); }
+    _rvGrupoCanvas(c, p, 90, p.rvDestacado ? 226 : 150);   // v221
     c.textAlign = 'center'; c.fillStyle = '#1b1b1b'; c.font = '900 46px sans-serif';
     _rvCortar(c, p.name, W - 200, 2).forEach((l, i) => c.fillText(l, W / 2, 800 + i * 56));
     let y = 930;
@@ -8808,6 +8823,7 @@ async function _rvPaginaImpacto(p, n, total, titulo) {   // v217 — estilo IMPA
     c.globalAlpha = .92; c.fillStyle = g; c.beginPath(); c.moveTo(60, 730); c.lineTo(W - 60, 676); c.lineTo(W - 60, 1200); c.lineTo(60, 1200); c.closePath(); c.fill();
     c.globalAlpha = 1; c.restore();
     if (p.rvDestacado) { c.fillStyle = '#ffb300'; c.beginPath(); c.roundRect(90, 150, 300, 64, 32); c.fill(); c.fillStyle = '#3e2723'; c.font = '900 32px sans-serif'; c.fillText('⭐ Recomendado', 112, 194); }
+    _rvGrupoCanvas(c, p, 90, p.rvDestacado ? 226 : 150);   // v221
     c.fillStyle = '#fff'; c.font = '900 70px sans-serif'; c.shadowColor = 'rgba(0,0,0,.25)'; c.shadowOffsetX = 4; c.shadowOffsetY = 4;
     const tl = _rvCortar(c, _rvTituloCorto(p.name).toUpperCase(), W - 240, 2); tl.forEach((l, i) => c.fillText(l, 110, 806 + i * 72));
     let y = 806 + (tl.length - 1) * 72 + 40;
@@ -8844,7 +8860,7 @@ window.abrirCompartirRevista = async function () {
             _rvFiles.push(new File([blob], (k ? 'revista-' + k : 'revista-tapa') + '.jpg', { type: 'image/jpeg' }));
         }
         const url = location.origin + '/#revista';
-        _rvTextoWA = `${_rvTema().ico} *${titulo} — Almacén Copihue*\nIdeas para regalar, con stock:\n\n` + lista.slice(0, 8).map(p => p.rvPrecio ? `• ${p.name} — ~$${Number(p.price).toLocaleString('es-AR')}~ *$${Number(p.rvPrecio).toLocaleString('es-AR')}* 🎄` : `• ${p.name} — *$${Number(p.price).toLocaleString('es-AR')}*`).join('\n') + (lista.length > 8 ? `\n…y ${lista.length - 8} más` : '') + `\n\n🗓 ${_rvVigencia(true) || ('Precios del ' + _rvAhora() + ', sujetos a stock')}.\n📍 Retiro en Copihue 457\n📖 Mirá la revista y el precio actualizado: ${url}`;
+        _rvTextoWA = `${_rvTema().ico} *${titulo} — Almacén Copihue*\nIdeas para regalar, con stock:\n\n` + lista.slice(0, 8).map((p, k, a) => (p.rvGrupo && (k === 0 || (a[k - 1].rvGrupo || '').toUpperCase() !== p.rvGrupo.toUpperCase()) ? `${k ? '\n' : ''}*${p.rvGrupo}*\n` : (!p.rvGrupo && k && a[k - 1].rvGrupo ? '\n' : '')) + (p.rvPrecio ? `• ${p.name} — ~$${Number(p.price).toLocaleString('es-AR')}~ *$${Number(p.rvPrecio).toLocaleString('es-AR')}* 🎄` : `• ${p.name} — *$${Number(p.price).toLocaleString('es-AR')}*`)).join('\n') + (lista.length > 8 ? `\n…y ${lista.length - 8} más` : '') + `\n\n🗓 ${_rvVigencia(true) || ('Precios del ' + _rvAhora() + ', sujetos a stock')}.\n📍 Retiro en Copihue 457\n📖 Mirá la revista y el precio actualizado: ${url}`;
         btn.disabled = false;
     } catch (e) { console.warn('compartir revista:', e); wrap.innerHTML = '<div style="color:#fff;padding:30px;text-align:center">No se pudo armar la revista. Probá de nuevo.</div>'; }
 };

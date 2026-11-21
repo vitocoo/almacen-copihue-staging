@@ -49,6 +49,23 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 .it{border:1.5px solid var(--borde);border-radius:14px;padding:8px;margin-bottom:8px;background:#fff}
 .it.malo{border-color:var(--rojo);background:var(--rl)}
 .it-top{display:flex;align-items:center;gap:10px}
+.it-drag{flex:none;width:30px;height:40px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;color:#9e9e9e;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:8px}
+.it-drag:hover{background:#f1f1f1;color:#555}
+.it.arrastrando{opacity:.92;box-shadow:0 10px 26px rgba(0,0,0,.25);border-color:var(--navidad);position:relative;z-index:5;transform:scale(1.02)}
+body.arrastrando{user-select:none;-webkit-user-select:none;cursor:grabbing}
+#lista.compacto .it>:not(.it-top){display:none}
+#lista.compacto .it{margin-bottom:5px;padding:5px 8px}
+#lista.compacto .it-acc{display:none}
+.grp{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:.74rem;font-weight:900;color:var(--gris)}
+.grp select{flex:1;min-width:0;padding:7px 9px;border:1.5px solid var(--borde);border-radius:10px;font-size:.84rem;font-family:inherit;background:#fff;color:#333}
+.gr-cab{display:flex;align-items:center;gap:6px;margin:12px 0 6px;padding:7px 10px;border-radius:10px;background:linear-gradient(90deg,#fff3e0,#fff);border-left:4px solid var(--navidad);font-weight:900;font-size:.86rem}
+.gr-cab span{flex:1;min-width:0}
+.gr-cab small{font-weight:700;color:var(--gris);font-size:.7rem}
+.gr-cab button{width:32px;height:30px;border-radius:8px;border:1.5px solid var(--borde);background:#fff;cursor:pointer;font-size:.9rem}
+.gr-cab button:disabled,.it-acc button:disabled{opacity:.3}
+.au-star{position:absolute;top:2px;left:2px;width:28px;height:28px;border-radius:50%;border:1.5px solid #ffb300;background:#fff8e1;font-size:.85rem;cursor:pointer;line-height:1;padding:0;z-index:2}
+.au-star:hover{background:#ffb300}
+@media (max-width:480px){.it-top{gap:6px}.it-drag{width:24px}.it-num{width:22px;height:22px;font-size:.72rem}.it-top img{width:34px;height:34px}.it-acc{gap:3px}.it-acc button{width:30px;height:32px;font-size:.9rem}}
 .it-num{flex:none;width:26px;height:26px;border-radius:50%;background:var(--navidad);color:#fff;font-weight:900;font-size:.8rem;display:flex;align-items:center;justify-content:center}
 .it-acc{display:flex;gap:4px;flex:none}
 .it-acc button{width:34px;height:34px;border-radius:10px;border:1.5px solid var(--borde);background:#fff;font-size:1rem;cursor:pointer}
@@ -165,7 +182,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 </div>
 
 <script>
-const APP_VERSION = 7;
+const APP_VERSION = 8;
 const API_URL = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
 const POS_URL = 'seba21-staging.html';
 const SEG_SESION_KEY = 'copihue_sesion';   // la misma sesión que guarda el POS (seba21)
@@ -197,7 +214,8 @@ async function cargar() {
         ]);
         if (!r1 || !r1.success) throw new Error((r1 && r1.mensaje) || 'La planilla no respondió');
         CFG = r1.config; CATS_INV = r1.categoriasInventario || [];
-        DEST = (r1.destacados || []).map(d => ({ producto: d.producto, texto: d.texto, precioRevista: d.precioRevista || '', existe: d.existe, stock: d.stock, precio: d.precio }));
+        DEST = (r1.destacados || []).map(d => ({ producto: d.producto, texto: d.texto, precioRevista: d.precioRevista || '', grupo: d.grupo || '', existe: d.existe, stock: d.stock, precio: d.precio }));
+        agrupar();
         HOY = r1.hoy || new Date().toISOString().slice(0, 10);
         OCULTOS = (r1.ocultos || []).slice();
         if (r1.config && r1.config.estallido) EST = Object.assign({}, EST, r1.config.estallido);
@@ -305,15 +323,16 @@ function dibujar() {
       <div class="ops" id="oMov">${[['LATIDO','💓 Latido'],['QUIETO','⏸ Quieto'],['NO','🚫 Sin distintivo']].map(([v,t]) => `<button type="button" class="chip" data-v="${v}" onclick="setEst('mov','${v}')">${t}</button>`).join('')}</div>
     </div></div>
 
-    <div class="card"><div class="card-t">⭐ Mis productos destacados <small>${DEST.length} · van primero</small></div><div class="card-b">
+    <div class="card"><div class="card-t">⭐ Mis productos destacados <small id="tDest">${DEST.length} · van primero</small></div><div class="card-b">
+      <div class="ayuda" style="margin:0 0 8px">Pueden ser de <b>cualquier categoría y precio</b> (Coca-Cola, pan dulce, budín…), solo con stock. Ordená con <b>☰ arrastrando</b> o con ↑↓. Elegí un <b>🗂 grupo</b> y quedan juntos en la revista; si soltás un producto dentro de un grupo, pasa a ese grupo. Con ↑↓ del título movés el grupo entero.</div>
       <input class="buscar" id="bus" type="text" placeholder="🔍 Buscar producto para agregar…" autocomplete="off" oninput="buscar()">
       <div class="res" id="res"></div>
       <div id="lista" style="margin-top:8px"></div>
     </div></div>
 
-    <div class="card"><div class="card-t">🤖 Se completa sola con <small>${(AUTO.items || []).filter(i => !i.destacado).length} productos</small></div><div class="card-b">
+    <div class="card"><div class="card-t">🤖 Se completa sola con <small id="tAuto">${(AUTO.items || []).filter(i => !i.destacado).length} productos</small></div><div class="card-b">
       <div class="ayuda" style="margin:0 0 8px">Productos con stock de las categorías elegidas, desde el precio mínimo, los más caros primero. Se actualiza al guardar.</div>
-      <div class="ayuda" style="margin:0 0 8px">👆 Tocá un producto para <b>sacarlo de la revista</b> (sigue a la venta normal en el catálogo).</div>
+      <div class="ayuda" style="margin:0 0 8px">👆 Tocá un producto para <b>sacarlo de la revista</b> (sigue a la venta normal en el catálogo). Tocá <b>⭐</b> para pasarlo a tus destacados y ordenarlo o agruparlo.</div>
       <div class="auto" id="auto"></div>
       <div id="ocultosBox"></div>
     </div></div>`;
@@ -323,12 +342,45 @@ function dibujar() {
 }
 function setActiva(v) { CFG.activa = v; document.querySelectorAll('.sw button').forEach(b => b.classList.toggle('on', b.classList.contains(v ? 'si' : 'no'))); marcarSucio(true); }
 function toggleCat(b) { b.classList.toggle('on'); marcarSucio(true); }
+// v8 — GRUPOS + arrastrar. Mismo criterio que Code.gs (_revAgrupar_): los del mismo grupo van juntos, los grupos en el
+// orden en que aparecen, los sin grupo quedan en su lugar. Mismo grupo = misma etiqueta (la del primero).
+const GRUPOS_RAPIDOS = ['🍞 Mesa navideña', '🎁 Regalos', '📺 Tecnología', '🥂 Para brindar'];
+function gk(g) { return String(g || '').trim().toUpperCase(); }
+function agrupar() {
+    const orden = [], por = {};
+    DEST.forEach((d, i) => { d.grupo = String(d.grupo || '').replace(/\s+/g, ' ').trim().slice(0, 30); const k = d.grupo ? 'G:' + gk(d.grupo) : 'S:' + i; if (!por[k]) { por[k] = []; orden.push(k); } por[k].push(d); });
+    DEST = orden.flatMap(k => { const et = por[k][0].grupo; por[k].forEach(d => d.grupo = et); return por[k]; });
+}
+function bloques() {   // tramos: un grupo entero o un producto sin grupo
+    const out = []; DEST.forEach((d, i) => { const ult = out[out.length - 1]; if (d.grupo && ult && ult.g && gk(ult.g) === gk(d.grupo)) ult.fin = i; else out.push({ g: d.grupo, ini: i, fin: i }); }); return out;
+}
+function adoptar(j) {   // si quedó entre dos del mismo grupo, pasa a ese grupo
+    const it = DEST[j], a = DEST[j - 1], b = DEST[j + 1];
+    if (it && a && b && a.grupo && gk(a.grupo) === gk(b.grupo) && gk(it.grupo) !== gk(a.grupo)) { it.grupo = a.grupo; return true; }
+    return false;
+}
+function gruposUsados() { const s = new Map(); GRUPOS_RAPIDOS.forEach(g => s.set(gk(g), g)); DEST.forEach(d => { if (d.grupo && !s.has(gk(d.grupo))) s.set(gk(d.grupo), d.grupo); }); return [...s.values()]; }
+function ponerGrupo(i, v) {
+    if (v === '__OTRO__') { const n = (prompt('Nombre del grupo (podés usar un emoji, ej: 🎅 Para los chicos)', '') || '').replace(/\s+/g, ' ').trim().slice(0, 30); if (!n) { dibujarLista(); return; } v = n; }
+    DEST[i].grupo = v; agrupar(); marcarSucio(true); dibujarLista();
+}
+function moverGrupo(ini, dir) {
+    const bl = bloques(), k = bl.findIndex(x => x.ini === ini), j = k + dir; if (k < 0 || j < 0 || j >= bl.length) return;
+    [bl[k], bl[j]] = [bl[j], bl[k]];
+    DEST = bl.flatMap(x => DEST.slice(x.ini, x.fin + 1)); marcarSucio(true); dibujarLista();
+}
 function dibujarLista() {
     const L = $('lista');
+    const t = $('tDest'); if (t) t.textContent = DEST.length + ' · van primero';
     if (!DEST.length) { L.innerHTML = '<div class="vacio">Todavía no elegiste productos. Buscalos arriba y tocá ＋.<br>Si no elegís ninguno, la revista se arma sola.</div>'; return; }
-    L.innerHTML = DEST.map((d, i) => `
-      <div class="it ${d.existe && d.stock > 0 ? '' : 'malo'}">
+    const bl = bloques(), opc = gruposUsados();
+    L.innerHTML = DEST.map((d, i) => {
+        const b = bl.find(x => x.ini === i && x.g), k = b ? bl.indexOf(b) : -1;
+        const cab = b ? `<div class="gr-cab" data-g="${esc(d.grupo)}"><span>${esc(d.grupo)} <small>· ${b.fin - b.ini + 1} producto${b.fin > b.ini ? 's' : ''}</small></span><button type="button" title="Subir el grupo entero" onclick="moverGrupo(${i},-1)" ${k === 0 ? 'disabled' : ''}>↑</button><button type="button" title="Bajar el grupo entero" onclick="moverGrupo(${i},1)" ${k === bl.length - 1 ? 'disabled' : ''}>↓</button></div>` : '';
+        return cab + `
+      <div class="it ${d.existe && d.stock > 0 ? '' : 'malo'}" data-i="${i}">
         <div class="it-top">
+          <div class="it-drag" title="Mantené apretado y arrastrá para ordenar" onpointerdown="arrastrar(event,${i})">☰</div>
           <div class="it-num">${i + 1}</div>
           <img src="${foto(d.producto)}" onerror="this.style.visibility='hidden'" alt="">
           <div style="flex:1;min-width:0"><div class="n">${esc(d.producto)}</div>
@@ -340,15 +392,51 @@ function dibujarLista() {
           </div>
         </div>
         <input type="text" maxlength="160" placeholder="Frase opcional (ej: «El regalo para papá»)" value="${esc(d.texto)}" oninput="DEST[${i}].texto=this.value;marcarSucio(true)">
+        <div class="grp"><span>🗂 Grupo</span><select onchange="ponerGrupo(${i},this.value)"><option value="">— sin grupo —</option>${opc.map(g => `<option value="${esc(g)}" ${gk(g) === gk(d.grupo) ? 'selected' : ''}>${esc(g)}</option>`).join('')}<option value="__OTRO__">✏️ Otro grupo…</option></select></div>
         <div class="prv"><span>🎄 Precio revista</span><input type="number" inputmode="numeric" min="0" step="1" placeholder="vacío = precio normal" value="${d.precioRevista || ''}" oninput="DEST[${i}].precioRevista=this.value;marcarSucio(true);revisarPrv(this,${i})">${d.existe && d.precio ? `<small>normal ${fmt$(d.precio)}</small>` : ''}</div>
         <div class="prv-err" id="prvErr${i}"></div>
         ${d.existe && d.precio ? `<div class="pct-chips">${[10, 15, 20, 25, 30].map(p => `<button type="button" class="pct" onclick="ponerPct(${i},${p})">-${p}% <b>${fmt$(precioExacto(d.precio, p))}</b></button>`).join('')}</div>` : ''}
-      </div>`).join('');
-    const t = document.querySelector('.card:nth-child(2) .card-t small'); if (t) t.textContent = DEST.length + ' · van primero';
+      </div>`; }).join('');
+    document.querySelectorAll('.prv input').forEach((inp, i) => { if (inp.value) revisarPrv(inp, i); });
+}
+// v8 — arrastrar con la manija ☰ (dedo o mouse). Al soltar dentro de un grupo, pasa a ese grupo.
+function arrastrar(ev, i0) {
+    const el = ev.target.closest('.it'); if (!el || (ev.button !== undefined && ev.button > 0)) return;
+    ev.preventDefault();
+    const L = $('lista'); let ultY = ev.clientY, rueda = null;
+    const top0 = el.getBoundingClientRect().top;
+    L.classList.add('compacto'); window.scrollBy(0, el.getBoundingClientRect().top - top0);   // mientras se arrastra, la lista se achica (solo nombres) y el producto queda bajo el dedo
+    el.classList.add('arrastrando'); document.body.classList.add('arrastrando');
+    const reubicar = y => {
+        const its = [...L.querySelectorAll('.it')].filter(x => x !== el);
+        let antes = null; for (const x of its) { const r = x.getBoundingClientRect(); if (y < r.top + r.height / 2) { antes = x; break; } }
+        if (antes) L.insertBefore(el, antes);
+        else L.appendChild(el);
+    };
+    const mov = e => {
+        ultY = e.clientY; reubicar(ultY);
+        clearInterval(rueda); rueda = null;
+        const h = window.innerHeight; if (ultY < 70 || ultY > h - 90) rueda = setInterval(() => { window.scrollBy(0, ultY < 70 ? -14 : 14); reubicar(ultY); }, 30);
+    };
+    const fin = () => {
+        clearInterval(rueda); document.removeEventListener('pointermove', mov); document.removeEventListener('pointerup', fin); document.removeEventListener('pointercancel', fin); document.removeEventListener('touchmove', noScroll);
+        el.classList.remove('arrastrando'); document.body.classList.remove('arrastrando'); L.classList.remove('compacto');
+        const orden = [...L.querySelectorAll('.it')].map(x => Number(x.dataset.i));
+        const nuevo = orden.map(k => DEST[k]), j = orden.indexOf(i0);
+        if (orden.some((k, n) => k !== n)) { DEST = nuevo; adoptar(j); agrupar(); marcarSucio(true); }
+        dibujarLista();
+    };
+    // escuchamos en todo el documento: al mover el producto en la lista el navegador suelta la «captura» del dedo/mouse
+    const noScroll = e => e.preventDefault();
+    document.addEventListener('pointermove', mov); document.addEventListener('pointerup', fin); document.addEventListener('pointercancel', fin); document.addEventListener('touchmove', noScroll, { passive: false });
 }
 function ocultar(nombre) {
     if (!nombre || OCULTOS.some(n => n.toUpperCase() === nombre.toUpperCase())) return;
     OCULTOS.push(nombre); marcarSucio(true); dibujarAuto(); aviso('🚫 Sacado de la revista: ' + nombre.slice(0, 40), true);
+}
+function destacar(nombre) {   // v8 — ⭐ desde la lista automática
+    if (!nombre) return; const antes = DEST.length; agregar(nombre);
+    if (DEST.length > antes) { aviso('⭐ Pasado a tus destacados: ' + nombre.slice(0, 40), true); const its = document.querySelectorAll('#lista .it'); const u = its[its.length - 1]; if (u && u.scrollIntoView) u.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
 }
 function devolver(i) { const n = OCULTOS.splice(i, 1)[0]; marcarSucio(true); dibujarAuto(); if (n) aviso('↩ Vuelve a la revista: ' + n.slice(0, 40), true); }
 // v5 — descuento EXACTO sobre el precio normal real (el normal nunca se toca)
@@ -386,10 +474,10 @@ function dibujarAuto() {
     const lim = parseInt($('cLimite') ? $('cLimite').value : CFG.limite) || 24;
     const libres = Math.max(0, lim - DEST.filter(d => d.existe && d.stock > 0).length);
     const auto = CATALOGO.filter(p => p.stock > 0 && p.price >= pmin && cats.includes(p.cat) && !usados.has(p.name.toUpperCase()) && !ocu.has(p.name.toUpperCase())).sort((a, b) => b.price - a.price).slice(0, libres);
-    $('auto').innerHTML = auto.length ? auto.map(p => `<div class="au" data-n="${esc(p.name)}" onclick="ocultar(this.dataset.n)" title="Tocar para sacar de la revista"><span class="au-x">🚫</span><img src="${foto(p.name)}" onerror="this.style.visibility='hidden'" alt=""><b>${fmt$(p.price)}</b>${esc(p.name.slice(0, 38))}</div>`).join('') : '<div style="grid-column:1/-1">Nada para completar (o ya llegaste al máximo).</div>';
+    $('auto').innerHTML = auto.length ? auto.map(p => `<div class="au" data-n="${esc(p.name)}" onclick="ocultar(this.dataset.n)" title="Tocar para sacar de la revista"><button type="button" class="au-star" title="Pasar a mis destacados" onclick="event.stopPropagation();destacar(this.parentNode.dataset.n)">⭐</button><span class="au-x">🚫</span><img src="${foto(p.name)}" onerror="this.style.visibility='hidden'" alt=""><b>${fmt$(p.price)}</b>${esc(p.name.slice(0, 38))}</div>`).join('') : '<div style="grid-column:1/-1">Nada para completar (o ya llegaste al máximo).</div>';
     const ob = $('ocultosBox');
     if (ob) ob.innerHTML = OCULTOS.length ? `<div class="oc-tit">🚫 Ocultos de la revista (${OCULTOS.length}) <small>tocá ↩ para devolver</small></div>` + OCULTOS.map((n, i) => `<div class="oc"><span>${esc(n)}</span><button type="button" onclick="devolver(${i})">↩ Devolver</button></div>`).join('') : '';
-    const t = document.querySelector('.card:nth-child(3) .card-t small'); if (t) t.textContent = auto.length + ' productos';
+    const t = $('tAuto'); if (t) t.textContent = auto.length + ' productos';
 }
 document.addEventListener('input', e => { if (e.target && ['cPrecio', 'cLimite'].includes(e.target.id)) dibujarAuto(); });
 document.addEventListener('click', e => { if (e.target && e.target.closest && e.target.closest('#cCats')) setTimeout(dibujarAuto, 0); });
@@ -405,10 +493,10 @@ function agregar(nombre) {
     if (DEST.length >= 60) { aviso('Máximo 60 productos destacados.', false); return; }
     const p = CATALOGO.find(x => x.name === nombre); if (!p) return;
     if (DEST.some(d => d.producto.toUpperCase() === nombre.toUpperCase())) return;
-    DEST.push({ producto: p.name, texto: '', precioRevista: '', existe: true, stock: p.stock, precio: p.price });
+    DEST.push({ producto: p.name, texto: '', precioRevista: '', grupo: '', existe: true, stock: p.stock, precio: p.price });
     marcarSucio(true); dibujarLista(); buscar(); dibujarAuto(); aviso('✅ Agregado: ' + p.name.slice(0, 40), true);
 }
-function mover(i, d) { const j = i + d; if (j < 0 || j >= DEST.length) return; [DEST[i], DEST[j]] = [DEST[j], DEST[i]]; marcarSucio(true); dibujarLista(); }
+function mover(i, d) { const j = i + d; if (j < 0 || j >= DEST.length) return; [DEST[i], DEST[j]] = [DEST[j], DEST[i]]; adoptar(j); agrupar(); marcarSucio(true); dibujarLista(); }
 function quitar(i) { if (!confirm('¿Quitar «' + DEST[i].producto + '» de la revista?')) return; DEST.splice(i, 1); marcarSucio(true); dibujarLista(); buscar(); dibujarAuto(); }
 
 // ---- sesión del POS ----
@@ -449,7 +537,7 @@ async function guardar() {
     const datos = {
         token: s.token,
         config: { titulo: $('cTitulo').value.trim() || 'Revista de Navidad', activa: CFG.activa, categorias: cats, precioMin: parseInt($('cPrecio').value) || 0, limite: Math.min(60, Math.max(1, parseInt($('cLimite').value) || 24)), desde: $('cDesde').value || '', dias: CFG.dias || 14, estallido: Object.assign({}, EST), tema: TEMA, estilo: ESTILO },
-        destacados: DEST.map(d => ({ producto: d.producto, texto: (d.texto || '').trim(), precioRevista: parseInt(d.precioRevista) || 0 })),
+        destacados: DEST.map(d => ({ producto: d.producto, texto: (d.texto || '').trim(), precioRevista: parseInt(d.precioRevista) || 0, grupo: d.grupo || '' })),
         ocultos: OCULTOS.slice()
     };
     const b = $('bGuardar'); b.disabled = true; b.textContent = '⏳ Guardando…';
