@@ -575,6 +575,25 @@
         .rv-dots span { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.4); cursor: pointer; }
         .rv-dots span.on { background: #ffe082; width: 18px; border-radius: 4px; }
         .rv-cont { color: #fff; font-weight: 800; font-size: .8rem; }
+        /* v225 — ▶ PRESENTACIÓN (pantalla de local / tablet): revista a pantalla completa que pasa sola */
+        .rv-tvfila { display: flex; gap: 8px; margin: 8px 10px 0; }
+        .rv-tvbtn { flex: 1; padding: 12px; border: none; border-radius: 14px; background: #ffd54f; color: #3e2723; font-weight: 900; font-size: 1rem; cursor: pointer; font-family: inherit; }
+        .rv-tvseg { flex: none; border: none; border-radius: 14px; padding: 0 10px; font-weight: 800; font-family: inherit; background: rgba(255,255,255,.9); }
+        .rv-tvsalir { display: none; }
+        body.rv-tv { overflow: hidden; }
+        body.rv-tv #ofertasRevista { position: fixed !important; inset: 0; z-index: 2147483100; margin: 0 !important; border-radius: 0 !important; display: flex !important; flex-direction: column; justify-content: center; overflow: hidden; padding: 1.5vh 2vw; box-sizing: border-box; max-width: none !important; width: 100% !important; cursor: none; }
+        body.rv-tv #ofertasRevista .rv-flecha, body.rv-tv #ofertasRevista .rv-compartir, body.rv-tv #ofertasRevista .rv-tvfila, body.rv-tv #ofertasRevista .rv-btns, body.rv-tv #ofertasRevista .rv-otra, body.rv-tv #ofertasRevista .rv-cont { display: none !important; }
+        body.rv-tv #ofertasRevista .rv-marco { flex: 1; min-height: 0; display: flex; }
+        body.rv-tv #ofertasRevista .rv-hojas { flex: 1; scrollbar-width: none; }
+        body.rv-tv #ofertasRevista .rv-pag { overflow: hidden; }
+        body.rv-tv #ofertasRevista .rv-foto { height: 46vh; }
+        body.rv-tv #ofertasRevista .rv-pag.est-IMPACTO .rv-foto { height: 44vh; }
+        body.rv-tv #ofertasRevista .rv-precio { font-size: clamp(2.4rem, 7vh, 4.5rem) !important; }
+        body.rv-tv #ofertasRevista .rv-nombre { font-size: clamp(1rem, 2.6vh, 1.6rem) !important; }
+        body.rv-tv #ofertasRevista .rv-tit { font-size: clamp(1.8rem, 5vh, 3rem); }
+        body.rv-tv #ofertasRevista .rv-vig { font-size: clamp(.8rem, 1.8vh, 1.1rem); }
+        body.rv-tv .rv-tvsalir { display: block; position: absolute; bottom: 6px; right: 12px; color: rgba(255,255,255,.55); font: 700 .72rem system-ui, sans-serif; animation: rvTvAviso 6s forwards; }
+        @keyframes rvTvAviso { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
         .rv-compartir { display: block; width: calc(100% - 20px); margin: 8px 10px 0; padding: 13px; border: none; border-radius: 14px; background: #25d366; color: #fff; font-weight: 900; font-size: 1rem; cursor: pointer; font-family: inherit; }
         #rvOverlay { display: none; position: fixed; inset: 0; z-index: 100000; background: rgba(0,0,0,.8); overflow: auto; padding: 16px; }
         #rvOverlay.open { display: block; }
@@ -2853,7 +2872,10 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
         </div>
         <div class="rv-vig" id="rvVig" style="display:none"></div>
         <div class="rv-pie"><div class="rv-dots" id="rvDots"></div><div class="rv-cont" id="rvCont"></div></div>
+        <div class="rv-tvfila"><button type="button" class="rv-tvbtn" onclick="rvPresentar()">▶ Presentación</button>
+            <select id="rvTvSeg" class="rv-tvseg" title="Segundos por página" onchange="try{localStorage.setItem('copihue_rv_tv_seg',this.value)}catch(e){}"><option value="4">4 s</option><option value="6" selected>6 s</option><option value="10">10 s</option><option value="15">15 s</option></select></div>
         <button type="button" class="rv-compartir" onclick="abrirCompartirRevista()">📲 Compartir revista</button>
+        <div class="rv-tvsalir" id="rvTvSalir">Tocá la pantalla para salir</div>
     </div>
 
     <!-- ========== RECIÉN LLEGADOS ========== -->
@@ -3083,7 +3105,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v224';
+const APP_VERSION = 'copihue-index-v225';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -7857,7 +7879,7 @@ window._ptMostrarPortada = function () {
     _vmLimpiar(); _ptActualizar();
 };
 window._ptVolver = function () { if (history.state && history.state.ptSeccion) history.back(); else _ptMostrarPortada(); };
-window.addEventListener('popstate', () => { if (document.body.classList.contains('vista-seccion')) _ptMostrarPortada(); });
+window.addEventListener('popstate', () => { if (window._rvTvPop) { window._rvTvPop = false; return; } if (typeof _rvTv !== 'undefined' && _rvTv) return; if (document.body.classList.contains('vista-seccion')) _ptMostrarPortada(); });   // v225: la presentación maneja su propio «atrás»
 
 // ---- «Ver más»: 4 de entrada, +8 por toque, tope 24 (después, el buscador) ----
 function _vmLimpiar() { document.querySelectorAll('.vm-oculto').forEach(e => e.classList.remove('vm-oculto')); document.querySelectorAll('.vm-caja').forEach(e => e.remove()); }
@@ -8819,6 +8841,55 @@ document.addEventListener('DOMContentLoaded', () => {
     let t = null; g.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(() => _rvMarcar(_rvActual()), 80); }, { passive: true });
     document.getElementById('rvDots').addEventListener('click', e => { const i = e.target.dataset && e.target.dataset.i; if (i !== undefined) g.scrollTo({ left: Number(i) * g.clientWidth, behavior: 'smooth' }); });
 });
+// v225 — ▶ PRESENTACIÓN: la revista pasa sola (pantalla completa, pantalla encendida, en bucle). Solo productos con stock
+// (la revista ya los filtra). Se actualiza sola: los datos cada 60 s (como siempre) y la página entera cada 30 min.
+// …/index.html#revista-tv arranca sola (para dejar una tablet o PC vieja en el local). Tocar / Esc / atrás = salir.
+let _rvTv = null, _rvTvWake = null, _rvTvRecarga = null;
+function _rvTvSeg() { let v = 6; try { v = parseInt(localStorage.getItem('copihue_rv_tv_seg')) || 6; } catch (e) {} return [4, 6, 10, 15].includes(v) ? v : 6; }
+async function _rvTvPantallaEncendida() { try { if ('wakeLock' in navigator && document.visibilityState === 'visible') _rvTvWake = await navigator.wakeLock.request('screen'); } catch (e) {} }
+function _rvTvSiguiente() {
+    const g = document.getElementById('revista-grid'); if (!g || !g.clientWidth) return;
+    const n = g.children.length; if (!n) return;
+    const i = (_rvActual() + 1) % n;
+    g.scrollTo({ left: i * g.clientWidth, behavior: i === 0 ? 'auto' : 'smooth' });
+}
+function rvPresentar(auto) {
+    if (_rvTv) return;
+    if (!document.querySelector('#revista-grid .rv-pag')) { alert('La revista no tiene productos con stock para mostrar.'); return; }
+    document.body.classList.add('rv-tv');
+    try { if (!auto && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); } catch (e) {}
+    _rvTvPantallaEncendida();
+    try { history.pushState({ rvtv: 1 }, ''); } catch (e) {}
+    const g = document.getElementById('revista-grid'); if (g) g.scrollTo({ left: 0 });
+    _rvTv = setInterval(_rvTvSiguiente, _rvTvSeg() * 1000);
+    clearTimeout(_rvTvRecarga);
+    _rvTvRecarga = setTimeout(() => { if (_rvTv && navigator.onLine) { try { location.hash = 'revista-tv'; } catch (e) {} location.reload(); } }, 30 * 60 * 1000);
+}
+function rvSalirPresentacion(desdeAtras) {
+    if (!_rvTv) return;
+    clearInterval(_rvTv); _rvTv = null; clearTimeout(_rvTvRecarga);
+    document.body.classList.remove('rv-tv');
+    try { if (_rvTvWake) _rvTvWake.release(); } catch (e) {} _rvTvWake = null;
+    try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch (e) {}
+    try { if (/^#revista-tv$/i.test(location.hash)) history.replaceState(history.state, '', location.pathname + '#revista'); } catch (e) {}
+    if (!desdeAtras) { try { if (history.state && history.state.rvtv) { window._rvTvPop = true; history.back(); } } catch (e) {} }
+}
+document.addEventListener('click', e => { if (_rvTv && e.target.closest && e.target.closest('#ofertasRevista')) { e.preventDefault(); e.stopPropagation(); rvSalirPresentacion(); } }, true);
+document.addEventListener('keydown', e => { if (_rvTv && (e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); rvSalirPresentacion(); } });
+window.addEventListener('popstate', () => { if (_rvTv) rvSalirPresentacion(true); });
+document.addEventListener('fullscreenchange', () => { if (_rvTv && !document.fullscreenElement && document.body.classList.contains('rv-tv-fs')) rvSalirPresentacion(); document.body.classList.toggle('rv-tv-fs', !!document.fullscreenElement); });
+document.addEventListener('visibilitychange', () => { if (_rvTv && document.visibilityState === 'visible') _rvTvPantallaEncendida(); });
+document.addEventListener('DOMContentLoaded', () => { const s = document.getElementById('rvTvSeg'); if (s) s.value = String(_rvTvSeg()); });
+// …/index.html#revista-tv → abre la revista y arranca la presentación sola
+(function () {
+    if (!/^#revista-tv$/i.test(location.hash)) return;
+    let n = 0; const iv = setInterval(() => {
+        n++;
+        const ok = document.body.classList.contains('ofertas-listas') && document.querySelector('#revista-grid .rv-pag');
+        if (ok && typeof _ptAbrir === 'function') { clearInterval(iv); _ptAbrir('ofertasRevista'); setTimeout(() => rvPresentar(true), 600); }
+        else if (n > 120) clearInterval(iv);
+    }, 500);
+})();
 // dirección directa …/index.html#revista → abre la revista cuando ya cargó
 (function () {
     if (!/^#revista$/i.test(location.hash)) return;
@@ -8977,7 +9048,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='index',AV_VER='224';
+/*AV*/var AV_PAG='index',AV_VER='225';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {

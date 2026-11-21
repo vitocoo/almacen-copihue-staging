@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v591</title>
+    <title>🛒 POS · Copihue v592</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12813,7 +12813,9 @@ function abrirVitrina(idInicial) {
             + '<button type="button" class="vt-fl vt-izq" onclick="_vitIr(-1)" aria-label="Anterior">‹</button>'
             + '<div class="vt-card" id="vtCard"></div>'
             + '<button type="button" class="vt-fl vt-der" onclick="_vitIr(1)" aria-label="Siguiente">›</button>'
-            + '<div class="vt-cont" id="vtCont"></div>';
+            + '<div class="vt-cont" id="vtCont"></div>'
+            + '<button type="button" class="vt-play" id="vtPlay" onclick="event.stopPropagation();_vitPlay()" aria-label="Pasar solo">▶</button>';
+        v.addEventListener('pointerdown', e => { if (_vitAuto && !(e.target.closest && e.target.closest('#vtPlay'))) _vitPausa(); }, true);   // v592: tocar pausa
         v.addEventListener('click', e => { if (e.target === v) cerrarVitrina(); });
         v.addEventListener('touchstart', e => { _vitX = e.touches[0].clientX; _vitY = e.touches[0].clientY; }, { passive: true });
         v.addEventListener('touchend', e => {
@@ -12824,7 +12826,19 @@ function abrirVitrina(idInicial) {
     }
     v.style.display = 'flex'; _vitPintar();
 }
-function cerrarVitrina() { const v = document.getElementById('vitrina'); if (v) v.style.display = 'none'; }
+function cerrarVitrina() { _vitPausa(); const v = document.getElementById('vitrina'); if (v) v.style.display = 'none'; }
+// v592 — ▶ pasar solo (cada 5 s, en bucle) SALTEANDO los productos sin stock. Tocar la pantalla o ⏸ lo pausa.
+let _vitAuto = null;
+function _vitConStock(desde) { for (let k = 1; k <= _vitLista.length; k++) { const j = (desde + k) % _vitLista.length; if ((_vitLista[j].stock || 0) > 0) return j; } return -1; }
+function _vitPausa() { if (_vitAuto) { clearInterval(_vitAuto); _vitAuto = null; } const b = document.getElementById('vtPlay'); if (b) { b.textContent = '▶'; b.classList.remove('on'); } }
+function _vitPlay() {
+    if (_vitAuto) { _vitPausa(); return; }
+    const hay = _vitLista.some(p => (p.stock || 0) > 0);
+    if (!hay) { mostrarToast('Ninguno de estos productos tiene stock para mostrar', 'rojo'); return; }
+    if (!((_vitLista[_vitI] || {}).stock > 0)) { _vitI = _vitConStock(_vitI); _vitPintar(); }
+    _vitAuto = setInterval(() => { const j = _vitConStock(_vitI); if (j >= 0) { _vitI = j; _vitPintar(); } else _vitPausa(); }, 5000);
+    const b = document.getElementById('vtPlay'); if (b) { b.textContent = '⏸'; b.classList.add('on'); }
+}
 function _vitIr(paso) { if (!_vitLista.length) return; _vitI = (_vitI + paso + _vitLista.length) % _vitLista.length; _vitPintar(); }
 function _vitPintar() {
     const p = _vitLista[_vitI]; if (!p) return;
@@ -12886,6 +12900,8 @@ document.addEventListener('keydown', e => {
         + '#vitrina .vt-x{position:absolute;top:12px;right:12px;width:46px;height:46px;border-radius:50%;border:none;background:rgba(255,255,255,.2);color:#fff;font-size:1.3rem;cursor:pointer}'
         + '#vitrina .vt-fl{position:absolute;top:50%;transform:translateY(-50%);width:50px;height:50px;border-radius:50%;border:2px solid rgba(255,255,255,.8);background:rgba(0,0,0,.4);color:#fff;font-size:2rem;line-height:1;cursor:pointer;z-index:2}'
         + '#vitrina .vt-izq{left:8px}#vitrina .vt-der{right:8px}'
+        + '#vitrina .vt-play{position:absolute;bottom:8px;left:12px;width:52px;height:52px;border-radius:50%;border:2px solid rgba(255,255,255,.85);background:#ffd54f;color:#3e2723;font-size:1.4rem;cursor:pointer;z-index:2}'
+        + '#vitrina .vt-play.on{background:rgba(0,0,0,.45);color:#fff}'
         + '#vitrina .vt-cont{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);color:#fff;font:800 .9rem system-ui,sans-serif;opacity:.85}'
         + '#resultados .resultado-item{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}';
     document.head.appendChild(st);
@@ -20951,7 +20967,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='seba21',AV_VER='591';
+/*AV*/var AV_PAG='seba21',AV_VER='592';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {
