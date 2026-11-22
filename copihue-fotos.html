@@ -1,0 +1,1894 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧪 STAGING · 📷 Fotos · Copihue v1.3.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #090b10;
+  --s1:       #111420;
+  --s2:       #181c2c;
+  --s3:       #1f2438;
+  --border:   #252a40;
+  --border2:  #2e3550;
+  --text:     #dde1f0;
+  --muted:    #636880;
+  --muted2:   #8890aa;
+  --ok:       #22d3a0;
+  --ok-dim:   rgba(34,211,160,.12);
+  --danger:   #f04060;
+  --danger-dim:rgba(240,64,96,.12);
+  --warn:     #f5a623;
+  --accent:   #5b6af8;
+  --accent-dim:rgba(91,106,248,.15);
+  --gh:       #24292e;
+  --r: 12px;
+  --r2: 18px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+
+/* ══════════════════════════════════════════
+   HEADER
+══════════════════════════════════════════ */
+header {
+  position: sticky; top: 0; z-index: 200;
+  background: rgba(9,11,16,.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  height: 58px;
+  display: flex; align-items: center; gap: 16px;
+}
+.logo {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem; font-weight: 700;
+  color: var(--ok); letter-spacing: .5px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.logo em { color: var(--muted); font-style: normal; font-weight: 400; }
+
+.btn-lupa {
+  background: var(--s2); border: 1.5px solid var(--border);
+  border-radius: var(--r); width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; cursor: pointer; transition: all .2s;
+  flex-shrink: 0;
+}
+.btn-lupa:hover, .btn-lupa.active { border-color: var(--accent); background: var(--accent-dim); }
+
+/* ── BARRA DE BÚSQUEDA EXPANDIBLE ── */
+.search-bar-wrap {
+  max-height: 0; overflow: hidden;
+  transition: max-height .25s cubic-bezier(.4,0,.2,1), opacity .2s;
+  opacity: 0;
+  background: var(--bg);
+  border-bottom: 1px solid transparent;
+}
+.search-bar-wrap.open {
+  max-height: 64px; opacity: 1;
+  border-bottom-color: var(--border);
+}
+.search-bar-inner {
+  position: relative; padding: 10px 16px;
+}
+.search-bar-inner input {
+  width: 100%;
+  background: var(--s2);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--r);
+  padding: 10px 36px 10px 38px;
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 1rem;
+  outline: none;
+}
+.search-bar-inner input::placeholder { color: var(--muted); }
+.search-icon {
+  position: absolute; left: 28px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--accent); font-size: 1rem; pointer-events: none;
+}
+.search-clear {
+  position: absolute; right: 24px; top: 50%;
+  transform: translateY(-50%);
+  background: var(--s3); border: 1px solid var(--border2);
+  color: var(--muted); font-size: 0.78rem; cursor: pointer;
+  padding: 3px 7px; border-radius: 6px; line-height: 1;
+  transition: all .15s;
+}
+.search-clear:hover { background: var(--danger); color: white; border-color: var(--danger); }
+
+.ver-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem; font-weight: 700;
+  color: var(--muted2);
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 3px 7px;
+  white-space: nowrap; flex-shrink: 0;
+  letter-spacing: .3px;
+}
+
+.header-right { display: flex; gap: 8px; align-items: center; margin-left: auto; }
+
+.pill {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--s2); border: 1.5px solid var(--border);
+  border-radius: var(--r); padding: 6px 12px;
+  font-size: 0.78rem; font-weight: 600; color: var(--muted);
+  white-space: nowrap;
+}
+.pill .num { color: var(--ok); font-family: 'JetBrains Mono', monospace; }
+
+.btn-cfg {
+  background: var(--s2); border: 1.5px solid var(--border);
+  border-radius: var(--r); padding: 7px 14px;
+  color: var(--muted); font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; transition: all .2s; white-space: nowrap;
+}
+.btn-cfg:hover { border-color: var(--accent); color: var(--text); }
+
+/* ══════════════════════════════════════════
+   FILTROS
+══════════════════════════════════════════ */
+.filters-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--bg);
+}
+.filters-bar::-webkit-scrollbar { display: none; }
+
+.filter-chip {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--s1); border: 1.5px solid var(--border);
+  border-radius: 99px; padding: 5px 14px;
+  font-size: 0.78rem; font-weight: 600; color: var(--muted);
+  cursor: pointer; transition: all .18s; white-space: nowrap;
+  user-select: none;
+}
+.filter-chip:hover { border-color: var(--accent); color: var(--text); }
+.filter-chip.active { background: var(--accent-dim); border-color: var(--accent); color: var(--text); }
+.filter-chip.danger { border-color: rgba(240,64,96,.3); }
+.filter-chip.danger:hover,
+.filter-chip.danger.active { background: var(--danger-dim); border-color: var(--danger); color: var(--danger); }
+.filter-chip.ok.active { background: var(--ok-dim); border-color: var(--ok); color: var(--ok); }
+
+.filter-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; margin: 0 4px; }
+
+/* ══════════════════════════════════════════
+   PROGRESS BAR
+══════════════════════════════════════════ */
+.progress-wrap {
+  padding: 8px 20px 0;
+  display: none;
+}
+.progress-wrap.visible { display: block; }
+.progress-track {
+  height: 3px; background: var(--s3); border-radius: 99px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: linear-gradient(90deg, var(--accent), var(--ok));
+  border-radius: 99px; transition: width .4s ease;
+}
+.progress-label {
+  font-size: 0.68rem; color: var(--muted); margin-top: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ══════════════════════════════════════════
+   GRID
+══════════════════════════════════════════ */
+.grid-area { padding: 16px 20px 40px; }
+
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 10px;
+}
+
+/* ── CARD ── */
+.prod-card {
+  background: var(--s1);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r2);
+  cursor: pointer;
+  transition: transform .18s, border-color .18s, box-shadow .18s;
+  overflow: hidden;
+  position: relative;
+  display: flex; flex-direction: column;
+}
+.prod-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(91,106,248,.2);
+}
+.prod-card.sin-foto { border-color: rgba(240,64,96,.35); }
+.prod-card.sin-foto:hover { border-color: var(--danger); box-shadow: 0 6px 20px rgba(240,64,96,.2); }
+.prod-card.recien-subida { border-color: var(--ok); box-shadow: 0 0 0 2px var(--ok-dim); animation: cardFlash .6s ease; }
+@keyframes cardFlash { 0%,100% { box-shadow: 0 0 0 2px var(--ok-dim); } 50% { box-shadow: 0 0 0 6px rgba(34,211,160,.3); } }
+
+.card-img {
+  width: 100%; aspect-ratio: 1;
+  background: var(--s2); position: relative; overflow: hidden;
+}
+.card-img img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  opacity: 0; transition: opacity .3s;
+}
+.card-img img.loaded { opacity: 1; }
+
+.no-foto-badge {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px;
+  background: var(--danger-dim);
+  color: var(--danger);
+}
+.no-foto-badge .icon { font-size: 1.8rem; }
+.no-foto-badge .label {
+  font-size: 0.6rem; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+
+.card-num {
+  position: absolute; top: 6px; left: 6px;
+  background: rgba(9,11,16,.75); backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.58rem; color: var(--muted); padding: 2px 5px;
+}
+
+.card-copy-btn {
+  position: absolute; top: 6px; right: 6px;
+  background: rgba(9,11,16,.75); backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 7px; color: var(--muted);
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 0.72rem;
+  transition: all .15s; opacity: 0;
+}
+.prod-card:hover .card-copy-btn { opacity: 1; }
+.card-copy-btn:hover { background: var(--accent); color: white; border-color: var(--accent); }
+
+.card-body {
+  padding: 8px 9px 10px;
+  display: flex; flex-direction: column; gap: 3px;
+  flex: 1;
+}
+.card-name {
+  font-size: 0.7rem; font-weight: 600; line-height: 1.3;
+  color: var(--text);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: pointer;
+  transition: color .15s;
+}
+.card-name:hover { color: var(--accent); text-decoration: underline dotted; }
+.card-name-input {
+  width: 100%; background: var(--s3);
+  border: 1.5px solid var(--accent); border-radius: 6px;
+  padding: 3px 6px; color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.7rem; font-weight: 600;
+  outline: none; display: none;
+  box-sizing: border-box; text-transform: uppercase;
+}
+.card-slug {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.58rem; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-saving {
+  font-size: 0.6rem; color: var(--accent);
+  display: none; align-items: center; gap: 3px;
+}
+
+/* skeleton */
+.skeleton {
+  border-radius: var(--r2); aspect-ratio: 1.1;
+  background: linear-gradient(90deg, var(--s1) 25%, var(--s2) 50%, var(--s1) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+.empty-state {
+  text-align: center; padding: 60px 20px; color: var(--muted);
+  grid-column: 1 / -1;
+}
+.empty-state .icon { font-size: 2.8rem; margin-bottom: 10px; }
+.empty-state p { font-size: 0.88rem; }
+
+/* ══════════════════════════════════════════
+   MODAL EDITOR
+══════════════════════════════════════════ */
+.overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 500;
+}
+.overlay.open {
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: fadeIn .18s;
+}
+@media (min-width: 560px) { .overlay.open { align-items: center; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal {
+  background: var(--s1);
+  border: 1.5px solid var(--border2);
+  border-radius: 22px 22px 0 0;
+  width: 100%; max-width: 500px;
+  max-height: 93vh; overflow-y: auto;
+  animation: slideUp .22s cubic-bezier(.25,.46,.45,.94);
+}
+@media (min-width: 560px) { .modal { border-radius: 22px; max-height: 90vh; } }
+/* v1.3 — PC: el cuadro se arrastra desde su barra de título y el fondo casi no oscurece (se ven los productos) */
+@media (min-width: 560px) {
+  .overlay.open { background: rgba(0,0,0,.15); }
+  .modal-header { cursor: grab; user-select: none; }
+  .modal-header button { cursor: pointer; }
+  .modal.movido { position: fixed; margin: 0; animation: none; box-shadow: 0 18px 50px rgba(0,0,0,.55); }
+  body.arrastrando-modal, body.arrastrando-modal .modal-header { cursor: grabbing !important; user-select: none; }
+}
+@keyframes slideUp { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.modal-handle {
+  width: 36px; height: 4px; background: var(--border2);
+  border-radius: 99px; margin: 10px auto 0;
+}
+@media (min-width: 560px) { .modal-handle { display: none; } }
+
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--s1); z-index: 10;
+}
+.modal-title { font-weight: 700; font-size: 0.95rem; }
+.modal-nav { display: flex; gap: 6px; align-items: center; }
+.btn-nav {
+  background: var(--s2); border: 1.5px solid var(--border);
+  color: var(--muted); width: 30px; height: 30px;
+  border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+  transition: all .15s; display: flex; align-items: center; justify-content: center;
+}
+.btn-nav:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
+.btn-nav:disabled { opacity: 0.3; cursor: not-allowed; }
+.nav-pos {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem; color: var(--muted); padding: 0 4px;
+}
+.modal-close {
+  background: var(--s2); border: none;
+  color: var(--muted); width: 30px; height: 30px;
+  border-radius: 8px; cursor: pointer; font-size: 0.9rem;
+  transition: all .15s; display: flex; align-items: center; justify-content: center;
+}
+.modal-close:hover { background: var(--danger); color: white; }
+
+.modal-body { padding: 14px 18px 18px; }
+
+/* prod header */
+.prod-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 12px; background: var(--s2);
+  border-radius: var(--r); margin-bottom: 12px;
+  border: 1px solid var(--border);
+}
+.prod-thumb {
+  width: 48px; height: 48px; border-radius: 10px;
+  object-fit: cover; background: var(--s3);
+  border: 1.5px solid var(--border); flex-shrink: 0;
+}
+.prod-meta { flex: 1; min-width: 0; }
+.prod-nombre-wrap { display: flex; align-items: center; gap: 5px; }
+.prod-nombre {
+  font-weight: 700; font-size: 0.88rem; color: var(--text);
+  line-height: 1.3; flex: 1;
+}
+.prod-nombre-input {
+  flex: 1; background: var(--s3);
+  border: 1.5px solid var(--accent); border-radius: 7px;
+  padding: 4px 8px; color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.85rem; font-weight: 600;
+  outline: none; display: none; text-transform: uppercase;
+}
+.btn-edit-nombre {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 0.78rem; padding: 2px 3px;
+  border-radius: 5px; transition: color .15s; flex-shrink: 0; line-height: 1;
+}
+.btn-edit-nombre:hover { color: var(--accent); }
+.nombre-edit-btns { display: none; gap: 4px; flex-shrink: 0; }
+.btn-nombre-ok {
+  background: var(--ok); border: none; color: #000;
+  border-radius: 6px; padding: 4px 9px; font-size: 0.75rem;
+  font-weight: 700; cursor: pointer;
+}
+.btn-nombre-cancel {
+  background: var(--s3); border: 1.5px solid var(--border);
+  color: var(--muted); border-radius: 6px; padding: 4px 7px;
+  font-size: 0.75rem; cursor: pointer;
+}
+.prod-slug {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem; color: var(--muted); margin-top: 2px;
+}
+.nombre-guardando {
+  font-size: 0.65rem; color: var(--muted);
+  display: none; align-items: center; gap: 4px;
+}
+.btn-copy-nombre {
+  background: var(--accent-dim); border: 1.5px solid rgba(91,106,248,.3);
+  color: var(--accent); border-radius: 8px;
+  padding: 6px 11px; font-size: 0.75rem; font-weight: 700;
+  cursor: pointer; transition: all .15s; flex-shrink: 0; white-space: nowrap;
+}
+.btn-copy-nombre:hover { background: var(--accent); color: white; border-color: var(--accent); }
+.btn-copy-nombre.copied { background: var(--ok-dim); border-color: var(--ok); color: var(--ok); }
+
+/* action buttons */
+.action-row {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px; margin-bottom: 12px;
+}
+.btn-action {
+  padding: 11px 8px; border: none; border-radius: var(--r);
+  font-size: 0.82rem; font-weight: 700; cursor: pointer;
+  transition: all .18s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn-action.internet { background: #1565c0; color: white; }
+.btn-action.internet:hover { background: #1976d2; }
+.btn-action.archivo {
+  background: var(--s2); color: var(--text);
+  border: 2px dashed var(--border2);
+}
+.btn-action.archivo:hover { border-color: var(--accent); }
+.btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* status */
+#fotosStatus {
+  display: none;
+  text-align: center; padding: 16px;
+  color: var(--muted); font-size: 0.85rem;
+  background: var(--s2); border-radius: var(--r);
+  margin-bottom: 10px;
+}
+
+/* foto grid */
+#fotosGrid { display: none; margin-bottom: 12px; }
+.foto-grid-label {
+  font-size: 0.65rem; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .8px; margin-bottom: 7px;
+}
+#fotosGridItems {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 7px;
+}
+#fotosGridItems > div {
+  aspect-ratio: 1; background: var(--s2);
+  border-radius: 10px; overflow: hidden;
+  border: 2px solid var(--border); cursor: pointer;
+  transition: border-color .15s;
+}
+#fotosGridItems > div:hover { border-color: var(--accent); }
+#fotosGridItems > div.selected { border-color: var(--ok); box-shadow: 0 0 0 2px var(--ok-dim); }
+#fotosGridItems img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#fotosGridItems .foto-err {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--border2); font-size: 1.3rem;
+  background: var(--s3);
+}
+
+/* preview */
+#fotosPreviewWrap { display: none; margin-bottom: 12px; }
+.preview-label {
+  font-size: 0.65rem; font-weight: 700; color: var(--ok);
+  text-transform: uppercase; letter-spacing: .8px; margin-bottom: 9px;
+}
+.preview-row { display: flex; gap: 13px; align-items: flex-start; }
+.canvas-wrap { position: relative; flex-shrink: 0; }
+#fotosCanvas {
+  width: 100px; height: 100px;
+  border-radius: 11px; border: 2.5px solid var(--ok); display: block;
+}
+.canvas-dim {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,.65);
+  font-size: 7px; color: var(--ok);
+  text-align: center; padding: 2px;
+  border-radius: 0 0 9px 9px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.preview-actions { flex: 1; }
+.fname-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem; background: var(--s2);
+  border-radius: 7px; padding: 5px 9px;
+  margin-bottom: 7px; color: var(--ok);
+  word-break: break-all;
+  border: 1px solid rgba(34,211,160,.25);
+}
+.btn-github {
+  width: 100%; padding: 12px;
+  border: none; border-radius: var(--r);
+  background: #24292e; color: white;
+  font-size: 0.88rem; font-weight: 700;
+  cursor: pointer; margin-bottom: 6px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all .2s;
+}
+.btn-github:hover { background: #3c4450; }
+.btn-github:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-dl {
+  width: 100%; padding: 9px;
+  border: 1.5px solid rgba(34,211,160,.3);
+  border-radius: var(--r); background: transparent;
+  color: var(--ok); font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; transition: all .2s;
+}
+.btn-dl:hover { background: var(--ok-dim); }
+
+/* gh status */
+#ghStatus {
+  display: none; margin-top: 9px; padding: 9px 11px;
+  border-radius: 9px; font-size: 0.8rem; font-weight: 600;
+}
+#ghStatus.ok { background: var(--ok-dim); color: var(--ok); border: 1px solid rgba(34,211,160,.3); }
+#ghStatus.error { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(240,64,96,.3); }
+#ghStatus.loading { background: rgba(21,101,192,.12); color: #64b5f6; border: 1px solid rgba(100,181,246,.3); }
+
+/* publish checks */
+#publishChecks { display: none; margin-top: 10px; }
+.check-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 0; font-size: 0.78rem;
+  border-bottom: 1px solid var(--border);
+}
+.check-item:last-child { border-bottom: none; }
+.check-dot {
+  width: 18px; height: 18px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.65rem; flex-shrink: 0;
+}
+.check-dot.pending { background: var(--s3); color: var(--muted); }
+.check-dot.ok { background: var(--ok-dim); color: var(--ok); }
+.check-dot.error { background: var(--danger-dim); color: var(--danger); }
+.check-dot.running { background: rgba(21,101,192,.15); color: #64b5f6; }
+#publishCheckActions {
+  display: none; gap: 7px; margin-top: 10px;
+}
+.btn-revalidar {
+  flex: 1; padding: 9px; background: var(--s2);
+  border: 1.5px solid var(--border2); border-radius: var(--r);
+  color: var(--muted); font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; transition: all .2s;
+}
+.btn-revalidar:hover { border-color: var(--accent); color: var(--text); }
+.btn-siguiente {
+  flex: 1; padding: 9px; background: var(--ok-dim);
+  border: 1.5px solid var(--ok); border-radius: var(--r);
+  color: var(--ok); font-size: 0.8rem; font-weight: 700;
+  cursor: pointer; transition: all .2s;
+}
+.btn-siguiente:hover { background: var(--ok); color: #000; }
+
+/* ══════════════════════════════════════════
+   CONFIG PANEL
+══════════════════════════════════════════ */
+.config-panel {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.8); z-index: 600;
+  backdrop-filter: blur(8px);
+}
+.config-panel.open { display: flex; align-items: center; justify-content: center; padding: 20px; }
+.config-box {
+  background: var(--s1); border: 1.5px solid var(--border2);
+  border-radius: 20px; width: 100%; max-width: 400px;
+  max-height: 90vh; overflow-y: auto; padding: 22px;
+}
+.config-title { font-weight: 700; font-size: 1rem; margin-bottom: 16px; }
+.cfg-section {
+  font-size: 0.68rem; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .8px;
+  margin: 14px 0 7px;
+}
+.cfg-input {
+  width: 100%; background: var(--s2);
+  border: 1.5px solid var(--border2); border-radius: 9px;
+  padding: 9px 11px; color: var(--text);
+  font-family: 'Outfit', sans-serif; font-size: 0.86rem;
+  outline: none; margin-bottom: 7px; transition: border-color .2s;
+}
+.cfg-input:focus { border-color: var(--accent); }
+.cfg-input::placeholder { color: var(--muted); }
+.cfg-input[type=password] { font-family: 'JetBrains Mono', monospace; }
+.cfg-hint {
+  font-size: 0.68rem; color: var(--muted); line-height: 1.5;
+  margin-bottom: 10px; padding: 7px 9px;
+  background: var(--s2); border-radius: 7px;
+  border-left: 3px solid var(--accent);
+}
+.cfg-hint strong { color: var(--text); }
+.btn-save-cfg {
+  width: 100%; padding: 11px; background: var(--accent);
+  border: none; border-radius: var(--r); color: white;
+  font-size: 0.88rem; font-weight: 700; cursor: pointer;
+  margin-top: 6px; transition: filter .2s;
+}
+.btn-save-cfg:hover { filter: brightness(1.1); }
+.btn-cancel-cfg {
+  width: 100%; padding: 9px; background: transparent;
+  border: 1.5px solid var(--border2); border-radius: var(--r);
+  color: var(--muted); font-size: 0.84rem; cursor: pointer;
+  margin-top: 7px; transition: all .2s;
+}
+.btn-cancel-cfg:hover { border-color: var(--danger); color: var(--danger); }
+
+/* ══════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════ */
+#toast {
+  position: fixed; bottom: 22px; left: 50%;
+  transform: translateX(-50%) translateY(60px);
+  background: var(--s2); border: 1.5px solid var(--border2);
+  color: var(--text); border-radius: var(--r);
+  padding: 9px 18px; font-size: 0.86rem; font-weight: 600;
+  z-index: 9999; pointer-events: none;
+  transition: transform .28s cubic-bezier(.25,.46,.45,.94), opacity .28s;
+  opacity: 0; white-space: nowrap; max-width: 90vw;
+}
+#toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+#toast.ok { border-color: var(--ok); color: var(--ok); }
+#toast.error { border-color: var(--danger); color: var(--danger); }
+#toast.warn { border-color: var(--warn); color: var(--warn); }
+
+/* ══════════════════════════════════════════
+   SPINNER
+══════════════════════════════════════════ */
+.spin {
+  display: inline-block; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.15);
+  border-top-color: currentColor;
+  animation: spin .65s linear infinite;
+  width: 15px; height: 15px; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ══════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .products-grid { grid-template-columns: repeat(auto-fill, minmax(128px,1fr)); gap: 8px; }
+  .grid-area { padding: 12px 14px 40px; }
+  .logo em { display: none; }
+}
+</style>
+</head>
+<body>
+<div style="background:#ff9800;color:#000;text-align:center;font-weight:900;font-size:.75rem;padding:4px">🧪 STAGING — datos de prueba</div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">📷 COPIHUE <em>· fotos</em></div>
+  <div class="header-right">
+    <span class="ver-badge">v1.3.1</span>
+    <div class="pill">
+      <span id="countVis" class="num">–</span>/<span id="countTotal" class="num">–</span>
+    </div>
+    <button class="btn-lupa" id="btnLupa" onclick="toggleBusqueda()" title="Buscar">🔍</button>
+    <button class="btn-cfg" onclick="abrirConfig()">⚙ GitHub</button>
+  </div>
+</header>
+
+<!-- BARRA DE BÚSQUEDA expandible -->
+<div class="search-bar-wrap" id="searchBarWrap">
+  <div class="search-bar-inner">
+    <span class="search-icon">⌕</span>
+    <input type="text" id="searchInput" placeholder="Buscar en todos los productos…" autocomplete="off" oninput="filtrarGrid()">
+    <button class="search-clear" onclick="cerrarBusqueda()">✕ cerrar</button>
+  </div>
+</div>
+
+<!-- PROGRESS BAR verificación fotos -->
+<div class="progress-wrap" id="progressWrap">
+  <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  <div class="progress-label" id="progressLabel">Verificando fotos…</div>
+</div>
+
+<!-- FILTROS -->
+<div class="filters-bar" id="filtersBar">
+  <button class="filter-chip" data-f="TODOS" onclick="setFiltro('TODOS',this)">Todos</button>
+  <button class="filter-chip danger"  data-f="SIN_FOTO" onclick="setFiltro('SIN_FOTO',this)">❌ Sin foto</button>
+  <button class="filter-chip ok"      data-f="CON_FOTO" onclick="setFiltro('CON_FOTO',this)">✅ Con foto</button>
+  <div class="filter-sep"></div>
+  <!-- categorías se insertan aquí -->
+</div>
+
+<!-- GRID -->
+<div class="grid-area">
+  <div class="products-grid" id="productsGrid">
+    <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+    <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+    <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+  </div>
+</div>
+
+<!-- MODAL EDITOR -->
+<div class="overlay" id="overlayEditor" onclick="cerrarEditorOverlay(event)">
+  <div class="modal" id="modalEditor">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">✏️ Editar foto</span>
+      <div class="modal-nav">
+        <button class="btn-nav" id="btnPrev" onclick="navModal(-1)" title="Anterior">‹</button>
+        <span class="nav-pos" id="navPos">–</span>
+        <button class="btn-nav" id="btnNext" onclick="navModal(+1)" title="Siguiente">›</button>
+      </div>
+      <button class="modal-close" onclick="cerrarEditorBtn()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Info producto -->
+      <div class="prod-header">
+        <img class="prod-thumb" id="modalProdImg" src="" onerror="this.src=''">
+        <div class="prod-meta">
+          <div class="prod-nombre-wrap">
+            <div class="prod-nombre" id="modalProdName">–</div>
+            <input class="prod-nombre-input" id="inputNombreModal" autocomplete="off" spellcheck="false">
+            <button class="btn-edit-nombre" id="btnEditNombre" onclick="iniciarEditNombre()" title="Editar nombre">✏️</button>
+            <div class="nombre-edit-btns" id="nombreEditBtns">
+              <button class="btn-nombre-ok" onclick="guardarNombreModal()">✓</button>
+              <button class="btn-nombre-cancel" onclick="cancelarEditNombre()">✕</button>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;margin-top:3px;">
+            <div class="prod-slug" id="modalProdSlug">–</div>
+            <div class="nombre-guardando" id="nombreGuardando"><div class="spin" style="width:10px;height:10px;border-width:1.5px;"></div> guardando…</div>
+          </div>
+        </div>
+        <button class="btn-copy-nombre" id="btnCopyNombre" onclick="copiarNombre()">📋 Copiar</button>
+      </div>
+
+      <!-- Acciones -->
+      <div class="action-row">
+        <button class="btn-action internet" id="btnBuscarNet" onclick="buscarEnInternet()">
+          🌐 Buscar en internet
+        </button>
+        <label class="btn-action archivo">
+          📁 Subir archivo
+          <input type="file" accept="image/*" style="display:none;" onchange="cargarDesdeArchivo(event)">
+        </label>
+      </div>
+
+      <!-- Status -->
+      <div id="fotosStatus"></div>
+
+      <!-- Grid fotos -->
+      <div id="fotosGrid">
+        <div class="foto-grid-label">Elegí una foto · tocá para previsualizar</div>
+        <div id="fotosGridItems"></div>
+      </div>
+
+      <!-- Preview -->
+      <div id="fotosPreviewWrap">
+        <div class="preview-label">✅ Vista previa 400×400 · lista para publicar</div>
+        <div class="preview-row">
+          <div class="canvas-wrap">
+            <canvas id="fotosCanvas" width="400" height="400"></canvas>
+            <div class="canvas-dim">400 × 400 px</div>
+          </div>
+          <div class="preview-actions">
+            <div class="fname-badge" id="fotosFilenameLabel">–</div>
+            <button class="btn-github" id="btnPublicarGH" onclick="publicarEnGitHub()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+              Publicar en GitHub
+            </button>
+            <button class="btn-dl" onclick="descargarFoto()">⬇ Solo descargar</button>
+          </div>
+        </div>
+        <div id="ghStatus"></div>
+        <!-- Publish checks -->
+        <div id="publishChecks">
+          <div class="check-item" id="checkGitHub">
+            <div class="check-dot pending" id="checkGitHub-dot">○</div>
+            <span id="checkGitHub-text">Subida al repositorio</span>
+          </div>
+          <div class="check-item" id="checkCDN">
+            <div class="check-dot pending" id="checkCDN-dot">○</div>
+            <span id="checkCDN-text">Disponible en la web</span>
+          </div>
+          <div class="check-item" id="checkPreview">
+            <div class="check-dot pending" id="checkPreview-dot">○</div>
+            <span id="checkPreview-text">Vista previa actualizada</span>
+          </div>
+          <div id="publishCheckActions">
+            <button class="btn-revalidar" onclick="revalidarPublicacion()">↺ Revalidar</button>
+            <button class="btn-siguiente" onclick="siguienteProducto()">Siguiente →</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- CONFIG PANEL -->
+<div class="config-panel" id="configPanel" onclick="cerrarConfigOut(event)">
+  <div class="config-box">
+    <div class="config-title">⚙️ Configuración</div>
+    <div class="cfg-section">GitHub · subir fotos</div>
+    <input class="cfg-input" id="ghOwner" placeholder="Usuario GitHub" autocomplete="off">
+    <input class="cfg-input" id="ghRepo" placeholder="Nombre del repositorio">
+    <input class="cfg-input" id="ghBranch" placeholder="Branch" value="main">
+    <input class="cfg-input" type="password" id="ghToken" placeholder="Token GitHub (ghp_…)" autocomplete="off">
+    <div class="cfg-hint">
+      <strong>github.com → Settings → Developer settings → Personal access tokens → Fine-grained</strong><br>
+      Permiso: <strong>Contents: Read &amp; Write</strong>
+    </div>
+    <input type="file" id="cfgFileInput" accept="application/json,.json" style="display:none" onchange="cargarConfigDesdeArchivo(event)">
+    <button class="btn-cancel-cfg" style="margin-top:10px" onclick="document.getElementById('cfgFileInput').click()">📂 Cargar desde archivo</button>
+    <button class="btn-save-cfg" onclick="guardarConfig()">💾 Guardar</button>
+    <button class="btn-cancel-cfg" onclick="exportarConfigArchivo()">⬇️ Exportar archivo</button>
+    <button class="btn-cancel-cfg" onclick="cerrarConfig()">Cancelar</button>
+  </div>
+</div>
+
+<!-- Canvas offscreen -->
+<canvas id="fotosOffscreen" width="400" height="400" style="display:none;"></canvas>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════
+const API_URL = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let productos     = [];
+let sinFotoSet    = new Set();
+let filtroActual  = 'ALMACEN';
+let productoActual = null;
+let listaFiltrada = [];   // lista actualmente visible (para navegación modal)
+let modalIdx      = -1;   // índice en listaFiltrada del producto abierto
+
+// ═══════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════
+function simplificarNombre(n) {
+  return n.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').trim();
+}
+
+function toast(msg, tipo='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'show ' + tipo;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = '', 2600);
+}
+
+function _imgSrc(slug, bust=true) {
+  return 'imagenes-productos/' + slug + '.jpg' + (bust ? '?t='+Date.now() : '');
+}
+
+// ═══════════════════════════════════════════
+// CARGA
+// ═══════════════════════════════════════════
+async function cargarProductos() {
+  try {
+    const r = await fetch(API_URL + '?cache=' + Date.now());
+    const data = await r.json();
+    const arr = data.productos || data;
+    productos = arr.filter(p => p.name && p.price > 0).map(p => ({
+      id:       p.id,
+      name:     String(p.name).trim(),
+      price:    parseInt(p.price)||0,
+      category: String(p.category||'ALMACEN').trim().toUpperCase(),
+      slug:     simplificarNombre(String(p.name).trim())
+    }));
+    document.getElementById('countTotal').textContent = productos.length;
+    _buildCategoryFilters();  // activa chip ALMACEN
+
+    // ── Fase 1: verificar solo ALMACEN y mostrar inmediatamente ──
+    const almacen = productos.filter(p => p.category === 'ALMACEN');
+    await _verificarLote(almacen, true);  // true = mostrar progreso
+    renderGrid();  // mostrar ALMACEN ya verificado
+
+    // ── Fase 2: verificar el resto en segundo plano ──
+    const resto = productos.filter(p => p.category !== 'ALMACEN');
+    // Ordenar resto de menor a mayor categoría
+    const porCat = {};
+    resto.forEach(p => { (porCat[p.category] = porCat[p.category]||[]).push(p); });
+    const restoOrdenado = Object.entries(porCat)
+      .sort((a, b) => a[1].length - b[1].length)
+      .flatMap(([, prods]) => prods);
+    await _verificarLote(restoOrdenado, true);
+    renderGrid();  // re-render final con todo verificado
+
+  } catch(e) {
+    document.getElementById('productsGrid').innerHTML =
+      '<div class="empty-state"><div class="icon">⚠️</div><p>Error al cargar productos.<br>Verificá la conexión.</p></div>';
+  }
+}
+
+async function _verificarLote(lista, mostrarProgreso) {
+  if (!lista.length) return;
+  const pw = document.getElementById('progressWrap');
+  const pf = document.getElementById('progressFill');
+  const pl = document.getElementById('progressLabel');
+  if (mostrarProgreso) pw.classList.add('visible');
+  const BATCH = 24;
+  let done = 0;
+  for (let i = 0; i < lista.length; i += BATCH) {
+    const lote = lista.slice(i, i+BATCH);
+    await Promise.all(lote.map(p => new Promise(res => {
+      const img = new Image();
+      img.onload = res;
+      img.onerror = () => { sinFotoSet.add(p.id); res(); };
+      img.src = 'imagenes-productos/' + p.slug + '.jpg?t=' + Date.now();
+    })));
+    done = Math.min(i + BATCH, lista.length);
+    if (mostrarProgreso) {
+      const pct = Math.round(done / lista.length * 100);
+      pf.style.width = pct + '%';
+      const catActual = lote[0]?.category || '';
+      pl.textContent = `${catActual} · ${done}/${lista.length}`;
+    }
+  }
+  if (mostrarProgreso) pw.classList.remove('visible');
+  updateCounter();
+}
+
+
+
+// ═══════════════════════════════════════════
+// FILTROS
+// ═══════════════════════════════════════════
+function _buildCategoryFilters() {
+  const bar = document.getElementById('filtersBar');
+  bar.querySelectorAll('[data-cat]').forEach(e => e.remove());
+  const cats = [...new Set(productos.map(p => p.category))].sort();
+  cats.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-chip';
+    btn.dataset.cat = cat;
+    btn.dataset.f = cat;
+    btn.textContent = cat;
+    btn.onclick = () => setFiltro(cat, btn);
+    bar.appendChild(btn);
+  });
+  // Activar ALMACEN por defecto si existe
+  const btnAlmacen = bar.querySelector('[data-f="ALMACEN"]');
+  if (btnAlmacen) {
+    document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+    btnAlmacen.classList.add('active');
+    filtroActual = 'ALMACEN';
+  } else {
+    // fallback: activar TODOS si no hay ALMACEN
+    const btnTodos = bar.querySelector('[data-f="TODOS"]');
+    if (btnTodos) btnTodos.classList.add('active');
+    filtroActual = 'TODOS';
+  }
+}
+
+function setFiltro(f, btn) {
+  filtroActual = f;
+  document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderGrid();
+}
+
+function toggleBusqueda() {
+  const wrap = document.getElementById('searchBarWrap');
+  const btn  = document.getElementById('btnLupa');
+  if (wrap.classList.contains('open')) {
+    cerrarBusqueda();
+  } else {
+    wrap.classList.add('open');
+    btn.classList.add('active');
+    setTimeout(() => document.getElementById('searchInput').focus(), 220);
+  }
+}
+
+function cerrarBusqueda() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchBarWrap').classList.remove('open');
+  document.getElementById('btnLupa').classList.remove('active');
+  renderGrid();
+}
+
+function filtrarGrid() { renderGrid(); }
+
+function _listaFiltrada() {
+  const q = document.getElementById('searchInput').value.toUpperCase().trim();
+  let lista = productos;
+  // Con búsqueda activa: ignorar filtro de categoría, buscar en todos
+  if (q) return lista.filter(p => p.name.toUpperCase().includes(q));
+  if (filtroActual === 'SIN_FOTO')      lista = lista.filter(p => sinFotoSet.has(p.id));
+  else if (filtroActual === 'CON_FOTO') lista = lista.filter(p => !sinFotoSet.has(p.id));
+  else if (filtroActual !== 'TODOS')    lista = lista.filter(p => p.category === filtroActual);
+  return lista;
+}
+
+// ═══════════════════════════════════════════
+// RENDER GRID
+// ═══════════════════════════════════════════
+function renderGrid() {
+  const lista = _listaFiltrada();
+  listaFiltrada = lista;
+  document.getElementById('countVis').textContent = lista.length;
+  const grid = document.getElementById('productsGrid');
+  grid.innerHTML = '';
+
+  if (!lista.length) {
+    grid.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>Sin resultados.</p></div>';
+    return;
+  }
+
+  lista.forEach((p, idx) => {
+    const sinFoto = sinFotoSet.has(p.id);
+    const card = document.createElement('div');
+    card.className = 'prod-card' + (sinFoto ? ' sin-foto' : '');
+    card.dataset.id = p.id;
+    card.onclick = () => abrirEditor(p.id);
+
+    // imagen
+    const imgWrap = document.createElement('div');
+    imgWrap.className = 'card-img';
+    if (sinFoto) {
+      imgWrap.innerHTML = '<div class="no-foto-badge"><div class="icon">📷</div><div class="label">Sin foto</div></div>';
+    } else {
+      const img = document.createElement('img');
+      img.src = _imgSrc(p.slug, true);
+      img.loading = 'lazy'; img.alt = p.name;
+      img.onload  = () => img.classList.add('loaded');
+      img.onerror = () => {
+        imgWrap.innerHTML = '<div class="no-foto-badge"><div class="icon">📷</div><div class="label">Sin foto</div></div>';
+        card.classList.add('sin-foto');
+      };
+      imgWrap.appendChild(img);
+    }
+
+    // número
+    const num = document.createElement('div');
+    num.className = 'card-num';
+    num.textContent = idx + 1;
+
+    // copy btn
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'card-copy-btn';
+    copyBtn.textContent = '📋';
+    copyBtn.title = 'Copiar nombre';
+    copyBtn.onclick = e => { e.stopPropagation(); copiarTexto(p.name); };
+
+    // body
+    const body = document.createElement('div');
+    body.className = 'card-body';
+
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'card-name';
+    nameDiv.textContent = p.name;
+    nameDiv.title = 'Clic para editar nombre';
+
+    const nameInput = document.createElement('input');
+    nameInput.className = 'card-name-input';
+    nameInput.autocomplete = 'off'; nameInput.spellcheck = false;
+
+    const nameSaving = document.createElement('div');
+    nameSaving.className = 'card-saving';
+    nameSaving.innerHTML = '<div class="spin" style="width:9px;height:9px;border-width:1.5px;"></div> guardando…';
+
+    const slugDiv = document.createElement('div');
+    slugDiv.className = 'card-slug';
+    slugDiv.textContent = p.slug + '.jpg';
+
+    nameDiv.onclick = e => { e.stopPropagation(); editarNombreCard(p.id, nameDiv, nameInput, nameSaving, slugDiv, card); };
+
+    body.appendChild(nameDiv);
+    body.appendChild(nameInput);
+    body.appendChild(nameSaving);
+    body.appendChild(slugDiv);
+
+    imgWrap.appendChild(num);
+    imgWrap.appendChild(copyBtn);
+    card.appendChild(imgWrap);
+    card.appendChild(body);
+    grid.appendChild(card);
+  });
+}
+
+function updateCounter() {
+  const lista = _listaFiltrada();
+  document.getElementById('countVis').textContent = lista.length;
+  document.getElementById('countTotal').textContent = productos.length;
+}
+
+// ═══════════════════════════════════════════
+// COPIAR
+// ═══════════════════════════════════════════
+function copiarTexto(texto) {
+  navigator.clipboard.writeText(texto).then(() => toast('📋 ' + texto.substring(0,40), 'ok'));
+}
+function copiarNombre() {
+  if (!productoActual) return;
+  const btn = document.getElementById('btnCopyNombre');
+  copiarTexto(productoActual.name);
+  btn.textContent = '✅ Copiado'; btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = '📋 Copiar'; btn.classList.remove('copied'); }, 2000);
+}
+
+// ═══════════════════════════════════════════
+// EDITAR NOMBRE — CARD
+// ═══════════════════════════════════════════
+function editarNombreCard(prodId, nameDiv, input, saving, slugDiv, card) {
+  const p = productos.find(x => x.id === prodId);
+  if (!p) return;
+  input.value = p.name;
+  nameDiv.style.display = 'none';
+  input.style.display   = 'block';
+  input.focus(); input.select();
+  const oldClick = card.onclick;
+  card.onclick = null;
+
+  function cerrar() {
+    input.style.display  = 'none';
+    nameDiv.style.display = '';
+    card.onclick = oldClick;
+    input.removeEventListener('keydown', onKey);
+    input.removeEventListener('blur', onBlur);
+  }
+
+  async function confirmar() {
+    const nuevo = input.value.trim().toUpperCase();
+    if (!nuevo || nuevo === p.name.toUpperCase()) { cerrar(); return; }
+    input.style.display  = 'none';
+    saving.style.display = 'flex';
+    card.onclick = null;
+    const ok = await _guardarNombreEnPlanilla(p, nuevo);
+    if (ok) { nameDiv.textContent = p.name; slugDiv.textContent = p.slug + '.jpg'; }
+    saving.style.display = 'none';
+    cerrar();
+  }
+
+  let blurTimer;
+  function onKey(e) {
+    if (e.key === 'Enter')  { e.preventDefault(); clearTimeout(blurTimer); confirmar(); }
+    if (e.key === 'Escape') { clearTimeout(blurTimer); cerrar(); }
+  }
+  function onBlur() { blurTimer = setTimeout(confirmar, 180); }
+  input.addEventListener('keydown', onKey);
+  input.addEventListener('blur', onBlur);
+}
+
+// ═══════════════════════════════════════════
+// EDITAR NOMBRE — MODAL
+// ═══════════════════════════════════════════
+function iniciarEditNombre() {
+  if (!productoActual) return;
+  document.getElementById('modalProdName').style.display   = 'none';
+  document.getElementById('inputNombreModal').value        = productoActual.name;
+  document.getElementById('inputNombreModal').style.display = 'block';
+  document.getElementById('nombreEditBtns').style.display  = 'flex';
+  document.getElementById('btnEditNombre').style.display   = 'none';
+  document.getElementById('inputNombreModal').focus();
+  document.getElementById('inputNombreModal').select();
+}
+function cancelarEditNombre() {
+  document.getElementById('modalProdName').style.display    = '';
+  document.getElementById('inputNombreModal').style.display  = 'none';
+  document.getElementById('nombreEditBtns').style.display   = 'none';
+  document.getElementById('btnEditNombre').style.display    = '';
+}
+async function guardarNombreModal() {
+  if (!productoActual) return;
+  const nuevo = document.getElementById('inputNombreModal').value.trim().toUpperCase();
+  if (!nuevo) { toast('⚠️ Nombre vacío', 'error'); return; }
+  if (nuevo === productoActual.name.toUpperCase()) { cancelarEditNombre(); return; }
+  document.getElementById('nombreGuardando').style.display = 'flex';
+  document.getElementById('nombreEditBtns').querySelectorAll('button').forEach(b => b.disabled = true);
+  const ok = await _guardarNombreEnPlanilla(productoActual, nuevo);
+  if (ok) {
+    document.getElementById('modalProdName').textContent = productoActual.name;
+    document.getElementById('modalProdSlug').textContent = productoActual.slug + '.jpg';
+    document.getElementById('fotosFilenameLabel').textContent = productoActual.slug + '.jpg';
+    cancelarEditNombre();
+    toast('✅ Nombre actualizado', 'ok');
+  }
+  document.getElementById('nombreGuardando').style.display = 'none';
+  document.getElementById('nombreEditBtns').querySelectorAll('button').forEach(b => b.disabled = false);
+}
+document.addEventListener('keydown', e => {
+  const inp = document.getElementById('inputNombreModal');
+  if (!inp || inp.style.display === 'none') return;
+  if (e.key === 'Enter')  { e.preventDefault(); guardarNombreModal(); }
+  if (e.key === 'Escape') { cancelarEditNombre(); }
+});
+
+async function _guardarNombreEnPlanilla(p, nuevoNombre) {
+  try {
+    const payload = { producto: p.name, nombreNuevo: nuevoNombre, stockDespues: p.stock ?? null, stockAntes: p.stock ?? null };
+    const resp = await fetch(API_URL + '?action=ajusteRapido&data=' + encodeURIComponent(JSON.stringify(payload)));
+    const data = await resp.json();
+    if (data.success) {
+      const nuevoSlug = simplificarNombre(nuevoNombre);
+      const idx = productos.findIndex(x => x.id === p.id);
+      if (idx !== -1) { productos[idx].name = nuevoNombre; productos[idx].slug = nuevoSlug; }
+      p.name = nuevoNombre; p.slug = nuevoSlug;
+      return true;
+    }
+    toast('❌ ' + (data.mensaje || 'Error'), 'error'); return false;
+  } catch(e) { toast('❌ Red: ' + e.message, 'error'); return false; }
+}
+
+// ═══════════════════════════════════════════
+// MODAL EDITOR — ABRIR / CERRAR / NAVEGAR
+// ═══════════════════════════════════════════
+function abrirEditor(id) {
+  listaFiltrada = _listaFiltrada();
+  const idx = listaFiltrada.findIndex(p => p.id === id);
+  if (idx === -1) return;
+  _abrirEnIdx(idx);
+  try { _modalPosGuardada(); } catch (e) {}   // v1.3 — donde lo dejaste la última vez (PC)
+}
+
+function _abrirEnIdx(idx) {
+  const p = listaFiltrada[idx];
+  if (!p) return;
+  productoActual = p;
+  modalIdx = idx;
+
+  // Reset
+  ['fotosGrid','fotosPreviewWrap','ghStatus','fotosStatus','publishChecks'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  document.getElementById('ghStatus').className = '';
+  document.getElementById('publishCheckActions').style.display = 'none';
+  _resetPublishChecks();
+  document.getElementById('btnBuscarNet').disabled = false;
+  cancelarEditNombre();
+
+  // Datos
+  document.getElementById('modalProdName').textContent  = p.name;
+  document.getElementById('modalProdSlug').textContent  = p.slug + '.jpg';
+  document.getElementById('fotosFilenameLabel').textContent = p.slug + '.jpg';
+  document.getElementById('modalProdImg').src = _imgSrc(p.slug, true);
+  document.getElementById('btnCopyNombre').textContent = '📋 Copiar';
+  document.getElementById('btnCopyNombre').classList.remove('copied');
+
+  // Nav
+  _actualizarNav();
+
+  document.getElementById('overlayEditor').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function _actualizarNav() {
+  const pos = document.getElementById('navPos');
+  const prev = document.getElementById('btnPrev');
+  const next = document.getElementById('btnNext');
+  pos.textContent = (modalIdx + 1) + '/' + listaFiltrada.length;
+  prev.disabled = modalIdx <= 0;
+  next.disabled = modalIdx >= listaFiltrada.length - 1;
+}
+
+function navModal(dir) {
+  const newIdx = modalIdx + dir;
+  if (newIdx < 0 || newIdx >= listaFiltrada.length) return;
+  _abrirEnIdx(newIdx);
+}
+function siguienteProducto() { navModal(+1); }
+
+function cerrarEditorOverlay(e) {
+  if (_modalRecienArrastrado) return;   // v1.3 — soltar después de arrastrar no cierra
+  if (e.target === document.getElementById('overlayEditor')) _cerrarEditor();
+}
+// ── v1.3 — mover el cuadro con el mouse (solo PC ≥560 px). Se recuerda en esta PC. Doble clic en la barra = al centro.
+let _modalRecienArrastrado = false;
+const _POS_KEY = 'copihue_fotos_pos_modal';
+function _modalEsPC() { return window.innerWidth >= 560; }
+function _modalUbicar(x, y) {
+  const m = document.getElementById('modalEditor'); if (!m) return;
+  const w = m.offsetWidth, h = m.offsetHeight;
+  x = Math.max(0, Math.min(window.innerWidth - Math.min(w, 120), x));
+  y = Math.max(0, Math.min(window.innerHeight - 50, y));
+  m.classList.add('movido'); m.style.left = x + 'px'; m.style.top = y + 'px';
+  return { x, y };
+}
+function _modalPosGuardada() {
+  const m = document.getElementById('modalEditor'); if (!m) return;
+  if (!_modalEsPC()) { m.classList.remove('movido'); m.style.left = m.style.top = ''; return; }
+  let p = null; try { p = JSON.parse(localStorage.getItem(_POS_KEY)); } catch (e) {}
+  if (p && typeof p.x === 'number') _modalUbicar(p.x, p.y);
+  else { m.classList.remove('movido'); m.style.left = m.style.top = ''; }
+}
+function _modalCentrar() {
+  try { localStorage.removeItem(_POS_KEY); } catch (e) {}
+  const m = document.getElementById('modalEditor'); if (m) { m.classList.remove('movido'); m.style.left = m.style.top = ''; }
+}
+(function () {
+  const hdr = document.querySelector('#modalEditor .modal-header'); if (!hdr) return;
+  hdr.addEventListener('dblclick', e => { if (!_modalEsPC() || e.target.closest('button')) return; _modalCentrar(); });
+  hdr.addEventListener('pointerdown', e => {
+    if (!_modalEsPC() || e.button !== 0 || e.target.closest('button')) return;
+    const m = document.getElementById('modalEditor'), r = m.getBoundingClientRect();
+    const dx = e.clientX - r.left, dy = e.clientY - r.top; let movio = false, ult = null;
+    e.preventDefault(); document.body.classList.add('arrastrando-modal');
+    const mov = ev => { if (!movio && Math.abs(ev.clientX - e.clientX) + Math.abs(ev.clientY - e.clientY) < 4) return; movio = true; ult = _modalUbicar(ev.clientX - dx, ev.clientY - dy); };
+    const fin = () => {
+      document.removeEventListener('pointermove', mov); document.removeEventListener('pointerup', fin); document.removeEventListener('pointercancel', fin);
+      document.body.classList.remove('arrastrando-modal');
+      if (movio) { _modalRecienArrastrado = true; setTimeout(() => { _modalRecienArrastrado = false; }, 300); if (ult) { try { localStorage.setItem(_POS_KEY, JSON.stringify(ult)); } catch (er) {} } }
+    };
+    document.addEventListener('pointermove', mov); document.addEventListener('pointerup', fin); document.addEventListener('pointercancel', fin);
+  });
+  window.addEventListener('resize', () => { if (document.getElementById('overlayEditor').classList.contains('open')) _modalPosGuardada(); });
+})();
+function cerrarEditorBtn() { _cerrarEditor(); }
+function _cerrarEditor() {
+  document.getElementById('overlayEditor').classList.remove('open');
+  document.body.style.overflow = '';
+  productoActual = null;
+}
+
+// Teclado: flechas navegan, Escape cierra
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('overlayEditor').classList.contains('open')) return;
+  if (document.getElementById('inputNombreModal').style.display !== 'none') return;
+  if (e.key === 'ArrowRight') navModal(+1);
+  if (e.key === 'ArrowLeft')  navModal(-1);
+  if (e.key === 'Escape')     _cerrarEditor();
+});
+
+// ═══════════════════════════════════════════
+// BUSCAR EN INTERNET
+// ═══════════════════════════════════════════
+function _limpiarNombreBusqueda(nombre) {
+  return nombre
+    .replace(/\([^)]*\)/g,' ')
+    .replace(/\bx\s*(kg|un|lt|lts|gr|g|ml|cc|l)\b/gi,' ')
+    .replace(/\b\d+([.,]\d+)?\s*(kg|un|lt|lts|gr|g|ml|cc|l)\b/gi,' ')
+    .replace(/\bx\s*\d+\b/gi,' ')
+    .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]/g,' ')
+    .replace(/\s{2,}/g,' ').trim();
+}
+
+async function buscarEnInternet() {
+  if (!productoActual) return;
+  const nombre = _limpiarNombreBusqueda(productoActual.name);
+  ['fotosGrid','fotosPreviewWrap','ghStatus'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
+  document.getElementById('publishChecks').style.display = 'none';
+  const stEl = document.getElementById('fotosStatus');
+  stEl.style.display = 'block';
+  stEl.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;gap:9px;"><div class="spin"></div> Buscando <strong>${nombre}</strong>…</div>`;
+  document.getElementById('btnBuscarNet').disabled = true;
+
+  try {
+    const q = nombre + ' producto supermercado argentina';
+    const url = API_URL + '?action=buscarFotos&q=' + encodeURIComponent(q) + '&t=' + Date.now();
+    const resp = await fetch(url);
+    const data = await resp.json();
+
+    if (Array.isArray(data.fotos) && data.fotos.length) {
+      stEl.style.display = 'none';
+      _mostrarGridFotosB64(data.fotos);
+      document.getElementById('btnBuscarNet').disabled = false;
+      return;
+    }
+
+    const urls = Array.isArray(data.urls)
+      ? [...new Set(data.urls)].filter(u => typeof u==='string' && u.startsWith('http') && !/favicon|logo|icon/i.test(u))
+      : [];
+
+    if (!urls.length) {
+      stEl.innerHTML = '⚠️ No encontré imágenes. Probá con otro nombre o subí una foto manualmente.';
+    } else {
+      stEl.style.display = 'none';
+      _mostrarGridFotos(urls);
+    }
+  } catch(e) {
+    stEl.innerHTML = '❌ Error: ' + e.message;
+  }
+  document.getElementById('btnBuscarNet').disabled = false;
+}
+
+function _mostrarGridFotosB64(fotos) {
+  const grid = document.getElementById('fotosGridItems');
+  grid.innerHTML = '';
+  fotos.forEach(foto => {
+    const src = 'data:' + foto.mime + ';base64,' + foto.b64;
+    const item = document.createElement('div');
+    const img  = document.createElement('img');
+    img.src = src;
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+    item.appendChild(img);
+    item.onclick = () => _previsualizar(src, item);
+    grid.appendChild(item);
+  });
+  document.getElementById('fotosGrid').style.display = 'block';
+}
+
+function _mostrarGridFotos(urls) {
+  const grid = document.getElementById('fotosGridItems');
+  grid.innerHTML = '';
+  urls.forEach(url => {
+    const item = document.createElement('div');
+    const img  = document.createElement('img');
+    img.src = url; img.crossOrigin = 'anonymous';
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+    img.onerror = () => { item.innerHTML = '<div class="foto-err">✕</div>'; };
+    item.appendChild(img);
+    item.onclick = () => _previsualizar(url, item);
+    grid.appendChild(item);
+  });
+  document.getElementById('fotosGrid').style.display = 'block';
+}
+
+// ═══════════════════════════════════════════
+// CANVAS
+// ═══════════════════════════════════════════
+function _dibujarEnCanvas(img, canvas) {
+  const ctx = canvas.getContext('2d'), S = 400;
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  const scale = Math.max(S/iw, S/ih), sw = S/scale, sh = S/scale;
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,S,S);
+  ctx.drawImage(img,(iw-sw)/2,(ih-sh)/2,sw,sh,0,0,S,S);
+  ctx.save();
+  ctx.translate(S/2,S/2); ctx.rotate(-30*Math.PI/180);
+  ctx.font='bold 26px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle='rgba(30,30,30,0.15)';
+  ctx.fillText('ALMACÉN COPIHUE',0,0);
+  ctx.restore();
+}
+
+// Verifica que el canvas tenga contenido real (no negro ni vacío)
+function _canvasEsValido(canvas) {
+  try {
+    const ctx = canvas.getContext('2d');
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let sumR = 0, sumG = 0, sumB = 0;
+    const step = 4 * 20; // muestrear cada 20 píxeles
+    let count = 0;
+    for (let i = 0; i < data.length; i += step) {
+      sumR += data[i]; sumG += data[i+1]; sumB += data[i+2];
+      count++;
+    }
+    const avgR = sumR/count, avgG = sumG/count, avgB = sumB/count;
+    // Si el promedio es muy oscuro (negro) o muy bajo → inválido
+    // Un canvas blanco tiene avg ~255, negro ~0
+    if (avgR < 10 && avgG < 10 && avgB < 10) return { ok: false, motivo: 'La imagen quedó negra. Volvé a cargar el archivo.' };
+    if (avgR > 250 && avgG > 250 && avgB > 250) return { ok: false, motivo: 'La imagen quedó en blanco. Volvé a cargar el archivo.' };
+    return { ok: true };
+  } catch(e) {
+    return { ok: false, motivo: 'No se pudo leer el canvas: ' + e.message };
+  }
+}
+
+function _previsualizar(src, cardEl) {
+  document.querySelectorAll('#fotosGridItems > div').forEach(c => c.classList.remove('selected'));
+  if (cardEl) cardEl.classList.add('selected');
+  const img = new Image(); img.crossOrigin='anonymous';
+  img.onload = () => {
+    _dibujarEnCanvas(img, document.getElementById('fotosCanvas'));
+    _dibujarEnCanvas(img, document.getElementById('fotosOffscreen'));
+    document.getElementById('fotosFilenameLabel').textContent = productoActual.slug + '.jpg';
+    document.getElementById('fotosPreviewWrap').style.display = 'block';
+    document.getElementById('ghStatus').style.display = 'none';
+    document.getElementById('ghStatus').className = '';
+    document.getElementById('publishChecks').style.display = 'none';
+    document.getElementById('fotosPreviewWrap').scrollIntoView({behavior:'smooth',block:'nearest'});
+  };
+  img.onerror = () => toast('❌ No se pudo cargar (CORS). Probá otra.','error');
+  img.src = src;
+}
+
+function cargarDesdeArchivo(event) {
+  const file = event.target.files[0]; if (!file||!productoActual) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      _dibujarEnCanvas(img,document.getElementById('fotosCanvas'));
+      _dibujarEnCanvas(img,document.getElementById('fotosOffscreen'));
+      document.getElementById('fotosFilenameLabel').textContent = productoActual.slug + '.jpg';
+      document.getElementById('fotosGrid').style.display = 'none';
+      document.getElementById('fotosPreviewWrap').style.display = 'block';
+      document.getElementById('ghStatus').style.display = 'none';
+      document.getElementById('ghStatus').className = '';
+      document.getElementById('publishChecks').style.display = 'none';
+      document.getElementById('fotosPreviewWrap').scrollIntoView({behavior:'smooth',block:'nearest'});
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file); event.target.value = '';
+}
+
+function descargarFoto() {
+  if (!productoActual) return;
+  document.getElementById('fotosOffscreen').toBlob(blob => {
+    if (!blob) document.getElementById('fotosCanvas').toBlob(b => _dl(b),'image/jpeg',0.93);
+    else _dl(blob);
+  },'image/jpeg',0.93);
+}
+function _dl(blob) {
+  if (!blob) { toast('❌ Error al generar','error'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = productoActual.slug + '.jpg'; a.click();
+  toast('✅ Descargado','ok');
+}
+
+// ═══════════════════════════════════════════
+// PUBLISH CHECKS
+// ═══════════════════════════════════════════
+function _resetPublishChecks() {
+  _setCheck('checkGitHub','pending','Subida al repositorio');
+  _setCheck('checkCDN','pending','Disponible en la web');
+  _setCheck('checkPreview','pending','Vista previa actualizada');
+}
+function _showPublishChecks() {
+  document.getElementById('publishChecks').style.display = 'block';
+}
+function _setCheck(id, state, text) {
+  const dot  = document.getElementById(id+'-dot');
+  const txt  = document.getElementById(id+'-text');
+  if (!dot||!txt) return;
+  const icons = { pending:'○', ok:'✓', error:'✕', running:'…' };
+  dot.className = 'check-dot ' + state;
+  dot.textContent = icons[state]||'○';
+  txt.textContent = text;
+}
+
+async function _esperarImagenPublica(slug, maxIntentos=24, pausaMs=5000) {
+  const base = 'imagenes-productos/' + slug + '.jpg';
+  for (let i=0; i<maxIntentos; i++) {
+    // Primera espera: 3s para que GitHub procese; luego 5s entre intentos
+    await new Promise(r => setTimeout(r, i===0 ? 3000 : pausaMs));
+    // Mostrar contador en el check de CDN
+    const seg = Math.round((i * pausaMs + 3000) / 1000);
+    _setCheck('checkCDN', 'running', `Esperando deploy de Vercel… (${seg}s)`);
+    try {
+      // Sin ?t= porque Vercel no sirve archivos estáticos con query strings
+      const r = await fetch(base, { cache:'no-store' });
+      if (r.ok) return { ok: true, url: base + '?t=' + Date.now() };
+    } catch(e) {}
+  }
+  return { ok: false, url: base };
+}
+
+async function revalidarPublicacion() {
+  if (!productoActual) return;
+  _showPublishChecks();
+  _setCheck('checkCDN','running','Revalidando disponibilidad…');
+  _setCheck('checkPreview','pending','Esperando…');
+  document.getElementById('publishCheckActions').style.display = 'none';
+  const res = await _esperarImagenPublica(productoActual.slug, 18, 5000);
+  if (res.ok) {
+    _setCheck('checkCDN','ok','URL pública OK');
+    _setCheck('checkPreview','ok','Vista previa recargada');
+    document.getElementById('modalProdImg').src = res.url;
+    toast('✅ Confirmado', 'ok');
+  } else {
+    _setCheck('checkCDN','error','Aún no responde');
+    _setCheck('checkPreview','error','No confirmado');
+    toast('⚠️ Todavía no disponible', 'warn');
+  }
+  document.getElementById('publishCheckActions').style.display = 'flex';
+}
+
+// ═══════════════════════════════════════════
+// GITHUB
+// ═══════════════════════════════════════════
+function _ghCfg() {
+  try { return JSON.parse(localStorage.getItem('copihue_gh_config')); } catch(e) { return null; }
+}
+function _setGHStatus(msg, tipo) {
+  const el = document.getElementById('ghStatus');
+  el.style.display = 'block'; el.className = tipo; el.innerHTML = msg;
+}
+
+// ── GitHub helpers (directo a la API, sin backend) ─────
+async function _getSHA(url, token) {
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `token ${token}`,
+      'Accept': 'application/vnd.github+json'
+    }
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('GitHub ' + res.status);
+  const data = await res.json();
+  return data.sha;
+}
+
+async function _subirArchivoGitHub({ owner, repo, path, base64, token, branch, mensaje }) {
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
+  const sha = await _getSHA(url, token);
+  const body = { message: mensaje, content: base64, branch };
+  if (sha) body.sha = sha;
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+    {
+      method: 'PUT',
+      headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Error subiendo archivo');
+  return data;
+}
+// ────────────────────────────────────────────────────────
+
+async function publicarEnGitHub() {
+  if (!productoActual) return;
+  const cfg = _ghCfg(); if (!cfg||!cfg.token) { abrirConfig(); return; }
+  const slug  = productoActual.slug;
+  const fname = slug + '.jpg';
+  const path  = 'imagenes-productos/' + fname;
+  const btn = document.getElementById('btnPublicarGH'); btn.disabled = true;
+
+  _showPublishChecks();
+  _resetPublishChecks();
+  _setCheck('checkGitHub', 'running', 'Preparando imagen…');
+  document.getElementById('publishCheckActions').style.display = 'none';
+  _setGHStatus('<div style="display:flex;align-items:center;gap:8px;"><div class="spin"></div> Preparando imagen…</div>', 'loading');
+
+  // Validar que el canvas tenga imagen real antes de subir
+  const canvas = document.getElementById('fotosOffscreen');
+  const validacion = _canvasEsValido(canvas);
+  if (!validacion.ok) {
+    _setCheck('checkGitHub', 'error', validacion.motivo);
+    _setGHStatus('❌ ' + validacion.motivo, 'error');
+    document.getElementById('publishCheckActions').style.display = 'flex';
+    btn.disabled = false;
+    toast('❌ ' + validacion.motivo, 'error');
+    return;
+  }
+
+  // Usar toBlob para evitar SecurityError en canvas contaminado por CORS
+  let base64;
+  try {
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas vacío')), 'image/jpeg', 0.93);
+    });
+    if (!blob || blob.size < 500) throw new Error('La imagen está vacía. Volvé a cargar el archivo.');
+    base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = () => reject(new Error('Error leyendo imagen'));
+      reader.readAsDataURL(blob);
+    });
+  } catch(e) {
+    _setCheck('checkGitHub', 'error', e.message);
+    _setGHStatus('❌ ' + e.message, 'error');
+    document.getElementById('publishCheckActions').style.display = 'flex';
+    btn.disabled = false;
+    return;
+  }
+
+  _setCheck('checkGitHub', 'running', 'Subiendo archivo…');
+  _setGHStatus('<div style="display:flex;align-items:center;gap:8px;"><div class="spin"></div> Subiendo a GitHub…</div>', 'loading');
+
+  try {
+    const res = await _subirArchivoGitHub({
+      owner:   cfg.owner,
+      repo:    cfg.repo,
+      path:    path,
+      base64:  base64,
+      token:   cfg.token,
+      branch:  cfg.branch || 'main',
+      mensaje: 'Foto: ' + fname + ' · Copihue POS'
+    });
+
+    const commitUrl = res.commit?.html_url || '#';
+    _setCheck('checkGitHub', 'ok', 'Archivo confirmado en GitHub');
+    _setCheck('checkCDN', 'running', 'Esperando propagación…');
+    _setGHStatus('<div style="display:flex;align-items:center;gap:8px;"><div class="spin"></div> Esperando deploy de Vercel (puede tardar 1–2 min)…</div>', 'loading');
+
+    const publicado = await _esperarImagenPublica(slug, 12, 2500);
+
+    if (!publicado.ok) {
+      _setCheck('checkCDN', 'error', 'GitHub OK, web aún no responde');
+      _setCheck('checkPreview', 'error', 'Revalidar manualmente');
+      _setGHStatus(`⚠️ <strong>${fname}</strong> subido, pero la web no responde aún.<br><small><a href="${commitUrl}" target="_blank" style="color:var(--warn);">Ver commit ↗</a></small>`, 'error');
+      document.getElementById('publishCheckActions').style.display = 'flex';
+      toast('⚠️ Subida OK, la web aún no responde', 'warn');
+      return;
+    }
+
+    // Actualizar card en grid
+    document.getElementById('modalProdImg').src = publicado.url;
+    const card = document.querySelector(`.prod-card[data-id="${productoActual.id}"]`);
+    if (card) {
+      card.classList.remove('sin-foto'); card.classList.add('recien-subida');
+      const iw = card.querySelector('.card-img');
+      if (iw) iw.innerHTML = `<img src="${publicado.url}" class="loaded" style="width:100%;height:100%;object-fit:cover;display:block;"><div class="card-num">${modalIdx+1}</div>`;
+      setTimeout(() => card.classList.remove('recien-subida'), 2000);
+    }
+    sinFotoSet.delete(productoActual.id);
+    updateCounter();
+
+    _setCheck('checkCDN', 'ok', 'URL pública respondió');
+    _setCheck('checkPreview', 'ok', 'Vista previa y grilla actualizadas');
+    document.getElementById('publishCheckActions').style.display = 'flex';
+    _setGHStatus(`✅ <strong>${fname}</strong> publicado y verificado.<br><small><a href="${commitUrl}" target="_blank" style="color:var(--ok);">Ver commit ↗</a> · <a href="${publicado.url}" target="_blank" style="color:var(--ok);">Abrir imagen ↗</a></small>`, 'ok');
+    toast('✅ Foto publicada y verificada', 'ok');
+
+  } catch(e) {
+    _setCheck('checkGitHub', 'error', 'Error: ' + e.message);
+    _setCheck('checkCDN', 'error', 'No se pudo validar');
+    _setCheck('checkPreview', 'error', 'No confirmado');
+    _setGHStatus('❌ ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+
+// ═══════════════════════════════════════════
+// CONFIG PANEL
+// ═══════════════════════════════════════════
+function abrirConfig() {
+  const cfg = _ghCfg();
+  if (cfg) {
+    document.getElementById('ghOwner').value  = cfg.owner||'';
+    document.getElementById('ghRepo').value   = cfg.repo||'';
+    document.getElementById('ghBranch').value = cfg.branch||'main';
+    document.getElementById('ghToken').value  = cfg.token||'';
+  }
+  document.getElementById('configPanel').classList.add('open');
+}
+function cerrarConfig() { document.getElementById('configPanel').classList.remove('open'); }
+function cerrarConfigOut(e) { if (e.target===document.getElementById('configPanel')) cerrarConfig(); }
+function guardarConfig() {
+  const owner  = document.getElementById('ghOwner').value.trim();
+  const repo   = document.getElementById('ghRepo').value.trim();
+  const branch = document.getElementById('ghBranch').value.trim()||'main';
+  const token  = document.getElementById('ghToken').value.trim();
+  if (!owner||!repo||!token) { toast('⚠️ Completá usuario, repo y token','error'); return; }
+  localStorage.setItem('copihue_gh_config',JSON.stringify({owner,repo,branch,token}));
+  cerrarConfig(); toast('✅ Configuración guardada','ok');
+}
+
+function cargarConfigDesdeArchivo(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    let data;
+    try { data = JSON.parse(e.target.result); }
+    catch(err) { toast('⚠️ Archivo inválido (no es JSON)','error'); event.target.value=''; return; }
+
+    const owner  = (data.owner||'').trim();
+    const repo   = (data.repo||'').trim();
+    const branch = (data.branch||'main').trim();
+    const token  = (data.token||'').trim();
+    if (!owner||!repo||!token) { toast('⚠️ Faltan campos en el archivo (owner, repo, token)','error'); event.target.value=''; return; }
+
+    document.getElementById('ghOwner').value  = owner;
+    document.getElementById('ghRepo').value    = repo;
+    document.getElementById('ghBranch').value  = branch;
+    document.getElementById('ghToken').value   = token;
+
+    localStorage.setItem('copihue_gh_config',JSON.stringify({owner,repo,branch,token}));
+    toast('✅ Configuración cargada desde archivo','ok');
+    event.target.value = '';
+  };
+  reader.onerror = () => toast('⚠️ No se pudo leer el archivo','error');
+  reader.readAsText(file);
+}
+
+function exportarConfigArchivo() {
+  const owner  = document.getElementById('ghOwner').value.trim();
+  const repo   = document.getElementById('ghRepo').value.trim();
+  const branch = document.getElementById('ghBranch').value.trim()||'main';
+  const token  = document.getElementById('ghToken').value.trim();
+  if (!owner||!repo||!token) { toast('⚠️ Completá usuario, repo y token antes de exportar','error'); return; }
+  const data = {owner, repo, branch, token};
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'copihue-gh-config.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('⬇️ Archivo exportado','ok');
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+cargarProductos();
+</script>
+<!-- STAGING-ETIQUETA — solo en STAGING: etiqueta chica fija abajo a la izquierda con parpadeo del borde a intervalos al azar (para que la vista no se acostumbre). No recibe toques (pointer-events:none). -->
+<style>
+#stgPill{position:fixed;left:6px;bottom:6px;z-index:2147483000;pointer-events:none;background:#ff9800;color:#000;font:900 11px/1 system-ui,-apple-system,sans-serif;padding:4px 8px;border-radius:999px;border:2px solid #000;box-shadow:0 1px 4px rgba(0,0,0,.35);opacity:.92;letter-spacing:.3px;white-space:nowrap}
+#stgPill.stg-pulso{animation:stgPulso 1.4s ease-in-out 2}
+@keyframes stgPulso{0%,100%{border-color:#000;box-shadow:0 1px 4px rgba(0,0,0,.35)}50%{border-color:#ff1744;box-shadow:0 0 0 5px rgba(255,23,68,.55),0 0 14px rgba(255,23,68,.8)}}
+</style>
+<div id="stgPill" aria-hidden="true">🧪 STAGING</div>
+<script>
+(function(){try{var p=document.getElementById('stgPill');if(!p)return;
+function tic(){p.classList.remove('stg-pulso');void p.offsetWidth;p.classList.add('stg-pulso');setTimeout(tic,7000+Math.random()*18000);}
+setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
+</script>
+<!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
+<script>
+/*AV*/var AV_PAG='fotos',AV_VER='1.3.1';
+(function () {
+  var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
+  function cartel(txt, color, alTocar, ms) {
+    try {
+      if (aviso) aviso.remove();
+      var d = document.createElement('div'); aviso = d;
+      d.setAttribute('role', 'status');
+      d.style.cssText = 'position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:2147483600;max-width:92vw;padding:10px 16px;border-radius:14px;'
+        + 'font:800 14px/1.3 system-ui,-apple-system,sans-serif;color:#fff;background:' + color + ';box-shadow:0 6px 20px rgba(0,0,0,.3);cursor:pointer;text-align:center';
+      d.textContent = txt;
+      d.onclick = function () { d.remove(); aviso = null; if (alTocar) alTocar(); };
+      (document.body || document.documentElement).appendChild(d);
+      if (ms) setTimeout(function () { if (aviso === d) { d.remove(); aviso = null; } }, ms);
+    } catch (e) {}
+  }
+  // 1) al abrir: ¿cambió la versión desde la última vez en este aparato?
+  try {
+    var antes = localStorage.getItem(CLAVE);
+    localStorage.setItem(CLAVE, AV_VER);
+    if (antes && antes !== AV_VER) setTimeout(function () { cartel('✅ Se actualizó a v' + AV_VER, '#2e7d32', null, 6000); }, 900);
+  } catch (e) {}
+  // 2) recargar de verdad (también la app instalada): memoria vieja afuera + página nueva desde internet
+  function actualizar() {
+    cartel('⏳ Actualizando…', '#1565c0');
+    var tareas = [];
+    try { if ('caches' in window) tareas.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); })); } catch (e) {}
+    try { if (navigator.serviceWorker) tareas.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.update().catch(function () {}); })); })); } catch (e) {}
+    try { tareas.push(fetch(location.pathname + location.search, { cache: 'reload' }).catch(function () {})); } catch (e) {}
+    Promise.all(tareas).catch(function () {}).then(function () { location.reload(); });
+  }
+  window.copihueActualizar = actualizar;
+  // 3) ¿hay una versión más nueva publicada? (liviano: solo la misma página, no la planilla)
+  function revisar() {
+    if (document.visibilityState === 'hidden' || !navigator.onLine) return;
+    var ahora = Date.now(); if (ahora - ult < 60000) return; ult = ahora;
+    fetch(location.pathname + '?avchk=' + ahora, { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
+      var m = /\/\*AV\*\/var AV_PAG='([^']*)',AV_VER='([^']*)'/.exec(t || '');
+      if (m && m[1] === AV_PAG && m[2] !== AV_VER) cartel('🔄 Hay versión nueva (v' + m[2] + ') — tocá para actualizar', '#e65100', actualizar);
+    }).catch(function () {});
+  }
+  setTimeout(revisar, 20000);
+  setInterval(revisar, 10 * 60 * 1000);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') revisar(); });
+})();
+</script>
+</body>
+</html>
