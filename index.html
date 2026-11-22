@@ -577,12 +577,20 @@
         .rv-cont { color: #fff; font-weight: 800; font-size: .8rem; }
         /* v225 — ▶ PRESENTACIÓN (pantalla de local / tablet): revista a pantalla completa que pasa sola */
         .rv-tvfila { display: flex; gap: 8px; margin: 8px 10px 0; }
+        /* v226 — 📄 PDF */
+        .rv-pdfbtn { display: block; width: calc(100% - 20px); margin: 8px 10px 0; padding: 12px; border: 2px solid rgba(255,255,255,.75); border-radius: 14px; background: rgba(255,255,255,.12); color: #fff; font-weight: 900; font-size: .98rem; cursor: pointer; font-family: inherit; }
+        #rvPdfOv { position: fixed; inset: 0; z-index: 2147483200; background: rgba(0,0,0,.7); display: none; align-items: center; justify-content: center; padding: 16px; }
+        #rvPdfOv .cj { background: #fff; border-radius: 18px; padding: 20px; width: min(380px, 100%); text-align: center; font-family: system-ui, sans-serif; box-shadow: 0 12px 40px rgba(0,0,0,.4); }
+        #rvPdfOv .tt { font-weight: 900; font-size: 1.05rem; color: #1b1b1b; } #rvPdfOv .st { color: #555; font-size: .85rem; margin: 8px 0 14px; }
+        #rvPdfOv .bar { height: 8px; background: #eee; border-radius: 6px; overflow: hidden; margin: 10px 0; } #rvPdfOv .bar i { display: block; height: 100%; width: 0; background: #2e7d32; transition: width .2s; }
+        #rvPdfOv button { width: 100%; padding: 12px; border: none; border-radius: 12px; font-weight: 900; font-size: .95rem; cursor: pointer; margin-top: 8px; font-family: inherit; }
+        #rvPdfOv .b1 { background: #25d366; color: #fff; } #rvPdfOv .b2 { background: #1565c0; color: #fff; } #rvPdfOv .b3 { background: #eee; color: #333; }
         .rv-tvbtn { flex: 1; padding: 12px; border: none; border-radius: 14px; background: #ffd54f; color: #3e2723; font-weight: 900; font-size: 1rem; cursor: pointer; font-family: inherit; }
         .rv-tvseg { flex: none; border: none; border-radius: 14px; padding: 0 10px; font-weight: 800; font-family: inherit; background: rgba(255,255,255,.9); }
         .rv-tvsalir { display: none; }
         body.rv-tv { overflow: hidden; }
         body.rv-tv #ofertasRevista { position: fixed !important; inset: 0; z-index: 2147483100; margin: 0 !important; border-radius: 0 !important; display: flex !important; flex-direction: column; justify-content: center; overflow: hidden; padding: 1.5vh 2vw; box-sizing: border-box; max-width: none !important; width: 100% !important; cursor: none; }
-        body.rv-tv #ofertasRevista .rv-flecha, body.rv-tv #ofertasRevista .rv-compartir, body.rv-tv #ofertasRevista .rv-tvfila, body.rv-tv #ofertasRevista .rv-btns, body.rv-tv #ofertasRevista .rv-otra, body.rv-tv #ofertasRevista .rv-cont { display: none !important; }
+        body.rv-tv #ofertasRevista .rv-flecha, body.rv-tv #ofertasRevista .rv-compartir, body.rv-tv #ofertasRevista .rv-pdfbtn, body.rv-tv #ofertasRevista .rv-tvfila, body.rv-tv #ofertasRevista .rv-btns, body.rv-tv #ofertasRevista .rv-otra, body.rv-tv #ofertasRevista .rv-cont { display: none !important; }
         body.rv-tv #ofertasRevista .rv-marco { flex: 1; min-height: 0; display: flex; }
         body.rv-tv #ofertasRevista .rv-hojas { flex: 1; scrollbar-width: none; }
         body.rv-tv #ofertasRevista .rv-pag { overflow: hidden; }
@@ -2875,6 +2883,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
         <div class="rv-tvfila"><button type="button" class="rv-tvbtn" onclick="rvPresentar()">▶ Presentación</button>
             <select id="rvTvSeg" class="rv-tvseg" title="Segundos por página" onchange="try{localStorage.setItem('copihue_rv_tv_seg',this.value)}catch(e){}"><option value="4">4 s</option><option value="6" selected>6 s</option><option value="10">10 s</option><option value="15">15 s</option></select></div>
         <button type="button" class="rv-compartir" onclick="abrirCompartirRevista()">📲 Compartir revista</button>
+        <button type="button" class="rv-pdfbtn" onclick="rvPdf()">📄 Revista en PDF</button>
         <div class="rv-tvsalir" id="rvTvSalir">Tocá la pantalla para salir</div>
     </div>
 
@@ -3105,7 +3114,7 @@ body.vista-inicio.pt-buscando #floatingHome,body.vista-inicio.pt-abajo #floating
 
 <script>
 // ========== VERSIÓN Y CONFIGURACIÓN ==========
-const APP_VERSION = 'copihue-index-v225';
+const APP_VERSION = 'copihue-index-v226';
 // Tag versión automático con fecha
 // versionTag se actualiza desde config_sistema (campo 'version')
 
@@ -9023,6 +9032,67 @@ window.abrirCompartirRevista = async function () {
         btn.disabled = false;
     } catch (e) { console.warn('compartir revista:', e); wrap.innerHTML = '<div style="color:#fff;padding:30px;text-align:center">No se pudo armar la revista. Probá de nuevo.</div>'; }
 };
+// ── v226 — 📄 REVISTA EN PDF: tapa + una página por producto (las mismas imágenes de «Compartir»), armado en el aparato,
+// sin librerías externas. Cada página es tocable: abre WhatsApp con ese producto (la tapa abre la revista).
+async function _rvPdfBytes(paginas) {   // paginas: [{jpg: Uint8Array, w, h, url}]
+    const enc = new TextEncoder(), partes = [], ofs = []; let len = 0;
+    const add = x => { const b = typeof x === 'string' ? enc.encode(x) : x; partes.push(b); len += b.length; };
+    const esc = t => String(t).replace(/[\\()]/g, m => '\\' + m).replace(/[^\x20-\x7e]/g, c => encodeURIComponent(c));
+    const n = paginas.length, total = 2 + n * 4, W = 540, H = 675;
+    add('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+    ofs[1] = len; add('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+    ofs[2] = len; add('2 0 obj\n<< /Type /Pages /Count ' + n + ' /Kids [' + paginas.map((_, i) => (3 + i * 4) + ' 0 R').join(' ') + '] >>\nendobj\n');
+    paginas.forEach((pg, i) => {
+        const o = 3 + i * 4, cont = 'q ' + W + ' 0 0 ' + H + ' 0 0 cm /Im0 Do Q';
+        ofs[o] = len; add(o + ' 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + W + ' ' + H + '] /Resources << /XObject << /Im0 ' + (o + 2) + ' 0 R >> >> /Contents ' + (o + 1) + ' 0 R' + (pg.url ? ' /Annots [' + (o + 3) + ' 0 R]' : '') + ' >>\nendobj\n');
+        ofs[o + 1] = len; add((o + 1) + ' 0 obj\n<< /Length ' + cont.length + ' >>\nstream\n' + cont + '\nendstream\nendobj\n');
+        ofs[o + 2] = len; add((o + 2) + ' 0 obj\n<< /Type /XObject /Subtype /Image /Width ' + pg.w + ' /Height ' + pg.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + pg.jpg.length + ' >>\nstream\n'); add(pg.jpg); add('\nendstream\nendobj\n');
+        ofs[o + 3] = len; add((o + 3) + ' 0 obj\n<< /Type /Annot /Subtype /Link /Rect [0 0 ' + W + ' ' + H + '] /Border [0 0 0] /A << /S /URI /URI (' + esc(pg.url || '') + ') >> >>\nendobj\n');
+    });
+    const xref = len;
+    add('xref\n0 ' + (total + 1) + '\n0000000000 65535 f \n');
+    for (let k = 1; k <= total; k++) add(String(ofs[k] || 0).padStart(10, '0') + ' 00000 n \n');
+    add('trailer\n<< /Size ' + (total + 1) + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF\n');
+    return new Blob(partes, { type: 'application/pdf' });
+}
+let _rvPdfArchivo = null;
+function _rvPdfCuadro(html) {
+    let ov = document.getElementById('rvPdfOv');
+    if (!ov) { ov = document.createElement('div'); ov.id = 'rvPdfOv'; ov.addEventListener('click', e => { if (e.target === ov) ov.style.display = 'none'; }); document.body.appendChild(ov); }
+    ov.innerHTML = '<div class="cj">' + html + '</div>'; ov.style.display = 'flex'; return ov;
+}
+window.rvPdf = async function () {
+    const lista = _rvLista(); if (!lista.length) return;
+    const titulo = (_poolRevista && _poolRevista.titulo) || 'Revista de Navidad', total = lista.length + 1;
+    _rvPdfCuadro('<div class="tt">📄 Armando la revista en PDF…</div><div class="bar"><i id="rvPdfBar"></i></div><div class="st" id="rvPdfSt">0 / ' + total + '</div>');
+    const paso = k => { const b = document.getElementById('rvPdfBar'), t = document.getElementById('rvPdfSt'); if (b) b.style.width = Math.round(k / total * 100) + '%'; if (t) t.textContent = k + ' / ' + total + ' páginas'; };
+    try {
+        const hoy = new Date(), dd = String(hoy.getDate()).padStart(2, '0') + '/' + String(hoy.getMonth() + 1).padStart(2, '0');
+        const jpg = async cv => new Uint8Array(await (await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.82))).arrayBuffer());
+        const pags = [];
+        const tapa = await _rvTapa(lista, titulo);
+        pags.push({ jpg: await jpg(tapa), w: tapa.width, h: tapa.height, url: location.origin + location.pathname.replace(/[^/]*$/, '') + '#revista' }); paso(1);
+        for (let k = 0; k < lista.length; k++) {
+            const p = lista[k], cv = await _rvPagina(p, k + 1, lista.length, titulo);
+            const msg = 'Hola! Vi en la ' + titulo + ' de Almacén Copihue (PDF del ' + dd + '): ' + p.name + ' a $' + Number(p.rvPrecio || p.price).toLocaleString('es-AR') + (p.rvPrecio ? ' (precio revista)' : '') + '. ¿Me lo reservás?';
+            pags.push({ jpg: await jpg(cv), w: cv.width, h: cv.height, url: 'https://wa.me/' + _rvTel() + '?text=' + encodeURIComponent(msg) });
+            paso(k + 2);
+        }
+        const blob = await _rvPdfBytes(pags);
+        const nombre = (titulo.replace(/[^\wáéíóúñÁÉÍÓÚÑ ]+/g, '').trim().replace(/\s+/g, '-') || 'Revista') + '-Copihue-' + hoy.toISOString().slice(0, 10) + '.pdf';
+        _rvPdfArchivo = new File([blob], nombre, { type: 'application/pdf' });
+        const mb = (blob.size / 1048576).toLocaleString('es-AR', { maximumFractionDigits: 1 });
+        const puede = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [_rvPdfArchivo] }));
+        _rvPdfCuadro('<div class="tt">✅ Revista lista</div><div class="st">' + total + ' páginas · ' + mb + ' MB<br><small>' + nombre + '</small></div>'
+            + (puede ? '<button class="b1" onclick="rvPdfCompartir()">📲 Compartir (WhatsApp…)</button>' : '')
+            + '<button class="b2" onclick="rvPdfDescargar()">⬇️ Descargar</button><button class="b3" onclick="document.getElementById(\'rvPdfOv\').style.display=\'none\'">Cerrar</button>');
+    } catch (e) {
+        console.warn('pdf revista:', e);
+        _rvPdfCuadro('<div class="tt">😕 No se pudo armar el PDF</div><div class="st">Probá de nuevo.</div><button class="b3" onclick="document.getElementById(\'rvPdfOv\').style.display=\'none\'">Cerrar</button>');
+    }
+};
+window.rvPdfCompartir = async function () { try { await navigator.share({ files: [_rvPdfArchivo], title: _rvPdfArchivo.name }); } catch (e) { if (!e || e.name !== 'AbortError') rvPdfDescargar(); } };
+window.rvPdfDescargar = function () { try { const a = document.createElement('a'); a.download = _rvPdfArchivo.name; a.href = URL.createObjectURL(_rvPdfArchivo); document.body.appendChild(a); a.click(); a.remove(); } catch (e) {} };
 window.cerrarCompartirRevista = function () { document.getElementById('rvOverlay').classList.remove('open'); };
 window.enviarCompartirRevista = async function () {
     if (!_rvFiles.length) return;
@@ -9048,7 +9118,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='index',AV_VER='225';
+/*AV*/var AV_PAG='index',AV_VER='226';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {
