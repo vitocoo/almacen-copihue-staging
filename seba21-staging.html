@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v593</title>
+    <title>🛒 POS · Copihue v594</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -4474,7 +4474,7 @@ window.addEventListener('popstate', function() {
 
     // v588 — si hay una página abierta encima del POS, «atrás» la cierra
     if (typeof _vitAbierta === 'function' && _vitAbierta()) { cerrarVitrina(); return; }   // v591
-    if (typeof _ppAbierto === 'function' && _ppAbierto()) { cerrarPagina(); return; }
+    if (typeof _ppAbierto === 'function' && _ppAbierto()) { cerrarPagina(true); return; }
     // Cerrar cualquier modal abierto, en orden de prioridad — usar funciones de cierre correctas
     const cierres = [
         { id: 'modalConfirm',         fn: () => cerrarConfirm() },
@@ -12922,7 +12922,7 @@ function abrirPagina(url) {
         let p = document.getElementById('ppPanel');
         if (!p) {
             p = document.createElement('div'); p.id = 'ppPanel';
-            p.innerHTML = '<div class="pp-barra"><button type="button" class="pp-volver" onclick="cerrarPagina()">← Volver al POS</button><span id="ppTitulo"></span><span class="pp-carga" id="ppCarga">⏳</span></div>';
+            p.innerHTML = '<div class="pp-barra"><button type="button" class="pp-volver" onclick="cerrarPagina(true)">← Volver al POS</button><span id="ppTitulo"></span><span class="pp-carga" id="ppCarga">⏳</span></div>';
             document.body.appendChild(p);
         }
         const viejo = document.getElementById('ppFrame');
@@ -12942,8 +12942,15 @@ function abrirPagina(url) {
         f.src = url;
     } catch (e) { location.href = url; }   // si algo falla, como antes
 }
+// v594 — dentro del panel queda un solo «Volver» (la barra verde): se esconde el «Volver al POS» propio de cada página.
+// Lo hace el POS desde afuera; las páginas abiertas solas no cambian. No se esconde el «Volver» interno de las páginas.
+const _PP_CSS_VOLVER = 'a[href*="seba21"],[onclick*="seba21"],#btn-back[onclick*="pedirSalida"],.btn-back[onclick="volver()"]{display:none!important}';
+function _ppSinGuardar(w) {   // ¿la página tiene cambios sin guardar? (revista: SUCIO · ingreso: hayDatosSinGuardar)
+    try { return !!w.eval("(typeof SUCIO!=='undefined'&&SUCIO)||(typeof hayDatosSinGuardar==='function'&&hayDatosSinGuardar())"); } catch (e) { return false; }
+}
 function _ppAlCargar() {
     const f = document.getElementById('ppFrame'); if (!f) return;
+    try { const d = f.contentDocument; if (d && !d.getElementById('ppSinVolver')) { const st = d.createElement('style'); st.id = 'ppSinVolver'; st.textContent = _PP_CSS_VOLVER; (d.head || d.documentElement).appendChild(st); } } catch (e) {}
     const c = document.getElementById('ppCarga'); if (c) c.style.display = 'none';
     let w = null; try { w = f.contentWindow; void w.location.href; } catch (e) { return; }   // otra web (no debería pasar)
     if (_PP_POS_RE.test(w.location.pathname)) { cerrarPagina(); return; }   // respaldo: llegó a cargar el POS adentro
@@ -12959,8 +12966,9 @@ function _ppAlCargar() {
         });
     } catch (e) {}
 }
-function cerrarPagina() {
+function cerrarPagina(confirmar) {
     const p = document.getElementById('ppPanel'); if (!p || p.style.display === 'none') return;
+    if (confirmar) { const fa = document.getElementById('ppFrame'); if (fa && fa.contentWindow && _ppSinGuardar(fa.contentWindow) && !confirm('Tenés cambios sin guardar en esta página. ¿Volver al POS igual?')) return; }
     const pag = _ppPagina; _ppPagina = '';
     p.style.display = 'none'; document.body.classList.remove('pp-abierto');
     // Las páginas guardan pasos en el historial (para su propio «atrás»). Al cerrar, se retrocede esa misma
@@ -20977,7 +20985,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='seba21',AV_VER='593';
+/*AV*/var AV_PAG='seba21',AV_VER='594';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {
