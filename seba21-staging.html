@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v595</title>
+    <title>🛒 POS · Copihue v596</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12956,7 +12956,8 @@ function abrirVitrina(idInicial) {
             + '<div class="vt-card" id="vtCard"></div>'
             + '<button type="button" class="vt-fl vt-der" onclick="_vitIr(1)" aria-label="Siguiente">›</button>'
             + '<div class="vt-cont" id="vtCont"></div>'
-            + '<button type="button" class="vt-play" id="vtPlay" onclick="event.stopPropagation();_vitPlay()" aria-label="Pasar solo">▶</button>';
+            + '<button type="button" class="vt-play" id="vtPlay" onclick="event.stopPropagation();_vitPlay()" aria-label="Pasar solo">▶</button>'
+            + '<button type="button" class="vt-share" id="vtShare" onclick="event.stopPropagation();_vitCompartir()" aria-label="Compartir imagen">📲 Compartir</button>';   // v596
         v.addEventListener('pointerdown', e => { if (_vitAuto && !(e.target.closest && e.target.closest('#vtPlay'))) _vitPausa(); }, true);   // v592: tocar pausa
         v.addEventListener('click', e => { if (e.target === v) cerrarVitrina(); });
         v.addEventListener('touchstart', e => { _vitX = e.touches[0].clientX; _vitY = e.touches[0].clientY; }, { passive: true });
@@ -13002,6 +13003,95 @@ function _vitPintar() {
         + '<div class="vt-marca">Almacén Copihue</div>';
     document.getElementById('vtCont').textContent = _vitLista.length > 1 ? (_vitI + 1) + ' / ' + _vitLista.length : '';
     document.querySelectorAll('#vitrina .vt-fl').forEach(b => b.style.visibility = _vitLista.length > 1 ? 'visible' : 'hidden');
+    { const bs = document.getElementById('vtShare'); if (bs) bs.classList.toggle('gris', !(p.stock > 0)); }   // v596
+}
+// ===== v596 — 📲 COMPARTIR LA VITRINA COMO IMAGEN (flyer 1080×1350, sin botones ni recortes) =====
+// Se dibuja aparte (no es una captura): foto, nombre, precio (el mismo que cobra el POS), etiqueta, stock y marca.
+function _vitImg(src, ms) {
+    return new Promise(res => {
+        if (!src) return res(null);
+        const im = new Image(); let listo = false; const fin = v => { if (!listo) { listo = true; res(v); } };
+        im.crossOrigin = 'anonymous'; im.onload = () => fin(im); im.onerror = () => fin(null);
+        setTimeout(() => fin(null), ms || 6000); im.src = src;
+    });
+}
+function _vitLineas(c, txt, ancho, max) {
+    const ws = String(txt || '').split(/\s+/).filter(Boolean), out = []; let l = '';
+    for (const w of ws) { const t = l ? l + ' ' + w : w; if (c.measureText(t).width <= ancho || !l) l = t; else { out.push(l); l = w; } }
+    if (l) out.push(l);
+    if (out.length > max) { const r = out.slice(0, max); let u = r[max - 1]; while (u.length > 1 && c.measureText(u + '…').width > ancho) u = u.slice(0, -1); r[max - 1] = u + '…'; return r; }
+    return out;
+}
+async function _vitFlyer(p, conFoto) {
+    const W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d');
+    const $m = n => '$' + Number(n || 0).toLocaleString('es-AR');
+    let o = null; try { o = calcularOfertaPOS(p, 1); } catch (e) {}
+    const precio = (o && o.precioUnitario) || p.price;
+    const antes = (o && o.tipoOferta === 'normal') ? p.normal : p.price;
+    const conOferta = !!(o && o.tieneOferta && precio < antes && !(o.tipoOferta === 'relampago' && precio === p.price));
+    const peso = (typeof esPorPeso === 'function') && esPorPeso(p);
+    // fondo (igual que la vitrina)
+    const g = c.createRadialGradient(W / 2, H * .3, 60, W / 2, H * .3, H); g.addColorStop(0, '#2e7d32'); g.addColorStop(1, '#0b2e0d');
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+    // tarjeta
+    const cx = 60, cy = 60, cw = W - 120, ch = 1150;
+    c.save(); c.shadowColor = 'rgba(0,0,0,.35)'; c.shadowBlur = 40; c.shadowOffsetY = 12; c.fillStyle = '#fff'; c.beginPath(); c.roundRect(cx, cy, cw, ch, 48); c.fill(); c.restore();
+    // foto: lo más grande posible sin que el texto choque con la marca (se calcula lo que ocupa el texto)
+    c.font = '900 60px sans-serif'; const nl = _vitLineas(c, p.name, cw - 100, 2).length;
+    const etq = conOferta && o.etiqueta, by = cy + ch - 60;
+    const alto = 90 + (nl - 1) * 70 + 20 + (conOferta ? 62 : 0) + 150 + (etq ? 116 : 0) + (p.stock > 0 ? 70 : 0);
+    const fx = cx + 40, fy = cy + 40, fw = cw - 80, fh = Math.max(300, Math.min(600, by - 85 - fy - alto));
+    c.fillStyle = '#fafafa'; c.beginPath(); c.roundRect(fx, fy, fw, fh, 32); c.fill();
+    const im = conFoto ? await _vitImg(p.image) : null;
+    if (im && im.naturalWidth) { const k = Math.min((fw - 40) / im.naturalWidth, (fh - 40) / im.naturalHeight), iw = im.naturalWidth * k, ih = im.naturalHeight * k; c.drawImage(im, fx + (fw - iw) / 2, fy + (fh - ih) / 2, iw, ih); }
+    else { c.font = '200px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🛒', W / 2, fy + fh / 2); c.textBaseline = 'alphabetic'; }
+    // nombre
+    c.textAlign = 'center'; c.fillStyle = '#1b1b1b'; c.font = '900 60px sans-serif';
+    let y = fy + fh + 90;
+    _vitLineas(c, p.name, cw - 100, 2).forEach((l, i) => c.fillText(l, W / 2, y + i * 70));
+    y += (_vitLineas(c, p.name, cw - 100, 2).length - 1) * 70 + 20;
+    if (conOferta) { c.fillStyle = '#9e9e9e'; c.font = '800 54px sans-serif'; y += 62; const ta = $m(antes); c.fillText(ta, W / 2, y); const tw = c.measureText(ta).width; c.strokeStyle = '#9e9e9e'; c.lineWidth = 5; c.beginPath(); c.moveTo(W / 2 - tw / 2, y - 18); c.lineTo(W / 2 + tw / 2, y - 18); c.stroke(); }
+    // precio grande (+ «el kg»)
+    y += 150; const tp = $m(precio); c.font = '900 150px sans-serif'; const wp = c.measureText(tp).width;
+    c.font = '800 56px sans-serif'; const wk = peso ? c.measureText(' el kg').width : 0;
+    const x0 = W / 2 - (wp + wk) / 2;
+    c.textAlign = 'left'; c.fillStyle = conOferta ? '#c62828' : '#1b5e20'; c.font = '900 150px sans-serif'; c.fillText(tp, x0, y);
+    if (peso) { c.fillStyle = '#444'; c.font = '800 56px sans-serif'; c.fillText(' el kg', x0 + wp, y); }
+    c.textAlign = 'center';
+    // etiqueta de la oferta
+    if (conOferta && o.etiqueta) { y += 40; c.font = '900 46px sans-serif'; const te = o.etiqueta, we = c.measureText(te).width + 70; c.fillStyle = '#ffeb3b'; c.beginPath(); c.roundRect(W / 2 - we / 2, y, we, 76, 38); c.fill(); c.fillStyle = '#3e2723'; c.fillText(te, W / 2, y + 54); y += 76; }
+    // stock
+    if (p.stock > 0) { y += 70; c.font = '900 46px sans-serif'; c.fillStyle = p.stock <= 3 ? '#e65100' : '#2e7d32'; c.fillText(p.stock <= 3 ? '🔥 ¡Últimas unidades!' : '✅ Hay stock', W / 2, y); }
+    // marca (logo + nombre) al pie de la tarjeta
+    const logo = await _vitImg('logo-copihue.png', 4000);
+    if (logo && logo.naturalWidth) { const lh = 90, lw = logo.naturalWidth * lh / logo.naturalHeight; c.font = '900 44px sans-serif'; const tw = c.measureText('Almacén Copihue').width, tot = lw + 24 + tw, lx = W / 2 - tot / 2;
+        c.drawImage(logo, lx, by - lh / 2 - 16, lw, lh); c.textAlign = 'left'; c.fillStyle = '#2e7d32'; c.fillText('Almacén Copihue', lx + lw + 24, by); c.textAlign = 'center'; }
+    else { c.font = '900 44px sans-serif'; c.fillStyle = '#2e7d32'; c.fillText('🌺 Almacén Copihue', W / 2, by); }
+    // pie: dirección + fecha y hora del precio (las ofertas cambian con el horario)
+    const a = new Date(), dd = String(a.getDate()).padStart(2, '0') + '/' + String(a.getMonth() + 1).padStart(2, '0'), hh = String(a.getHours()).padStart(2, '0') + ':' + String(a.getMinutes()).padStart(2, '0');
+    c.fillStyle = '#fff'; c.font = '800 36px sans-serif'; c.fillText('📍 Copihue 457 · Precio del ' + dd + ' ' + hh + ', sujeto a stock', W / 2, H - 60);
+    return cv;
+}
+async function _vitCompartir() {
+    const p = _vitLista[_vitI]; if (!p) return;
+    if (!(p.stock > 0)) { mostrarToast('⚠️ Sin stock: no conviene publicarlo', 'rojo'); return; }
+    _vitPausa();
+    const b = document.getElementById('vtShare'); if (b) { b.disabled = true; b.textContent = '⏳ Armando…'; }
+    try {
+        let cv = await _vitFlyer(p, true), blob = null;
+        try { blob = await new Promise((res, rej) => { try { cv.toBlob(x => x ? res(x) : rej(new Error('vacío')), 'image/jpeg', 0.92); } catch (e) { rej(e); } }); }
+        catch (eT) { cv = await _vitFlyer(p, false); blob = await new Promise(res => cv.toBlob(res, 'image/jpeg', 0.92)); }   // foto de otro sitio: sale sin foto
+        const nombre = String(p.name || 'producto').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').split('-').slice(0, 3).join('-') + '-Copihue.jpg';
+        const file = new File([blob], nombre, { type: 'image/jpeg' });
+        window._vitUltimoFlyer = file;   // (para pruebas)
+        if (navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) {
+            try { await navigator.share({ files: [file] }); } catch (e) {}
+        } else {
+            const u = URL.createObjectURL(blob), el = document.createElement('a'); el.href = u; el.download = nombre; document.body.appendChild(el); el.click(); el.remove();
+            setTimeout(() => URL.revokeObjectURL(u), 4000); mostrarToast('⬇️ Imagen descargada: ' + nombre, 'verde');
+        }
+    } catch (e) { mostrarToast('❌ No se pudo armar la imagen', 'rojo'); }
+    if (b) { b.disabled = false; b.textContent = '📲 Compartir'; }
 }
 document.addEventListener('keydown', e => {
     if (!_vitAbierta()) return;
@@ -13044,6 +13134,8 @@ document.addEventListener('keydown', e => {
         + '#vitrina .vt-izq{left:8px}#vitrina .vt-der{right:8px}'
         + '#vitrina .vt-play{position:absolute;bottom:8px;left:12px;width:52px;height:52px;border-radius:50%;border:2px solid rgba(255,255,255,.85);background:#ffd54f;color:#3e2723;font-size:1.4rem;cursor:pointer;z-index:2}'
         + '#vitrina .vt-play.on{background:rgba(0,0,0,.45);color:#fff}'
+        + '#vitrina .vt-share{position:absolute;bottom:8px;right:12px;height:52px;padding:0 18px;border-radius:26px;border:2px solid rgba(255,255,255,.85);background:#25d366;color:#fff;font:900 1rem system-ui,sans-serif;cursor:pointer;z-index:2;box-shadow:0 4px 14px rgba(0,0,0,.3)}'
+        + '#vitrina .vt-share.gris{background:#9e9e9e}'
         + '#vitrina .vt-cont{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);color:#fff;font:800 .9rem system-ui,sans-serif;opacity:.85}'
         + '#resultados .resultado-item{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}';
     document.head.appendChild(st);
@@ -21150,7 +21242,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='seba21',AV_VER='595';
+/*AV*/var AV_PAG='seba21',AV_VER='596';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {
