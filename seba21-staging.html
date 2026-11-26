@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v596</title>
+    <title>🛒 POS · Copihue v597</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13149,6 +13149,11 @@ const _PP_RE = /(^|\/)(?:copihue-)?(horario|herramientas|reportes|fiado|tickets|
 const _PP_POS_RE = /(^|\/)seba21[^\/]*\.html/i;
 let _ppPagina = '', _ppCatTimer = null;
 function _ppAbierto() { const p = document.getElementById('ppPanel'); return !!(p && p.style.display !== 'none'); }
+// v597 — ZOOM CON DOS DEDOS solo mientras hay una página abierta en el panel (Reportes, Fiados…).
+// Vendiendo, el POS sigue bloqueado (que no se agrande sin querer). Al volver se bloquea y vuelve al tamaño normal.
+const _PP_VP_BLOQ = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+const _PP_VP_ZOOM = 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes';
+function _ppZoom(permitir) { try { const m = document.querySelector('meta[name="viewport"]'); if (m) m.setAttribute('content', permitir ? _PP_VP_ZOOM : _PP_VP_BLOQ); } catch (e) {} }
 function abrirPagina(url) {
     try {
         let p = document.getElementById('ppPanel');
@@ -13165,6 +13170,7 @@ function abrirPagina(url) {
         const nombres = { horario: '🕐 Horario', herramientas: '🧰 Herramientas', reportes: '📈 Reportes', fiado: '🧾 Fiados', tickets: '🎫 Tickets', finanzas: '💰 Finanzas', 'retiros-de-caja': '💸 Retiros de caja', revista: '🎄 Revista', index: '🏪 Catálogo' };
         document.getElementById('ppTitulo').textContent = nombres[_ppPagina] || '';
         p.style.display = 'flex'; document.body.classList.add('pp-abierto');
+        _ppZoom(true);   // v597
         if (f) { clearTimeout(_ppCatTimer); f.style.display = ''; f.id = 'ppFrame'; document.getElementById('ppCarga').style.display = 'none'; return; }
         f = document.createElement('iframe'); f.id = 'ppFrame'; f.setAttribute('title', 'Página');
         if (_ppPagina === 'index') f.classList.add('pp-cat');
@@ -13203,6 +13209,7 @@ function cerrarPagina(confirmar) {
     if (confirmar) { const fa = document.getElementById('ppFrame'); if (fa && fa.contentWindow && _ppSinGuardar(fa.contentWindow) && !confirm('Tenés cambios sin guardar en esta página. ¿Volver al POS igual?')) return; }
     const pag = _ppPagina; _ppPagina = '';
     p.style.display = 'none'; document.body.classList.remove('pp-abierto');
+    _ppZoom(false);   // v597 — vuelve a tamaño normal y bloqueado
     // Las páginas guardan pasos en el historial (para su propio «atrás»). Al cerrar, se retrocede esa misma
     // cantidad para que el próximo «atrás» del celular no quede «muerto» (pasos de una página que ya no está).
     let pasos = 0;
@@ -21242,7 +21249,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='seba21',AV_VER='596';
+/*AV*/var AV_PAG='seba21',AV_VER='597';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {
