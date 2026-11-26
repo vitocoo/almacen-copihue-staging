@@ -571,6 +571,25 @@ async function loginEntrar() {
 }
 $('lgPin').addEventListener('keydown', e => { if (e.key === 'Enter') loginEntrar(); });
 
+// ---- v13: aviso antes de publicar precios revista (todo queda sincronizado: catálogo, PDF y POS) ----
+function avisoPublicar() {
+    const desde = $('cDesde').value, dias = CFG.dias || 14, hasta = sumarDias(desde, dias - 1);
+    const con = DEST.filter(d => (parseInt(d.precioRevista) || 0) > 0);
+    const F = n => '$' + Math.round(n).toLocaleString('es-AR');
+    let ov = document.getElementById('pubOv'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'pubOv';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px;';
+    ov.innerHTML = '<div style="background:#fff;border-radius:18px;max-width:460px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 34px rgba(0,0,0,.4);overflow:hidden;">'
+        + '<div style="padding:16px 18px 8px;"><div style="font-weight:900;font-size:1.1rem;color:#e65100;">⚠️ Vas a publicar precios revista</div>'
+        + '<div style="font-size:.92rem;color:#333;margin-top:6px;line-height:1.45;">Del <b>' + esc(lindaFecha(desde)) + '</b> al <b>' + esc(lindaFecha(hasta)) + '</b> estos precios se ven en el <b>catálogo</b> y el <b>PDF</b>, y el <b>POS los cobra</b> solo (si el producto no tiene otra oferta). Fuera de esas fechas se cobra el precio normal.</div></div>'
+        + '<div style="overflow:auto;padding:0 18px;flex:1;">' + con.map(d => '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #eee;font-size:.85rem;"><span style="flex:1;min-width:0;">' + esc(d.producto) + '</span><span style="white-space:nowrap;">' + (d.precio ? '<s style="color:#999;">' + F(d.precio) + '</s> ' : '') + '<b style="color:#c62828;">' + F(parseInt(d.precioRevista)) + '</b></span></div>').join('') + '</div>'
+        + '<div style="padding:12px 18px 16px;display:flex;gap:8px;"><button type="button" id="pubNo" style="flex:1;padding:12px;border:2px solid #ccc;border-radius:12px;background:#fff;font-weight:800;">✏️ Revisar</button>'
+        + '<button type="button" id="pubSi" style="flex:1.4;padding:12px;border:none;border-radius:12px;background:#2e7d32;color:#fff;font-weight:900;">✅ Publicar (' + con.length + ')</button></div></div>';
+    document.body.appendChild(ov);
+    $('pubNo').onclick = () => ov.remove();
+    $('pubSi').onclick = () => { ov.remove(); window._pubOk = true; guardar(); };
+}
+
 // ---- guardar ----
 async function guardar() {
     if (!CFG) return;
@@ -581,6 +600,9 @@ async function guardar() {
     const malos = DEST.filter(d => (parseInt(d.precioRevista) || 0) > 0 && d.precio && parseInt(d.precioRevista) >= d.precio);
     if (malos.length) { aviso('El precio revista tiene que ser MENOR al normal: ' + malos[0].producto.slice(0, 40), false); return; }
     if (!$('cDesde').value && DEST.some(d => (parseInt(d.precioRevista) || 0) > 0) && !confirm('No pusiste fecha de inicio: los precios revista NO se van a aplicar. ¿Guardar igual?')) return;
+    // v13 — antes de publicar precios revista: aviso de que el catálogo, el PDF Y EL POS los cobran en esas fechas
+    if (!window._pubOk && $('cDesde').value && DEST.some(d => (parseInt(d.precioRevista) || 0) > 0)) { avisoPublicar(); return; }
+    window._pubOk = false;
     const datos = {
         token: s.token,
         config: { titulo: $('cTitulo').value.trim() || 'Revista de Navidad', activa: CFG.activa, categorias: cats, precioMin: parseInt($('cPrecio').value) || 0, limite: Math.min(60, Math.max(1, parseInt($('cLimite').value) || 24)), desde: $('cDesde').value || '', dias: CFG.dias || 14, estallido: Object.assign({}, EST), tema: TEMA, estilo: ESTILO },
@@ -661,7 +683,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 </script>
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='revista',AV_VER='12';
+/*AV*/var AV_PAG='revista',AV_VER='13';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {

@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>🧪 STAGING · ver.43 · Copihue · Reportes</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
+<title>🧪 STAGING · ver.44 · Copihue · Reportes</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -351,10 +351,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 <div class="hdr">
   <div class="hdr-icon">🏪</div>
   <div><div class="hdr-t">Copihue</div><div class="hdr-s">Reportes</div></div>
-  <button class="btn-back" id="btnExcelHdr" onclick="excelDesdeCabecera()" style="margin-left:auto" title="Descargar informe Excel del período elegido">📥 Excel</button>
+  <div style="margin-left:auto;display:flex;gap:4px;align-items:center" title="Tamaño de letra"><button class="btn-back" style="margin-left:0;padding:5px 10px;font-size:.8rem" onclick="zoomRep(-1)" aria-label="Letra más chica">A−</button><button class="btn-back" style="margin-left:0;padding:5px 10px;font-size:.95rem" onclick="zoomRep(1)" aria-label="Letra más grande">A+</button></div>
+  <button class="btn-back" id="btnExcelHdr" onclick="excelDesdeCabecera()" style="margin-left:0" title="Descargar informe Excel del período elegido">📥 Excel</button>
   <a href="seba21-staging.html" class="btn-back" style="margin-left:0">← Volver</a>
 </div>
 
+<script>
+// ver.44 — LETRA MÁS GRANDE: A− / A+ (se recuerda en este aparato). También se puede agrandar con dos dedos.
+var ZOOM_REP=[1,1.15,1.3,1.5,1.75];
+function _zoomRepAplicar(){var i=0;try{i=parseInt(localStorage.getItem('copihue_rep_zoom')||'0')||0;}catch(e){} i=Math.max(0,Math.min(ZOOM_REP.length-1,i));
+  var z=ZOOM_REP[i]; document.querySelectorAll('#app,.zoomable').forEach(function(el){el.style.zoom=z;}); return i;}
+function zoomRep(d){var i=_zoomRepAplicar()+d; i=Math.max(0,Math.min(ZOOM_REP.length-1,i)); try{localStorage.setItem('copihue_rep_zoom',String(i));}catch(e){} _zoomRepAplicar();
+  try{var t=document.getElementById('zoomTxt'); if(!t){t=document.createElement('div');t.id='zoomTxt';t.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#1b5e20;color:#fff;padding:6px 14px;border-radius:14px;font-weight:800;z-index:9999;font-size:14px';document.body.appendChild(t);} t.textContent='🔎 Letra '+Math.round(ZOOM_REP[i]*100)+'%'; t.style.display='block'; clearTimeout(zoomRep.t); zoomRep.t=setTimeout(function(){t.style.display='none';},1200);}catch(e){}}
+</script>
 <div id="app"><div class="ldg"><div class="spin"></div>Cargando reportes... puede tardar hasta 1 minuto</div></div>
 
 <script>
@@ -461,6 +470,7 @@ async function fetchReportesConReintento(intentos){
 }
 
 async function init(){
+  try{_zoomRepAplicar();}catch(e){}
   try{
     const [rRep, rFia] = await Promise.allSettled([
       fetchReportesConReintento(2),
@@ -496,6 +506,22 @@ async function init(){
     return;
   }
   _excelAutoDesdeURL();
+}
+
+// ver.44 — cobros de fiado (abonos y pagos totales) hechos en esos días, leídos de la hoja FIADOS (rawFiados)
+function _hace30(){const d=new Date();d.setDate(d.getDate()-30);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function _cobrosFiadoEnDias(set){
+  const r={total:0,n:0};
+  (rawFiados||[]).forEach(f=>{
+    const txt=String(f.abonos||''); let abT=0,m; const re=/Abono \$([\d.]+)\s*\(([^)]*)\)\s*(\d{2})\/(\d{2})\/(\d{4})/g;
+    while((m=re.exec(txt))!==null){const v=parseFloat(m[1])||0; abT+=v; if(set.has(m[5]+'-'+m[4]+'-'+m[3])){r.total+=v;r.n++;}}
+    if(String(f.estado||'').toUpperCase()==='PAGADO'&&f.fechaPago){
+      let fp=String(f.fechaPago).trim(); const dm=/^(\d{2})\/(\d{2})\/(\d{4})/.exec(fp); fp=dm?dm[3]+'-'+dm[2]+'-'+dm[1]:fp.slice(0,10);
+      const orig=parseFloat(f.totalOriginal)||0, resto=Math.max(0,orig-abT);
+      if(resto>0&&set.has(fp)){r.total+=resto;r.n++;}
+    }
+  });
+  return r;
 }
 
 // ====== FILTRAR ======
@@ -785,8 +811,15 @@ function renderApp(){
   // Cards
   const pctG=stats.venta>0?Math.round(stats.ganReal/stats.venta*100):0;
   const pctGA=stats.venta>0?Math.round(stats.ganAprox/stats.venta*100):0;
+  // ver.44 — 💵 DINERO RECIBIDO: lo que entró a la caja en el período = ventas cobradas (sin lo fiado) + cobros de fiado del período.
+  // Lo fiado se informa aparte: esa plata entra el día que la pagan. (Solo lectura: no cambia ninguna venta ni deuda.)
+  const _fiadoVend=Object.entries(stats.metodos||{}).filter(([m])=>/FIADO/i.test(m)).reduce((s,[,t])=>s+t,0);
+  const _cobF=_cobrosFiadoEnDias(new Set(diasArr));
+  const _recH=metActivos.has('TODOS')?
+    '<div class="card full" style="border:2px solid var(--verde)"><div class="card-lbl2">💵 Dinero recibido (caja)</div><div class="card-val2" style="font-size:1.35rem;font-weight:900;color:var(--vdp)">'+fmt(stats.venta-_fiadoVend+_cobF.total)+'</div>'+
+    '<div class="card-sub" style="color:var(--gris);opacity:1">Ventas cobradas '+fmt(stats.venta-_fiadoVend)+' + cobros de fiado '+fmt(_cobF.total)+(_cobF.n?' ('+_cobF.n+' pago'+(_cobF.n>1?'s':'')+')':'')+'<br>📒 Fiado del período '+fmt(_fiadoVend)+' · no entra a caja hasta que lo pagan'+(Object.keys(stats.metodos||{}).some(m=>/MIXTO/i.test(m))?'<br><span style="font-size:.62rem">Las ventas MIXTO se cuentan enteras.</span>':'')+(diasArr.length&&diasArr.slice().sort()[0]<_hace30()?'<br><span style="font-size:.62rem">⚠️ De los fiados ya pagados, la planilla solo manda los últimos 30 días: para períodos más largos los cobros de fiado salen de menos.</span>':'')+'</div></div>':'';
   const cardsH=
-    '<div class="cards">'+
+    '<div class="cards">'+_recH+
     '<div class="card verde-g full"><div class="card-lbl">Ventas período</div><div class="card-val">'+fmt(stats.venta)+'</div><div class="card-sub">'+stats.nTks+' tickets · '+diasArr.length+' días</div></div>'+
     '<div class="card nar-g"><div class="card-lbl">Ganancia real</div><div class="card-val">'+fmt(stats.ganReal)+'</div><div class="card-sub">'+pctG+'% · '+stats.itemsConCosto+' prod c/costo</div></div>'+
     '<div class="card aprox"><div class="card-lbl">Ganancia aprox ★</div><div class="card-val">'+fmt(stats.ganAprox)+'</div><div class="card-sub">'+pctGA+'% estimado</div><div class="info-tag" onclick="alert(\'Estimado usando precio/1.5 como costo mínimo (comisión ~33%). Si tenés el costo cargado, usá la ganancia real.\')">ℹ️ ¿Cómo se calcula?</div></div>'+
@@ -2719,7 +2752,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='reportes',AV_VER='43';
+/*AV*/var AV_PAG='reportes',AV_VER='44';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {

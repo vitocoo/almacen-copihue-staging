@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v594</title>
+    <title>🛒 POS · Copihue v595</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3944,6 +3944,7 @@
                 <div id="dcMsg" style="font-size:0.8rem;color:#666;margin-top:6px;"></div>
                 <div id="dcLista" style="margin-top:6px;"></div>
                 <div id="dcResumen" style="font-size:0.85rem;font-weight:700;color:#e65100;margin-top:6px;"></div>
+                <input id="dcQuien" type="text" maxlength="40" autocomplete="off" placeholder="🙋 ¿Quién paga? (opcional · ej: su hermana Ana)" style="display:none;width:100%;box-sizing:border-box;margin-top:8px;padding:9px 12px;border:1.5px solid #ffcc80;border-radius:10px;font-size:0.88rem;">
                 <button type="button" id="dcSumarBtn" onclick="_dcSumar()" style="display:none;width:100%;margin-top:8px;padding:11px;border:none;border-radius:10px;background:#e65100;color:white;font-weight:800;font-size:0.9rem;cursor:pointer;">➕ Sumar al cobro</button>
                 <button type="button" id="dcCerrarBtn" onclick="_dcQuitar()" style="width:100%;margin-top:8px;padding:10px;border:1.5px solid #bbb;border-radius:10px;background:#fff;color:#555;font-weight:700;font-size:0.9rem;cursor:pointer;">✕ Cerrar y no cobrar deuda</button>
             </div>
@@ -6746,8 +6747,34 @@ function _confirmarCobroDispatch() {
     if (_pagoMixtoActivo && _pagosMixtos.length > 0) {
         confirmarVentaMixta();
     } else {
+        // v595 — EFECTIVO siempre pregunta (viene marcado de entrada y a veces se cobra por costumbre).
+        // Los otros medios se eligen a propósito: no preguntan. Con deuda sumada ya hay un cartel que muestra el medio.
+        if (metodoPagoActual === 'efectivo' && !window._efConfirmado && !(_dcMonto() > 0)) { _efPedirConfirmacion(); return; }
+        window._efConfirmado = false;
         confirmarVenta();
     }
+}
+// v595 — cartel «¿Cobrar $X en EFECTIVO?»
+function _efPedirConfirmacion() {
+    const total = window._totalConRedondeo || _totalCarritoConDescuentosGrupales();
+    let ov = document.getElementById('efConfirmOv'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.id = 'efConfirmOv';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:6100;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:20px;';
+    ov.innerHTML = '<div style="background:#fff;border-radius:18px;padding:20px;max-width:360px;width:100%;box-shadow:0 10px 34px rgba(0,0,0,.4);text-align:center;">'
+        + '<div style="font-size:2.6rem;line-height:1;">💵</div>'
+        + '<div style="font-weight:900;font-size:1.15rem;color:#1b5e20;margin:8px 0 4px;">¿Cobrar en EFECTIVO?</div>'
+        + '<div style="font-size:2rem;font-weight:900;color:#1b5e20;margin:4px 0 6px;">' + _fiadoFmt(total) + '</div>'
+        + '<div style="font-size:.85rem;color:#666;margin-bottom:14px;">Si pagó con tarjeta, transferencia o QR, tocá «Cambiar medio».</div>'
+        + '<div style="display:flex;gap:8px;"><button type="button" id="efConfNo" style="flex:1;padding:13px;border:2px solid #ccc;border-radius:12px;background:#fff;font-weight:800;font-size:.92rem;">↩️ Cambiar medio</button>'
+        + '<button type="button" id="efConfSi" style="flex:1.3;padding:13px;border:none;border-radius:12px;background:#2e7d32;color:#fff;font-weight:900;font-size:.98rem;">✅ Sí, efectivo</button></div></div>';
+    document.body.appendChild(ov);
+    const cerrar = () => { ov.remove(); document.removeEventListener('keydown', tecla, true); };
+    const si = () => { cerrar(); window._efConfirmado = true; _confirmarCobroDispatch(); };
+    const tecla = e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); si(); } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cerrar(); } };
+    document.addEventListener('keydown', tecla, true);
+    document.getElementById('efConfNo').onclick = cerrar;
+    document.getElementById('efConfSi').onclick = si;
+    ov.onclick = e => { if (e.target === ov) cerrar(); };
 }
 
 async function togglePagoMixto() {
@@ -7254,9 +7281,12 @@ async function _dcElegir(nombre, telefono) {
         msg.textContent = '⚠️ No se pudo consultar la deuda (' + (e && e.message || e) + '). No se suma nada.';
     }
 }
+// v595 — texto de «¿Quién paga?» (limpio, ≤40)
+function _quienPagaDe(id) { const e = document.getElementById(id); return e ? String(e.value || '').replace(/[|\[\]()$]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40) : ''; }
 function _dcRender() {
     const cont = document.getElementById('dcLista'); if (!cont) return;
     cont.innerHTML = '';
+    { const q = document.getElementById('dcQuien'); if (q) q.style.display = _dc ? 'block' : 'none'; }   // v595
     if (!_dc) { document.getElementById('dcResumen').textContent = ''; document.getElementById('dcSumarBtn').style.display = 'none'; return; }
     _dc.fiados.forEach((f, i) => {
         const fila = document.createElement('div');
@@ -7270,8 +7300,24 @@ function _dcRender() {
         inp.style.cssText = 'width:92px;padding:7px 8px;border:1.5px solid #ddd;border-radius:8px;font-size:0.9rem;text-align:right;';
         inp.oninput = () => { let m = Math.round(parseFloat(inp.value) || 0); if (m < 0) m = 0; if (m > f.saldo) m = f.saldo; f.monto = m; _dcRenderResumen(); };
         inp.onblur = () => { inp.value = f.monto; };
-        fila.appendChild(txt); fila.appendChild(inp); cont.appendChild(fila);
+        // v595 — ✕ deja este ticket en $0 (no se cobra); ↺ lo vuelve a la deuda completa
+        const x = document.createElement('button'); x.type = 'button';
+        const pintar = () => { const cero = !(f.monto > 0); x.textContent = cero ? '↺' : '✕'; x.title = cero ? 'Volver a cobrar la deuda completa de este ticket' : 'No cobrar este ticket ($0)';
+            x.style.cssText = 'flex:none;width:34px;height:34px;border-radius:50%;border:1.5px solid ' + (cero ? '#2e7d32' : '#e57373') + ';background:' + (cero ? '#e8f5e9' : '#ffebee') + ';color:' + (cero ? '#2e7d32' : '#c62828') + ';font-weight:900;font-size:1rem;cursor:pointer;padding:0;';
+            fila.style.opacity = cero ? '0.5' : '1'; };
+        x.onclick = () => { f.monto = f.monto > 0 ? 0 : f.saldo; inp.value = f.monto; pintar(); _dcRenderResumen(); };
+        inp.addEventListener('input', pintar);
+        pintar();
+        fila.appendChild(txt); fila.appendChild(inp); fila.appendChild(x); cont.appendChild(fila);
     });
+    if (_dc.fiados.length > 1) {   // v595 — atajos para todos los tickets
+        const at = document.createElement('div');
+        at.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;margin:2px 0 4px;';
+        at.innerHTML = '<button type="button" data-v="0" style="padding:5px 10px;border:1.5px solid #e57373;border-radius:8px;background:#fff;color:#c62828;font-weight:700;font-size:.75rem;cursor:pointer;">✕ Ninguno</button>'
+            + '<button type="button" data-v="1" style="padding:5px 10px;border:1.5px solid #2e7d32;border-radius:8px;background:#fff;color:#2e7d32;font-weight:700;font-size:.75rem;cursor:pointer;">↺ Todos</button>';
+        at.querySelectorAll('button').forEach(b => b.onclick = () => { _dc.fiados.forEach(f => { f.monto = b.dataset.v === '1' ? f.saldo : 0; }); _dcRender(); });
+        cont.prepend(at);
+    }
     _dcRenderResumen();
 }
 function _dcRenderResumen() {
@@ -7302,6 +7348,7 @@ function _dcResetUI() {
     try {
         ['dcLista', 'dcMsg', 'dcResumen'].forEach(id => { const e = document.getElementById(id); if (e) { if (id === 'dcLista') e.innerHTML = ''; else e.textContent = ''; } });
         const c = document.getElementById('dcCliente'); if (c) c.value = '';
+        const q = document.getElementById('dcQuien'); if (q) { q.value = ''; q.style.display = 'none'; }   // v595
         const d = document.getElementById('dcDrop'); if (d) d.style.display = 'none';
         const p = document.getElementById('dcPanel'); if (p) p.style.display = 'none';
         const fl = document.getElementById('dcFlecha'); if (fl) fl.textContent = '›';
@@ -7382,7 +7429,7 @@ function _dcCongelar() {
     if (!(ap > 0)) return null;
     const mapa = { efectivo: 'EFECTIVO', posnet: 'POSNET', transferencia: 'TRANSFERENCIA' };
     return { cliente: _dc.cliente, telefono: _dc.telefono, asignaciones: asign, aplicado: ap, metodo: mapa[metodoPagoActual] || 'EFECTIVO', efectivo: 0,
-             deudaTotal: _dc.fiados.reduce((a, f) => a + f.saldo, 0), modo: 'cobro' };
+             deudaTotal: _dc.fiados.reduce((a, f) => a + f.saldo, 0), modo: 'cobro', quienPaga: _quienPagaDe('dcQuien') };   // v595
 }
 
 function _vdTs(f) {
@@ -7615,9 +7662,9 @@ function _vdPendQuitar(idOp) { _vdPendGuardar(_vdPendLeer().filter(x => !(x && x
 function _vdPendReintentables() { return _vdPendLeer().filter(x => x && x.estado === 'pendiente' && x.metodo); }
 
 // Un intento. Devuelve { tipo: 'ok' | 'ocupado' | 'rechazado' | 'sinRespuesta', r?, error? }
-async function _vdEnviarAbono(idFiado, monto, metodo, idOp) {
+async function _vdEnviarAbono(idFiado, monto, metodo, idOp, quienPaga) {   // v595: + quién paga (opcional)
     try {
-        const r = await _apiFetchUrl('abonarFiado', API_URL + '?action=abonarFiado&data=' + encodeURIComponent(JSON.stringify({ idFiado: idFiado, abono: monto, metodoPago: (metodo || 'EFECTIVO'), idOperacion: idOp, cobrador: _fiadoCobrador() })) + '&t=' + Date.now());
+        const r = await _apiFetchUrl('abonarFiado', API_URL + '?action=abonarFiado&data=' + encodeURIComponent(JSON.stringify(Object.assign({ idFiado: idFiado, abono: monto, metodoPago: (metodo || 'EFECTIVO'), idOperacion: idOp, cobrador: _fiadoCobrador() }, quienPaga ? { quienPaga: String(quienPaga).slice(0, 40) } : {}))) + '&t=' + Date.now());
         if (r && r.success === true) return { tipo: 'ok', r: r };
         if (r && r.ocupado === true) return { tipo: 'ocupado', r: r };
         return { tipo: 'rechazado', r: r };
@@ -7689,7 +7736,7 @@ async function _vdReintentarPend(manual) {
             for (let n = 0; n < _VD_ESPERAS_MS.length && !resuelto; n++) {
                 if (n > 0) { const esp = _VD_ESPERAS_MS[Math.min(n, _VD_ESPERAS_MS.length - 1)]; if (Date.now() - tIni + esp >= _VD_TOPE_MS) break; await _vdSleep(esp); }
                 else if (Date.now() - tIni >= _VD_TOPE_MS) break;
-                const x = await _vdEnviarAbono(e.idFiado, e.monto, e.metodo, e.idOperacion);
+                const x = await _vdEnviarAbono(e.idFiado, e.monto, e.metodo, e.idOperacion, e.quienPaga || '');
                 if (x.tipo === 'ok') {
                     resuelto = true; ok++; montoOk += e.monto; ultimoCli = e.cliente; _vdPendQuitar(e.idOperacion);
                     const ref = window._vdResPorOp[e.idOperacion];   // si el ticket de esa venta sigue en pantalla, se completa
@@ -7746,7 +7793,7 @@ async function _vdAplicar(snap, idVenta, vRef, tkProm) {
                 } else if (Date.now() - _t0 >= _VD_TOPE_MS) break;            // los abonos anteriores ya consumieron el tope
                 intentos++;
                 _vdPill('⏳ Abono a la deuda de ' + snap.cliente + ': ' + (res.hechos + 1) + ' de ' + res.total + (intentos > 1 ? ' · reintentando (' + intentos + ')' : '') + '…', '#e65100');
-                const x = await _vdEnviarAbono(a.idFiado, a.monto, snap.metodo, idOp);
+                const x = await _vdEnviarAbono(a.idFiado, a.monto, snap.metodo, idOp, snap.quienPaga || '');
                 if (x.tipo === 'ok') { hecho = true; res.aplicado += a.monto; res.detalle.push({ ticket: a.ticket, idFiado: a.idFiado, monto: a.monto, saldo: a.saldo, fecha: a.fecha }); }
                 else if (x.tipo === 'rechazado') { definitivo = true; motivo = (x.r && x.r.mensaje) || 'sin mensaje'; _vdDbg('abono ' + (res.hechos + 1) + ' RECHAZADO: ' + motivo); } // la planilla contestó que no: no se reintenta
                 else if (x.tipo === 'ocupado') { _vdDbg('abono ' + (res.hechos + 1) + ' intento ' + intentos + ': planilla ocupada (no se escribió nada) → se reintenta'); }
@@ -7757,7 +7804,7 @@ async function _vdAplicar(snap, idVenta, vRef, tkProm) {
             _vdDbg('abono ' + res.hechos + '/' + res.total + (hecho ? ' OK' : (definitivo ? ' RECHAZADO' : ' PENDIENTE')) + ' · ' + _fiadoFmt(a.monto) + ' · ' + intentos + ' intento(s) · ' + Math.round((performance.now() - _tIni) / 1000) + ' s desde el inicio');
             if (!hecho) {
                 res.fallos.push(a);
-                const base = { idOperacion: idOp, idFiado: a.idFiado, monto: a.monto, metodo: (snap.metodo || 'EFECTIVO'), cliente: snap.cliente, ticket: a.ticket, saldo: a.saldo, fecha: a.fecha, ts: Date.now(), intentos: intentos };
+                const base = { idOperacion: idOp, idFiado: a.idFiado, monto: a.monto, metodo: (snap.metodo || 'EFECTIVO'), quienPaga: snap.quienPaga || '', cliente: snap.cliente, ticket: a.ticket, saldo: a.saldo, fecha: a.fecha, ts: Date.now(), intentos: intentos };
                 if (definitivo) { res.rechazados.push({ a: a, motivo: motivo }); _vdPendSet(Object.assign(base, { estado: 'rechazado', motivo: motivo })); }
                 else { res.pendientes.push(a); window._vdResPorOp[idOp] = { res: res, a: a }; _vdPendSet(Object.assign(base, { estado: 'pendiente' })); }
             }
@@ -9993,7 +10040,9 @@ function abrirResumen() {
         <div class="resumen-stat">
             <span class="resumen-stat-label">🎯 Ticket promedio</span>
             <span class="resumen-stat-valor">$${ticketPromedio.toLocaleString('es-AR')}</span>
-        </div>`;
+        </div>
+        <div id="resCaja" style="grid-column:1/-1;"></div>`;
+    try { _cajaHoyPintar(ventasHoy); } catch (eCj) { console.warn('caja de hoy:', eCj); }   // v595
 
     if (ventas.length === 0) {
         document.getElementById('resumenLista').innerHTML =
@@ -10024,6 +10073,97 @@ function abrirResumen() {
     } catch (e) {}
     document.getElementById('modalResumen').classList.add('open');
     try { _hoyVerificarPendientes(); } catch (e) {}   // v577
+}
+
+// ===== v595 — CAJA DE HOY (solo lectura: no escribe nada, no cambia ninguna venta ni deuda) =====
+// Lo que tiene que haber en la caja = ventas COBRADAS de hoy (sin lo fiado) + cobros de fiado de hoy.
+// Lo fiado hoy se informa aparte: esa plata todavía no entró (entra el día que la pagan).
+function _cajaMedio(m) {
+    m = String(m || '').toUpperCase();
+    if (m.indexOf('FIADO') >= 0) return 'fiado';
+    if (m.indexOf('POSNET') >= 0 || m.indexOf('TARJETA') >= 0 || m === 'QR') return 'tarjeta';
+    if (m.indexOf('TRANSF') >= 0) return 'transferencia';
+    return 'efectivo';
+}
+function _cajaVentasHoy(ventas) {
+    const c = { efectivo: 0, tarjeta: 0, transferencia: 0, fiado: 0, usd: 0, clp: 0, nFiado: 0 };
+    (ventas || []).forEach(v => {
+        const tot = Math.round(Number(v.total) || 0);
+        const dp = v.detallePagos;
+        if (dp && Array.isArray(dp.pagos) && dp.pagos.length) {
+            let fi = 0;
+            dp.pagos.forEach(p => {
+                const k = _cajaMedio(p.metodo), eq = Math.round(Number(p.equivalenteARS) || 0);
+                c[k] += eq; if (k === 'fiado') fi += eq;
+                if (k === 'efectivo' && String(p.moneda || '').toUpperCase() === 'USD') c.usd += Number(p.recibido) || 0;
+                if (k === 'efectivo' && String(p.moneda || '').toUpperCase() === 'CLP') c.clp += Number(p.recibido) || 0;
+            });
+            c.efectivo -= Math.round(Number(dp.vueltoARS) || 0);   // el vuelto sale de la caja (lo aplicado a deuda se cuenta en «cobros de fiado»)
+            if (fi > 0) c.nFiado++;
+        } else {
+            const k = _cajaMedio(v.metodoPago); c[k] += tot; if (k === 'fiado') c.nFiado++;
+        }
+    });
+    return c;
+}
+function _cajaCobrosFiadoHoy(fiados) {
+    const hoy = fechaArgentina(0), dmy = hoy.split('-').reverse().join('/');
+    const diaAR = t => { try { return new Date(t).toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }); } catch (e) { return ''; } };
+    const esHoy = t => { t = String(t || '').trim(); if (!t) return false; if (t.indexOf(hoy) === 0 || t.indexOf(dmy) === 0) return true; const ts = Date.parse(t); return !isNaN(ts) && diaAR(ts) === hoy; };
+    const r = { efectivo: 0, tarjeta: 0, transferencia: 0, total: 0, n: 0, porCobrador: {} };
+    const sumar = (monto, met, cob) => { if (!(monto > 0)) return; const k = _cajaMedio(met) === 'fiado' ? 'efectivo' : _cajaMedio(met); r[k] += monto; r.total += monto; r.n++; const c = cob || '—'; r.porCobrador[c] = (r.porCobrador[c] || 0) + monto; };
+    (fiados || []).forEach(f => {
+        const txt = String(f.abonos || ''), original = parseFloat(f.totalOriginal) || parseFloat(f.total) || 0;
+        let abTot = 0, m; const re = /Abono \$([\d.]+)\s*\(([^)]*)\)\s*(\d{2}\/\d{2}\/\d{4})([^|]*)/g;
+        while ((m = re.exec(txt)) !== null) {
+            const v = parseFloat(m[1]) || 0; abTot += v;
+            if (m[3] === dmy) { const cb = (/cobró ([^·\[]+)/.exec(m[4]) || [])[1]; sumar(v, m[2], cb ? cb.trim() : ''); }
+        }
+        if (String(f.estado || '').toUpperCase() === 'PAGADO' && esHoy(f.fechaPago)) {
+            const resto = Math.max(0, Math.round(original - abTot));
+            const seg = txt.split('|').map(x => x.trim()).filter(x => x && x.indexOf('Abono $') !== 0).pop() || '';
+            const cb = (/cobró ([^·\[]+)/.exec(seg) || [])[1];
+            sumar(resto, f.metodoPago, cb ? cb.trim() : '');
+        }
+    });
+    return r;
+}
+async function _cajaHoyPintar(ventasHoy) {
+    const box = document.getElementById('resCaja'); if (!box) return;
+    const v = _cajaVentasHoy(ventasHoy), F = n => _fiadoFmt(Math.round(n));
+    const fila = (ico, lbl, val, col, chico) => '<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:' + (chico ? '.8rem' : '.92rem') + ';color:' + (col || '#333') + ';"><span>' + ico + ' ' + lbl + '</span><strong>' + val + '</strong></div>';
+    const ventasCobradas = v.efectivo + v.tarjeta + v.transferencia;
+    const pintar = (cf, err) => {
+        const cobF = cf ? cf.total : 0;
+        let h = '<div style="margin-top:10px;border:2px solid #2e7d32;border-radius:14px;padding:12px;background:#f1f8e9;">'
+            + '<div style="font-weight:900;color:#1b5e20;font-size:1rem;margin-bottom:6px;">💵 Caja de hoy <span style="font-weight:600;font-size:.72rem;color:#666;">(lo que tiene que haber)</span></div>'
+            + '<div style="font-size:.72rem;color:#666;font-weight:700;text-transform:uppercase;margin-top:2px;">Ventas cobradas · este aparato</div>'
+            + fila('💵', 'Efectivo', F(v.efectivo)) + fila('💳', 'Tarjeta / QR', F(v.tarjeta)) + fila('🏦', 'Transferencia', F(v.transferencia))
+            + (v.usd ? fila('🇺🇸', 'Dólares recibidos', 'US$ ' + v.usd, '#555', true) : '') + (v.clp ? fila('🇨🇱', 'Pesos chilenos recibidos', 'CLP ' + Math.round(v.clp).toLocaleString('es-AR'), '#555', true) : '')
+            + '<div style="font-size:.72rem;color:#666;font-weight:700;text-transform:uppercase;margin-top:8px;">🧾 Cobros de fiado de hoy · planilla</div>';
+        if (err) h += '<div style="font-size:.8rem;color:#c62828;">' + err + '</div>';
+        else if (!cf) h += '<div style="font-size:.8rem;color:#999;">Consultando la planilla…</div>';
+        else if (!cf.n) h += '<div style="font-size:.8rem;color:#999;">Ninguno hoy</div>';
+        else {
+            h += fila('💵', 'Efectivo', F(cf.efectivo)) + fila('💳', 'Tarjeta / QR', F(cf.tarjeta)) + fila('🏦', 'Transferencia', F(cf.transferencia));
+            const cobs = Object.keys(cf.porCobrador);
+            if (cobs.length > 1 || (cobs.length === 1 && cobs[0] !== '—')) h += '<div style="font-size:.74rem;color:#666;">Cobró: ' + cobs.map(k => _hoyEsc(k) + ' ' + F(cf.porCobrador[k])).join(' · ') + '</div>';
+        }
+        h += '<div style="border-top:2px dashed #2e7d32;margin-top:8px;padding-top:6px;">'
+            + fila('💰', '<b>Total en caja</b>', F(ventasCobradas + cobF), '#1b5e20')
+            + fila('💵', 'de eso, efectivo', F(v.efectivo + (cf ? cf.efectivo : 0)), '#1b5e20', true) + '</div>'
+            + '</div>'
+            + '<div style="margin-top:8px;border:2px solid #f57c00;border-radius:14px;padding:10px 12px;background:#fff8e1;">'
+            + fila('📒', '<b>Fiado hoy</b> · no entra a caja', F(v.fiado), '#e65100')
+            + '<div style="font-size:.74rem;color:#8d6e63;">' + (v.nFiado ? v.nFiado + ' venta' + (v.nFiado > 1 ? 's' : '') + ' fiada' + (v.nFiado > 1 ? 's' : '') + '. ' : '') + 'Esa plata entra a la caja el día que la pagan.</div></div>';
+        box.innerHTML = h;
+    };
+    pintar(null);
+    let data = null;
+    try { data = await _apiFetch('listarFiados'); } catch (e) { data = null; }
+    if (!document.getElementById('resCaja')) return;
+    if (!data || !data.ok || !Array.isArray(data.fiados)) { pintar(null, 'No se pudo consultar la planilla ahora (sin conexión). La caja de arriba es solo de las ventas.'); return; }
+    pintar(_cajaCobrosFiadoHoy(data.fiados));
 }
 
 // ===== v577 — «Hoy»: estado de cada venta en la planilla (SOLO LECTURA) =====
@@ -13265,6 +13405,8 @@ const _poolIdsEspeciales = new Set();
 const _poolIdsUltimas    = new Map(); // id → diasParaVencer
 const _poolCervecero     = new Map(); // id → { descuento, precioPromo }
 const _poolMulticompra   = new Map(); // id → { tipo, cantidad, precio, grupo }
+const _poolRevistaPOS    = new Map(); // v595 — id → precio revista (solo dentro de las fechas de la revista; lo arma Code.gs)
+let _revistaPOSInfo      = null;      // v595 — { titulo, desde, hasta } de la revista vigente
 let _limiteRelampago     = 3; // configurable desde GAS → limites.relampago
 let _limiteDestacadas    = 9; // configurable desde GAS → limites.destacadas
 let _limiteEspeciales    = 2; // configurable desde GAS → limites.especiales
@@ -13324,6 +13466,15 @@ async function cargarPoolsOfertas() {
             }
         });
         (data.especialesActivas || []).filter(p => p.categoria !== 'CERVEZAS').forEach(p => _poolIdsEspeciales.add(Number(p.id)));
+        // v595 — PRECIO REVISTA: Code.gs solo lo manda con la revista activa y DENTRO de sus fechas (desde + días).
+        _poolRevistaPOS.clear(); _revistaPOSInfo = null;
+        try {
+            const rv = data.revista;
+            if (rv && rv.activa && rv.conFechas) {
+                (rv.items || []).forEach(it => { const pr = Number(it.precioRevista) || 0; if (pr > 0) _poolRevistaPOS.set(Number(it.id), pr); });
+                if (_poolRevistaPOS.size) _revistaPOSInfo = { titulo: rv.titulo || 'Revista', desde: rv.desde || '', hasta: rv.hasta || '' };
+            }
+        } catch (eRv) { _poolRevistaPOS.clear(); _revistaPOSInfo = null; }
         // Solo se usan las seleccionadas manualmente — nunca fallback automático
         // Seba21 usa siempre las seleccionadas (sin restricción de horario) — el horario lo respeta index
         const ultPOS = (data.ultimasSeleccionadasSiempre || data.ultimasSeleccionadas || []);
@@ -13651,6 +13802,17 @@ function calcularOfertaPOS(producto, qty) {
         r.precioTotal    = producto.normal * qty;
         r.etiqueta       = `🎯 COMBO`;
         r.tieneOferta = true; r.tipoOferta = 'combo';
+    }
+    // 6. v595 — PRECIO REVISTA: la de MENOR prioridad (igual que el catálogo): solo si ninguna otra oferta aplicó.
+    //    Nunca más caro que el normal. Fuera de las fechas de la revista el pool viene vacío (lo decide Code.gs).
+    if (r.tipoOferta == null && _poolRevistaPOS.has(producto.id)) {
+        const prv = Math.round(_poolRevistaPOS.get(producto.id));
+        if (prv > 0 && prv < producto.price) {
+            r.precioUnitario = prv;
+            r.precioTotal    = prv * qty;
+            r.etiqueta       = '🎄 PRECIO REVISTA';
+            r.tieneOferta = true; r.tipoOferta = 'revista';
+        }
     }
 
     return r;
@@ -16393,6 +16555,7 @@ abrirNuevoProducto = function() {
           style="flex:1;padding:10px;border:2px solid #ddd;border-radius:10px;background:white;cursor:pointer;font-size:0.85rem;">🏦 Transf.<br><span style="font-size:0.65rem;color:#777;">Brubank</span></button>
       </div>
     </div>
+    <input id="cfQuien" type="text" maxlength="40" autocomplete="off" placeholder="🙋 ¿Quién paga? (opcional · ej: su hermana Ana)" style="width:100%;box-sizing:border-box;margin:0 0 14px;padding:10px 12px;border:1.5px solid #ddd;border-radius:10px;font-size:0.88rem;">
     <div style="display:flex;gap:10px;">
       <button onclick="document.getElementById('modalCobrarFiado').style.display='none'"
         style="flex:1;padding:12px;border:2px solid #ddd;border-radius:12px;background:white;color:#555;cursor:pointer;">Cancelar</button>
@@ -16434,7 +16597,7 @@ abrirNuevoProducto = function() {
     </div>
     <div style="margin-bottom:20px;">
       <label style="font-size:0.8rem;font-weight:700;color:#555;display:block;margin-bottom:4px;">Observación (opcional)</label>
-      <textarea id="fiadoObs" placeholder="Ej: paga el viernes" style="width:100%;padding:10px 12px;border:2px solid #ddd;border-radius:10px;font-size:0.9rem;box-sizing:border-box;resize:none;height:60px;"></textarea>
+      <textarea id="fiadoObs" placeholder="Ej: lo retiró su hijo Juan · paga el viernes" style="width:100%;padding:10px 12px;border:2px solid #ddd;border-radius:10px;font-size:0.9rem;box-sizing:border-box;resize:none;height:60px;"></textarea>
     </div>
     <!-- v505: advertencia de teléfono (vacío / incompleto). Texto y botones los pone _fiadoMostrarAlertaTel() -->
     <div id="fiadoAlertaSinTel" style="display:none;background:#fff8e1;border:1.5px solid #ffe082;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:0.85rem;color:#e65100;line-height:1.5;">
@@ -17387,6 +17550,7 @@ function abrirCobrarSeleccionados() {
     _metodoCobroPendiente = 'EFECTIVO';
     window._idOpCobroPend = 'cp_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8); // v560: mismo código en todos los reintentos de ESTE cobro
     selMetodoCobrarFiado('EFECTIVO');
+    { const q = document.getElementById('cfQuien'); if (q) q.value = ''; }   // v595
     document.getElementById('cobrarFiadoInfo').innerHTML =
         `<strong>${mismoCliente ? cliente : seleccionados.length + ' clientes'}</strong><br>` +
         `🧾 ${seleccionados.length} fiado${seleccionados.length > 1 ? 's' : ''} seleccionado${seleccionados.length > 1 ? 's' : ''}<br>` +
@@ -17413,6 +17577,7 @@ async function confirmarCobroPendiente() {
         // Ahora la pone la planilla con fecha Y hora locales. Se agrega quién cobró.
         for (const fiad of seleccionados) {
             const datos = { idFiado: fiad.idFiado, metodoPago: _metodoCobroPendiente, idOperacion: window._idOpCobroPend || ('cp_' + Date.now()), cobrador: _fiadoCobrador() }; // v560: idOperacion
+            { const qp = _quienPagaDe('cfQuien'); if (qp) datos.quienPaga = qp; }   // v595
             const resp = await _apiFetch('cobrarFiado', datos);
             if (!resp.success) {
                 // v560: "ocupado" y "ya estaba pagado" se explican tal cual (no es una falla de red ni un error genérico)
@@ -20985,7 +21150,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='seba21',AV_VER='594';
+/*AV*/var AV_PAG='seba21',AV_VER='595';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {

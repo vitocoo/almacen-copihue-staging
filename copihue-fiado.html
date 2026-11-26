@@ -195,6 +195,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
                oninput="onMontoInput()" placeholder="0">
         <button class="btn-monto-full" onclick="setMontoFull()">Total ↩</button>
       </div>
+      <input id="quienInput" type="text" maxlength="40" autocomplete="off" placeholder="🙋 ¿Quién paga? (opcional · ej: su hermana Ana)" style="width:100%;box-sizing:border-box;margin-top:10px;padding:10px 12px;border:1.5px solid #ddd;border-radius:10px;font-size:.9rem">
       <div class="monto-hint" id="montoHint">💲 Monto menor al total → <b>abono parcial</b> (queda pendiente con saldo reducido) · Monto exacto → <b>cobro total</b></div>
     </div>
     <div class="modal-acc">
@@ -952,11 +953,14 @@ function abrirCobrar(){
   document.getElementById('cobTit').innerHTML='✅ Registrar pago <button onclick="cerrarCob()">✕</button>';
   document.getElementById('montoInput').value=Math.round(_montoFull);
   document.getElementById('montoHint').style.display='none';
+  {const q=document.getElementById('quienInput'); if(q) q.value='';}   // v53
   document.getElementById('btnConf').textContent='✅ Confirmar';
   selMet('EFECTIVO');
   document.getElementById('modalCob').classList.add('open');
 }
 
+// v53 — «¿Quién paga?» (opcional): viaja al pago y queda anotado «· pagó: …»
+function _qp(){const e=document.getElementById('quienInput');const q=e?String(e.value||'').replace(/[|\[\]()$]/g,' ').replace(/\s+/g,' ').trim().slice(0,40):'';return q?{quienPaga:q}:{};}
 function cerrarCob(){document.getElementById('modalCob').classList.remove('open');}
 
 function selMet(m){
@@ -993,7 +997,7 @@ async function confirmarCob(){
   try{
     if(esAbono&&selArr.length===1){
       // Abono parcial — un solo fiado
-      const r=await _api('abonarFiado',{idFiado:selArr[0],abono:montoIngresado,metodoPago:_met,idOperacion:_idOpCobro,cobrador:_cobrador()});
+      const r=await _api('abonarFiado',{idFiado:selArr[0],abono:montoIngresado,metodoPago:_met,idOperacion:_idOpCobro,cobrador:_cobrador(),..._qp()});
       if(!r.success)throw new Error(r.mensaje||'Error al abonar');
       toast(r.yaExistia?'✅ Ese abono ya estaba registrado — no se descontó de nuevo':'✅ Abono registrado','v');
       // Recordatorio de abono
@@ -1021,13 +1025,13 @@ async function confirmarCob(){
         if(resta<=0.5)break;
         const ref=_refFiado(f);
         if(resta>=f.total-0.5){
-          const r=await _api('cobrarFiado',{idFiado:f.idFiado,metodoPago:_met,idOperacion:_idOpCobro,cobrador:_cobrador()});
+          const r=await _api('cobrarFiado',{idFiado:f.idFiado,metodoPago:_met,idOperacion:_idOpCobro,cobrador:_cobrador(),..._qp()});
           if(!r.success){err++;toast('❌ '+(r.mensaje||'Error'),'r');continue;}
           lineas.push(`  🧾 ${ref} · ${fmt(f.total)} ✅ Pagado`);
           resta-=f.total;
         }else{
           const abono=resta;
-          const r=await _api('abonarFiado',{idFiado:f.idFiado,abono,metodoPago:_met,idOperacion:_idOpCobro,cobrador:_cobrador()});
+          const r=await _api('abonarFiado',{idFiado:f.idFiado,abono,metodoPago:_met,idOperacion:_idOpCobro,cobrador:_cobrador(),..._qp()});
           if(!r.success){err++;toast('❌ '+(r.mensaje||'Error'),'r');continue;}
           lineas.push(`  🧾 ${ref} · ${fmt(abono)} de ${fmt(f.total)} 📋 Abonado (resta ${fmt(f.total-abono)})`);
           resta=0;
@@ -1044,7 +1048,7 @@ async function confirmarCob(){
       // Cobro total de todos los seleccionados
       let err=0;
       for(const id of selArr){
-        const r=await _api('cobrarFiado',{idFiado:id,metodoPago:_met,idOperacion:_idOpCobro,cobrador:_cobrador()});
+        const r=await _api('cobrarFiado',{idFiado:id,metodoPago:_met,idOperacion:_idOpCobro,cobrador:_cobrador(),..._qp()});
         if(!r.success){err++;toast('❌ '+(r.mensaje||'Error'),'r');}
       }
       if(err>0)throw new Error('Algunos cobros fallaron');
@@ -1311,7 +1315,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='fiado',AV_VER='52';
+/*AV*/var AV_PAG='fiado',AV_VER='53';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {
