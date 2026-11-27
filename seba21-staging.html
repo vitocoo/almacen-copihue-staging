@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v597</title>
+    <title>🛒 POS · Copihue v598</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2433,6 +2433,9 @@
             font-weight: 800;
             color: var(--verde-oscuro);
         }
+        /* v598 — con deuda sumada el total de arriba es EL ÚNICO total a cobrar */
+        .confirm-total-row.con-deuda { flex-wrap: wrap; font-size: 1.45rem; font-weight: 900; color: #1b5e20; background: #e8f5e9; border: 2px solid #2e7d32; border-radius: 12px; padding: 10px 12px; margin-top: 10px; }
+        .confirm-total-row .ctr-sub { flex-basis: 100%; text-align: right; font-size: 0.8rem; font-weight: 700; color: #e65100; margin-top: 2px; }
         .confirm-acciones {
             padding: 16px 20px 0;
             display: flex;
@@ -6545,6 +6548,7 @@ function _modalDel(idx) {
         window._totalConRedondeo = total;
         const totalRow = el.querySelector('.confirm-total-row span:last-child');
         if (totalRow) totalRow.textContent = '$' + total.toLocaleString('es-AR');
+        try { _dcRefrescar(); } catch (e) {}   // v598 — el total con deuda sigue siendo uno solo
         if (document.getElementById('pmTotal')) _pmRenderResumen(); // v454
     }; // fin _doDelete
 
@@ -6583,6 +6587,7 @@ function _patchFilaModal(idx) {
     window._totalConRedondeo = total;
     const totalRow = el.querySelector('.confirm-total-row span:last-child');
     if (totalRow) totalRow.textContent = '$' + total.toLocaleString('es-AR');
+    try { _dcRefrescar(); } catch (e) {}   // v598
 
     // v454 — si había un pago mixto en curso, +/- en un producto cambiaba
     // el total de arriba pero el panel de pago mixto (PAGADO/FALTA/VUELTO)
@@ -7354,6 +7359,7 @@ function _dcResetUI() {
         const fl = document.getElementById('dcFlecha'); if (fl) fl.textContent = '›';
         const b = document.getElementById('dcSumarBtn'); if (b) b.style.display = 'none';
         const bl = document.getElementById('dcBloque'); if (bl) { bl.style.display = 'none'; bl.innerHTML = ''; }
+        try { if (!_dcMonto()) _pintarTotalModal(); } catch (e) {}   // v598 — sin deuda vuelve a «TOTAL» de la compra
     } catch (e) {}
     _dcFiadoGris();   // v556
 }
@@ -7407,19 +7413,35 @@ function _dcPedirConfirmacion() {
     document.getElementById('dcConfSi').onclick = () => { ov.remove(); window._dcConfirmado = true; confirmarVenta(); };
 }
 // Muestra/actualiza el bloque "Deuda + TOTAL A COBRAR". El TOTAL de arriba (la venta) NO cambia.
+// v598 — UN SOLO TOTAL: con deuda sumada, la fila de arriba dice «TOTAL A COBRAR» (compra + deuda).
+// Solo cambia lo que se ve: la venta se sigue guardando por la compra y la deuda como abono (igual que antes).
+function _pintarTotalModal() {
+    const row = document.querySelector('#confirmDetalle .confirm-total-row'); if (!row) return;
+    const venta = window._totalConRedondeo || _totalCarritoConDescuentosGrupales();
+    const m = _dcMonto();
+    if (m > 0) {
+        row.classList.add('con-deuda');
+        row.innerHTML = '<span>TOTAL A COBRAR</span><span>' + _fiadoFmt(venta + m) + '</span><div class="ctr-sub"></div>';
+        row.querySelector('.ctr-sub').textContent = 'compra ' + _fiadoFmt(venta) + ' + deuda de ' + _dc.cliente + ' ' + _fiadoFmt(m);
+    } else {
+        row.classList.remove('con-deuda');
+        row.innerHTML = '<span>TOTAL</span><span>' + _fiadoFmt(venta) + '</span>';
+    }
+}
 function _dcRefrescar() {
+    try { _pintarTotalModal(); } catch (e) {}   // v598
     const bl = document.getElementById('dcBloque'); if (!bl) return;
     const m = _dcMonto();
     _dcFiadoGris();   // v556
     if (!m) { bl.style.display = 'none'; bl.innerHTML = ''; return; }
     const venta = window._totalConRedondeo || _totalCarritoConDescuentosGrupales();
     bl.style.display = 'block';
+    // v598 — solo INFORMACIÓN (el total a cobrar está arriba, uno solo)
     bl.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;font-weight:800;color:#e65100;">'
         + '<span class="dcNom"></span><span>+' + _fiadoFmt(m) + '</span></div>'
-        + '<div style="display:flex;justify-content:space-between;font-size:0.78rem;color:#666;margin-top:2px;"><span>Compra</span><span>' + _fiadoFmt(venta) + '</span></div>'
-        + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:1.15rem;font-weight:900;color:#1b5e20;margin-top:4px;border-top:1px dashed #e65100;padding-top:4px;"><span>TOTAL A COBRAR</span><span>' + _fiadoFmt(venta + m) + '</span></div>'
+        + '<div style="font-size:0.75rem;color:#666;margin-top:2px;">Ya está sumada en el TOTAL A COBRAR de arriba.</div>'
         + '<div style="text-align:right;margin-top:4px;"><button type="button" onclick="_dcQuitar()" style="background:none;border:none;color:#999;font-size:0.75rem;text-decoration:underline;cursor:pointer;">✕ quitar deuda</button></div>';
-    bl.querySelector('.dcNom').textContent = '💰 Deuda de ' + _dc.cliente;
+    bl.querySelector('.dcNom').textContent = '💰 Incluye deuda de ' + _dc.cliente;
 }
 // Congela lo elegido ANTES de que se limpie nada. null si no hay deuda sumada.
 function _dcCongelar() {
@@ -21249,7 +21271,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='seba21',AV_VER='597';
+/*AV*/var AV_PAG='seba21',AV_VER='598';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {
