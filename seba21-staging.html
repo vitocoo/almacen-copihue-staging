@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v600</title>
+    <title>🛒 POS · Copihue v601</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13175,7 +13175,8 @@ function _ppAbierto() { const p = document.getElementById('ppPanel'); return !!(
 // Vendiendo, el POS sigue bloqueado (que no se agrande sin querer). Al volver se bloquea y vuelve al tamaño normal.
 const _PP_VP_BLOQ = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
 const _PP_VP_ZOOM = 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes';
-function _ppZoom(permitir) { try { const m = document.querySelector('meta[name="viewport"]'); if (m) m.setAttribute('content', permitir ? _PP_VP_ZOOM : _PP_VP_BLOQ); } catch (e) {} }
+function _ppZoom(permitir) { permitir = false;   // v601 — vuelve a como antes de v597: el POS NUNCA se agranda con los dedos (tampoco en el panel)
+    try { const m = document.querySelector('meta[name="viewport"]'); if (m) m.setAttribute('content', permitir ? _PP_VP_ZOOM : _PP_VP_BLOQ); } catch (e) {} }
 function abrirPagina(url) {
     try {
         let p = document.getElementById('ppPanel');
@@ -21279,7 +21280,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='seba21',AV_VER='600';
+/*AV*/var AV_PAG='seba21',AV_VER='601';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {

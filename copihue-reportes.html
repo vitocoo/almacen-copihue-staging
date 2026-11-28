@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
-<title>🧪 STAGING · ver.45 · Copihue · Reportes</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>🧪 STAGING · ver.46 · Copihue · Reportes</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -99,6 +99,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 .cal-d.sel .dn{color:#fff !important;background:transparent !important}
 .cal-d.sel .dm{color:rgba(255,255,255,.85) !important}
 .cal-d.sel .dg{color:rgba(255,200,100,.9) !important}
+.cal-d.hoy .dm{font-size:.7rem !important;font-weight:900 !important}   /* ver.46 — el día de hoy, más grande */
+.cal-d.hoy .dg{font-size:.62rem !important;font-weight:800 !important}
 .cal-d.hoy .dn{background:var(--naranja);color:#fff;border-radius:50%;width:21px;height:21px;display:flex;align-items:center;justify-content:center}
 .dn{font-size:.8rem;font-weight:700;color:var(--texto);line-height:1}
 .dm{font-size:.57rem;font-weight:700;color:var(--vd);line-height:1}
@@ -359,9 +361,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 <script>
 // ver.44/45 — LETRA MÁS GRANDE: A− / A+ (100·108·115%, se recuerda en este aparato). Para más: separar dos dedos (también dentro del POS desde v597).
 var ZOOM_REP=[1,1.08,1.15];   // ver.45 — hasta 115% (más grande se pisa); para más, separar los dedos
-function _zoomRepAplicar(){var i=0;try{i=parseInt(localStorage.getItem('copihue_rep_zoom')||'0')||0;}catch(e){} i=Math.max(0,Math.min(ZOOM_REP.length-1,i));
+// ver.46 — A−/A+ ya NO se recuerda: la página siempre arranca en 100% (el tamaño elegido vale mientras está abierta)
+var _zoomRepI=0; try{localStorage.removeItem('copihue_rep_zoom');}catch(e){}
+function _zoomRepAplicar(){var i=Math.max(0,Math.min(ZOOM_REP.length-1,_zoomRepI));
   var z=ZOOM_REP[i]; document.querySelectorAll('#app,.zoomable').forEach(function(el){el.style.zoom=z;}); return i;}
-function zoomRep(d){var i=_zoomRepAplicar()+d; i=Math.max(0,Math.min(ZOOM_REP.length-1,i)); try{localStorage.setItem('copihue_rep_zoom',String(i));}catch(e){} _zoomRepAplicar();
+function zoomRep(d){var i=_zoomRepAplicar()+d; i=Math.max(0,Math.min(ZOOM_REP.length-1,i)); _zoomRepI=i; _zoomRepAplicar();
   try{var t=document.getElementById('zoomTxt'); if(!t){t=document.createElement('div');t.id='zoomTxt';t.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#1b5e20;color:#fff;padding:6px 14px;border-radius:14px;font-weight:800;z-index:9999;font-size:14px';document.body.appendChild(t);} t.textContent='🔎 Letra '+Math.round(ZOOM_REP[i]*100)+'%'; t.style.display='block'; clearTimeout(zoomRep.t); zoomRep.t=setTimeout(function(){t.style.display='none';},1200);}catch(e){}}
 </script>
 <div id="app"><div class="ldg"><div class="spin"></div>Cargando reportes... puede tardar hasta 1 minuto</div></div>
@@ -775,6 +779,13 @@ function renderApp(){
     calH+='<div class="'+cls+'" onclick="toggleDia(\''+ds+'\')" style="position:relative">'+hoyLbl+'<div class="dn">'+d+'</div>'+monto+gan+pto+'</div>';
   }
   calH+='</div>';
+  // ver.46 — 📍 HOY en grande (lo más usado): vendido, ganancia y tickets de hoy (mismo cálculo que el calendario)
+  { const ih=porDia[today]; const nT=raw.totales.filter(t=>t.fechaStr===today&&!EXCLUIR_VENDEDORES.includes(normVend(t.vendedor||''))).length;
+    const dh=new Date(); const DS=['dom','lun','mar','mié','jue','vie','sáb'];
+    const hoyH='<div id="hoyGrande" onclick="toggleDia(\''+today+'\')" style="cursor:pointer;margin:0 0 8px;padding:10px 14px;border-radius:14px;background:linear-gradient(135deg,#e65100,#f57c00);color:#fff;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px">'+
+      '<span style="font-weight:900;font-size:1rem">📍 HOY '+DS[dh.getDay()]+' '+dh.getDate()+'</span>'+
+      (ih?'<span style="font-weight:900;font-size:1.7rem;line-height:1">'+fmt(ih.tv)+'</span><span style="font-weight:800;font-size:1rem;color:#fff3e0">+'+fmt(ih.tg)+' ganancia</span><span style="font-size:.85rem;opacity:.9">'+nT+' ticket'+(nT===1?'':'s')+'</span>':'<span style="font-size:.95rem;opacity:.9">todavía sin ventas</span>')+'</div>';
+    if(mes===new Date().getMonth()&&anio===new Date().getFullYear()) calH=hoyH+calH; }
 
   // Semanas del mes
   const semNombres=['S1','S2','S3','S4','S5'];
@@ -2752,7 +2763,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='reportes',AV_VER='45';
+/*AV*/var AV_PAG='reportes',AV_VER='46';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {
