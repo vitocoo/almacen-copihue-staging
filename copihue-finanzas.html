@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>🧪 STAGING · Copihue · Finanzas v26</title>
+<title>🧪 STAGING · Copihue · Finanzas v27</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;900&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -192,7 +192,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 
 <div class="hdr">
   <div class="hdr-icon">💰</div>
-  <div><div class="hdr-t">Copihue · Finanzas <span id="ver-badge" style="font-size:.6rem;background:rgba(255,255,255,.25);padding:2px 7px;border-radius:10px;font-weight:900;letter-spacing:.5px">v26</span></div><div class="hdr-s" id="hdr-sub">Panel financiero</div></div>
+  <div><div class="hdr-t">Copihue · Finanzas <span id="ver-badge" style="font-size:.6rem;background:rgba(255,255,255,.25);padding:2px 7px;border-radius:10px;font-weight:900;letter-spacing:.5px">v27</span></div><div class="hdr-s" id="hdr-sub">Panel financiero</div></div>
   <button class="btn-back" onclick="location.href='./copihue-herramientas.html'">← Volver</button>
 </div>
 
@@ -388,6 +388,34 @@ function getCobrosPeriodo(){
   if(vista==='mes') return cobrosFiadoData.filter(r=>r.fecha.getMonth()===mesSel && r.fecha.getFullYear()===anioSel);
   return cobrosFiadoData.filter(r=>r.fecha.getFullYear()===anioSel);
 }
+// v27 — GASTOS DEL NEGOCIO vs RETIROS PERSONALES (solo cómo se agrupa; la planilla no cambia)
+const NEG_DEF = ['NEGOCIO','PROVEEDORES','COMPRA GRANDE','PAGO SERVICIOS','PAGO PROVEEDOR'];
+const CATS_CONOCIDAS = ['NEGOCIO','PROVEEDORES','COMPRA GRANDE','FAMILIA','FAMILIA CHILE','SALUD','TRANSPORTE','SUSCRIPCIONES','PERSONAL','MERCADO','CELEBRACIONES','PRESTAMO/AYUDA','RETIRO DUEÑO'];
+function _negSet(){ try{ const v=JSON.parse(localStorage.getItem('copihue_fin_negocio')||'null'); if(Array.isArray(v)) return new Set(v); }catch(e){} return new Set(NEG_DEF); }
+function _motivoNeg(){ try{ return localStorage.getItem('copihue_fin_motivo')!=='0'; }catch(e){ return true; } }
+function _catDe(e){ return (e.categoria||e.motivo||'SIN CAT').trim().toUpperCase(); }
+function esGastoNegocio(e){ if(_negSet().has(_catDe(e))) return true; return _motivoNeg() && /PAGO SERVICIOS|PAGO PROVEEDOR/i.test(e.motivo||''); }
+function abrirConfigNegocio(){
+  const set=_negSet(), cats=[...new Set(CATS_CONOCIDAS.concat(egresosData.map(_catDe)))].filter(Boolean);
+  let ov=document.getElementById('cfgNegOv'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='cfgNegOv';
+  ov.style.cssText='position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+  const chip=c=>`<button type="button" data-c="${c.replace(/"/g,'')}" style="margin:3px;padding:7px 11px;border-radius:18px;font:700 .78rem inherit;cursor:pointer;border:2px solid ${set.has(c)?'#2e7d32':'#e57373'};background:${set.has(c)?'#e8f5e9':'#ffebee'};color:${set.has(c)?'#1b5e20':'#c62828'}">${set.has(c)?'🏪':'👤'} ${CATS_EMOJI[c]||''} ${c}</button>`;
+  ov.innerHTML=`<div style="background:#fff;border-radius:16px;max-width:440px;width:100%;padding:16px;max-height:88vh;overflow:auto">
+    <div style="font-weight:900;font-size:1rem;margin-bottom:4px">⚙️ ¿Qué es del negocio?</div>
+    <div style="font-size:.78rem;color:var(--gris);margin-bottom:8px">Tocá una categoría para pasarla de lado. 🏪 = gasto del negocio · 👤 = retiro o gasto personal. Se recuerda en este aparato.</div>
+    <div id="cfgNegChips">${cats.map(chip).join('')}</div>
+    <label style="display:flex;gap:8px;align-items:center;font-size:.8rem;margin:10px 0"><input type="checkbox" id="cfgNegMot" ${_motivoNeg()?'checked':''}> Los retiros con motivo «PAGO SERVICIOS» o «PAGO PROVEEDOR» cuentan como del negocio</label>
+    <div style="display:flex;gap:8px"><button type="button" id="cfgNegDef" style="flex:1;padding:10px;border:2px solid #ccc;border-radius:10px;background:#fff;font-weight:700">↺ Como venía</button>
+    <button type="button" id="cfgNegOk" style="flex:1.3;padding:10px;border:none;border-radius:10px;background:var(--verde);color:#fff;font-weight:800">✅ Listo</button></div></div>`;
+  document.body.appendChild(ov);
+  const cur=new Set(set);
+  ov.querySelectorAll('#cfgNegChips button').forEach(b=>b.onclick=()=>{ const c=b.dataset.c; cur.has(c)?cur.delete(c):cur.add(c); const on=cur.has(c);
+    b.style.borderColor=on?'#2e7d32':'#e57373'; b.style.background=on?'#e8f5e9':'#ffebee'; b.style.color=on?'#1b5e20':'#c62828'; b.innerHTML=(on?'🏪':'👤')+' '+(CATS_EMOJI[c]||'')+' '+c; });
+  document.getElementById('cfgNegOk').onclick=()=>{ try{ localStorage.setItem('copihue_fin_negocio',JSON.stringify([...cur])); localStorage.setItem('copihue_fin_motivo',document.getElementById('cfgNegMot').checked?'1':'0'); }catch(e){} ov.remove(); render(); };
+  document.getElementById('cfgNegDef').onclick=()=>{ try{ localStorage.removeItem('copihue_fin_negocio'); localStorage.removeItem('copihue_fin_motivo'); }catch(e){} ov.remove(); render(); };
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+}
 function getCobrosMes(m,a){ return cobrosFiadoData.filter(r=>r.fecha.getMonth()===m && r.fecha.getFullYear()===a); }
 function getCajaMes(m,a){ return cajaData.filter(r=>r.fecha.getMonth()===m && r.fecha.getFullYear()===a); }
 function getHistPeriodo(){ if(vista==='mes') return comprasData.filter(r=>r.fecha.getMonth()===mesSel && r.fecha.getFullYear()===anioSel); return comprasData.filter(r=>r.fecha.getFullYear()===anioSel); }
@@ -515,6 +543,9 @@ function buildResumen(){
   const pctGastos = ti+totalEgr>0 ? Math.round(te/(ti+totalEgr)*100) : 25;
   const pctProv = 100-pctIng-pctGastos;
   const neto = recibido - te - tp;   // v26 — antes: ventas (con lo fiado) − gastos − compras
+  // v27 — separar: lo que gana el almacén vs lo que sale para la casa (neto = ganNeg − teP, el mismo número de antes)
+  const teN = egrs.filter(esGastoNegocio).reduce((s,r)=>s+r.monto,0), teP = te - teN;
+  const ganNeg = recibido - tp - teN;
 
   let tiA=0,teA=0,recA=0;
   if(vista==='mes'){
@@ -542,17 +573,27 @@ function buildResumen(){
       <div class="alert-icon">⚠️</div>
       <div>
         <div class="alert-t">Déficit en el período</div>
-        <div class="alert-s">Los egresos superaron los ingresos en ${fmtK(Math.abs(neto))}</div>
+        <div class="alert-s">Salió ${fmtK(Math.abs(neto))} más de lo que entró${ganNeg>=0?' — el negocio ganó '+fmtK(ganNeg)+'; la diferencia son retiros personales ('+fmtK(teP)+')':''}</div>
       </div>
     </div>`;
   }
 
   h += `<div class="cards">
     <div class="card ${neto>=0?'vg':'rg'} full">
-      <div class="card-lbl">${neto>=0?'✅':'⚠️'} ${neto>=0?'Tu ganancia':'Déficit del período'}</div>
-      <div class="card-val">${fmtK(Math.abs(neto))}</div>
+      <div class="card-lbl">💰 ${neto>=0?'Te queda':'Te falta'} (todo junto)</div>
+      <div class="card-val">${neto<0?'−':''}${fmtK(Math.abs(neto))}</div>
       ${delta(neto,recA-teA)}
-      <div class="card-sub">${neto>=0?'Superávit':'Déficit'} — ${neto>=0?'entró más plata de la que salió':'salió más plata de la que entró'}${cobrosFiadoOk?' · dinero que entró '+fmtK(recibido)+' (sin lo fiado, con los cobros de fiado)':''}</div>
+      <div class="card-sub">= 🏪 ganancia del negocio − 👤 retiros personales${cobrosFiadoOk?' · dinero que entró '+fmtK(recibido)+' (sin lo fiado, con los cobros de fiado)':''}</div>
+    </div>
+    <div class="card ${ganNeg>=0?'vg':'rg'}" onclick="setTab('flujo')" style="cursor:pointer">
+      <div class="card-lbl">🏪 Ganancia del negocio</div>
+      <div class="card-val">${ganNeg<0?'−':''}${fmtK(Math.abs(ganNeg))}</div>
+      <div class="card-sub">entró ${fmtK(recibido)} − stock ${fmtK(tp)} − gastos del negocio ${fmtK(teN)}</div>
+    </div>
+    <div class="card" style="background:linear-gradient(135deg,#6d4c41,#8d6e63);color:#fff;border:none;cursor:pointer" onclick="setTab('egresos')">
+      <div class="card-lbl">👤 Retiros y gastos personales ›</div>
+      <div class="card-val">${fmtK(teP)}</div>
+      <div class="card-sub">familia, salud, transporte… <span onclick="event.stopPropagation();abrirConfigNegocio()" style="text-decoration:underline;cursor:pointer">⚙️ cambiar</span></div>
     </div>
     <div class="card vg" onclick="setTab('ingresos')" style="cursor:pointer">
       <div class="card-lbl">📈 Ventas ›</div>
@@ -564,7 +605,7 @@ function buildResumen(){
       <div class="card-lbl">📉 Gastos ›</div>
       <div class="card-val">${fmtK(te)}</div>
       ${delta(te,teA)}
-      <div class="card-sub">${egrs.length} movimientos</div>
+      <div class="card-sub">${egrs.length} movimientos<br>🏪 negocio ${fmtK(teN)} · 👤 personales ${fmtK(teP)}</div>
     </div>
     ${cobrosFiadoOk?`<div class="card full" style="border:2px solid #8d6e63">
       <div class="card-lbl" style="color:#6d4c41">🧾 Cobros de fiado del período</div>
@@ -760,6 +801,7 @@ function buildEgresos(){
     <div class="card-val">${fmtK(te)}</div>
     ${delta(te,teA)}
     <div class="card-sub">${egrs.length} movimientos · prom ${fmt(egrs.length?te/egrs.length:0)} c/u</div>
+    <div class="card-sub" style="margin-top:4px">🏪 del negocio ${fmt(egrs.filter(esGastoNegocio).reduce((s,r)=>s+r.monto,0))} · 👤 personales ${fmt(egrs.filter(e=>!esGastoNegocio(e)).reduce((s,r)=>s+r.monto,0))} · <span onclick="abrirConfigNegocio()" style="text-decoration:underline;cursor:pointer">⚙️ qué es del negocio</span></div>
   </div>`;
 
   // Por categoría
@@ -1710,7 +1752,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='finanzas',AV_VER='26';
+/*AV*/var AV_PAG='finanzas',AV_VER='27';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {
