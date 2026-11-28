@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>🧪 STAGING · Copihue · Finanzas v27</title>
+<title>Copihue · Finanzas v27</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;900&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -188,7 +188,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 </style>
 </head>
 <body>
-<div style="background:#ff9800;color:#000;text-align:center;font-weight:900;font-size:.75rem;padding:4px">🧪 STAGING — datos de prueba</div>
 
 <div class="hdr">
   <div class="hdr-icon">💰</div>
@@ -203,7 +202,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--texto);mi
 <div id="toast"></div>
 
 <script>
-const API = 'https://script.google.com/macros/s/AKfycbzQccLKYVVhdCGzX8_SKd59rcifTTm_Ciuu0MPDVNBNEtDhG0LOB7WylhYVMSFAypB9pg/exec';
+const API = 'https://script.google.com/macros/s/AKfycbx-84yapENFqCNS1nfivFOR4P25l8U27gEoeWvVL6Nu5HmKr8e7m3KIJjshqtR_2brrHA/exec';
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DIAS_SEM = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 const CATS_EMOJI = {'SALUD':'💊','TRANSPORTE':'🚗','SUSCRIPCIONES':'📺','CELEBRACIONES':'🎉','MERCADO':'🛒','FAMILIA':'👨‍👩‍👧','NEGOCIO':'🏪','COMPRA GRANDE':'📦','PRESTAMO/AYUDA':'🤝','RETIRO DUEÑO':'💰','PERSONAL':'👤','PAGO SERVICIOS':'🔧','PAGO PROVEEDOR':'🚚'};
@@ -1737,19 +1736,6 @@ function toggleCal(k){ diasCal.has(k)?diasCal.delete(k):diasCal.add(k); render()
 
 cargarDatos();
 </script>
-<!-- STAGING-ETIQUETA — solo en STAGING: etiqueta chica fija abajo a la izquierda con parpadeo del borde a intervalos al azar (para que la vista no se acostumbre). No recibe toques (pointer-events:none). -->
-<style>
-#stgPill{position:fixed;left:6px;bottom:6px;z-index:2147483000;pointer-events:none;background:#ff9800;color:#000;font:900 11px/1 system-ui,-apple-system,sans-serif;padding:4px 8px;border-radius:999px;border:2px solid #000;box-shadow:0 1px 4px rgba(0,0,0,.35);opacity:.92;letter-spacing:.3px;white-space:nowrap}
-#stgPill.stg-pulso{animation:stgPulso 1.4s ease-in-out 2}
-@keyframes stgPulso{0%,100%{border-color:#000;box-shadow:0 1px 4px rgba(0,0,0,.35)}50%{border-color:#ff1744;box-shadow:0 0 0 5px rgba(255,23,68,.55),0 0 14px rgba(255,23,68,.8)}}
-</style>
-<div id="stgPill" aria-hidden="true">🧪 STAGING</div>
-<script>
-(function(){try{var p=document.getElementById('stgPill');if(!p)return;
-function tic(){p.classList.remove('stg-pulso');void p.offsetWidth;p.classList.add('stg-pulso');setTimeout(tic,7000+Math.random()*18000);}
-setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
-</script>
-
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
 /*AV*/var AV_PAG='finanzas',AV_VER='27';

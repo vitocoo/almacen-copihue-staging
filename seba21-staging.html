@@ -1878,7 +1878,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🛒 POS · Copihue v598</title>
+    <title>🛒 POS · Copihue v600</title>
     <meta name="theme-color" content="#991b1b">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13208,9 +13208,11 @@ const _PP_CSS_VOLVER = 'a[href*="seba21"],[onclick*="seba21"],#btn-back[onclick*
 function _ppSinGuardar(w) {   // ¿la página tiene cambios sin guardar? (revista: SUCIO · ingreso: hayDatosSinGuardar)
     try { return !!w.eval("(typeof SUCIO!=='undefined'&&SUCIO)||(typeof hayDatosSinGuardar==='function'&&hayDatosSinGuardar())"); } catch (e) { return false; }
 }
+// v599 — Chrome de Android agranda la letra solo cuando la página permite zoom (desde v597 en el panel): se le dice que no.
+const _PP_CSS_LETRA = 'html,body{-webkit-text-size-adjust:100%!important;text-size-adjust:100%!important}';
 function _ppAlCargar() {
     const f = document.getElementById('ppFrame'); if (!f) return;
-    try { const d = f.contentDocument; if (d && !d.getElementById('ppSinVolver')) { const st = d.createElement('style'); st.id = 'ppSinVolver'; st.textContent = _PP_CSS_VOLVER; (d.head || d.documentElement).appendChild(st); } } catch (e) {}
+    try { const d = f.contentDocument; if (d && !d.getElementById('ppSinVolver')) { const st = d.createElement('style'); st.id = 'ppSinVolver'; st.textContent = _PP_CSS_LETRA + _PP_CSS_VOLVER; (d.head || d.documentElement).appendChild(st); } } catch (e) {}
     const c = document.getElementById('ppCarga'); if (c) c.style.display = 'none';
     let w = null; try { w = f.contentWindow; void w.location.href; } catch (e) { return; }   // otra web (no debería pasar)
     if (_PP_POS_RE.test(w.location.pathname)) { cerrarPagina(); return; }   // respaldo: llegó a cargar el POS adentro
@@ -19437,6 +19439,7 @@ function abrirRetiroCaja() {
         const btn = document.getElementById(id);
         if (btn) btn.classList.remove('activo');
     });
+    try { selRcCategoria && document.getElementById('rcAvisoMerc') && (function () { const av = document.getElementById('rcAvisoMerc'); av.innerHTML = '⚠️ Mercadería para vender NO va acá: cargala en 📦 Ingreso.'; av.style.background = '#fff8e1'; av.style.borderColor = '#ffe082'; av.style.color = '#6d4c41'; av.style.fontSize = '0.78rem'; })(); } catch (e) {}   // v600
     // v416 — Resetear el resumen colapsado de categoría (arranca cerrado)
     const rcCatResumenTexto = document.getElementById('rcCatResumenTexto');
     if (rcCatResumenTexto) rcCatResumenTexto.innerHTML = 'Tocá para elegir una categoría ▾';
@@ -19591,6 +19594,10 @@ function rcTarjetaBorrar(i) {
 
 function selRcCategoria(cat) {
     _rcCategoriaSeleccionada = cat;
+    // v600 — con COMPRA GRANDE o NEGOCIO el aviso se pone fuerte (lo que es para vender va por Ingreso)
+    try { const av = document.getElementById('rcAvisoMerc'); if (av) { const fuerte = cat === 'COMPRA GRANDE' || cat === 'NEGOCIO';
+        av.innerHTML = fuerte ? '⚠️ <b>¿Es para vender?</b> Entonces NO va acá: cargala en 📦 Ingreso.<br>Si es para el local (heladera, arreglo, luz…), seguí.' : '⚠️ Mercadería para vender NO va acá: cargala en 📦 Ingreso.';
+        av.style.background = fuerte ? '#ffe0b2' : '#fff8e1'; av.style.borderColor = fuerte ? '#e65100' : '#ffe082'; av.style.color = fuerte ? '#bf360c' : '#6d4c41'; av.style.fontSize = fuerte ? '0.88rem' : '0.78rem'; } } catch (e) {}
     document.getElementById('rcCategoria').value = cat;
     _RC_CATS.forEach(c => {
         const id = 'rcCat' + _RC_CAT_IDS[c];
@@ -19900,6 +19907,7 @@ async function cargarHistorialRetiros() {
                 </div>
 
                 <div class="form-grupo">
+                    <div id="rcAvisoMerc" style="font-size:0.78rem;font-weight:700;color:#6d4c41;background:#fff8e1;border:1.5px solid #ffe082;border-radius:10px;padding:7px 10px;margin-bottom:8px;">⚠️ Mercadería para vender NO va acá: cargala en 📦 Ingreso.</div>   <!-- v600 -->
                     <label class="form-label">Categoría *</label>
                     <!-- v416 — Colapsable y cerrada por defecto: la grilla de 13
                          botones ocupaba mucho alto siempre desplegada, dejando
@@ -19913,7 +19921,7 @@ async function cargarHistorialRetiros() {
                         <span style="font-size:0.75rem;color:#1565c0;font-weight:700;">Cambiar</span>
                     </div>
                     <div id="rcCatGrid" style="display:none;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px;">
-                        <button type="button" class="cat-btn" id="rcCatPROVEEDORES" onclick="selRcCategoria('PROVEEDORES')" style="font-size:0.72rem;">🚚 PROVEEDORES</button>
+                        <!-- v600 — sin «🚚 PROVEEDORES»: la mercadería entra por 📦 Ingreso (si no, Finanzas la contaría dos veces) -->
                         <button type="button" class="cat-btn" id="rcCatSALUD"          onclick="selRcCategoria('SALUD')"          style="font-size:0.72rem;">💊 SALUD</button>
                         <button type="button" class="cat-btn" id="rcCatTRANSPORTE"     onclick="selRcCategoria('TRANSPORTE')"     style="font-size:0.72rem;">🚗 TRANSPORTE</button>
                         <button type="button" class="cat-btn" id="rcCatSUSCRIPCIONES"  onclick="selRcCategoria('SUSCRIPCIONES')"  style="font-size:0.72rem;">📺 SUSCRIPC.</button>
@@ -21271,7 +21279,7 @@ setTimeout(tic,1500+Math.random()*3000);}catch(e){}})();
 
 <!-- AVISO-VERSION — regla de oro: avisa «se actualizó a vX» y detecta versión nueva publicada (tocar = recargar de verdad) -->
 <script>
-/*AV*/var AV_PAG='seba21',AV_VER='598';
+/*AV*/var AV_PAG='seba21',AV_VER='600';
 (function () {
   var CLAVE = 'copihue_av_' + AV_PAG, ult = 0, aviso = null;
   function cartel(txt, color, alTocar, ms) {
